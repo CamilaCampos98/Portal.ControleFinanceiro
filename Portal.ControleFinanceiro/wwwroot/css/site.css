@@ -17,6 +17,81 @@ html {
   min-height: 100%;
 }
 
-body {
-  margin-bottom: 60px;
+:root {
+    --main-color: #264653;
+    --accent-color: #2a9d8f;
+    --bg-color: #f8f9fa;
 }
+
+body {
+    background-color: var(--bg-color);
+    margin: 0;
+    padding-bottom: 70px; /* altura do footer */
+}
+
+header {
+    background: var(--main-color);
+    color: white;
+    padding: 20px;
+    text-align: center;
+    border-bottom: 4px solid var(--accent-color);
+}
+
+nav button.active {
+    background-color: var(--main-color) !important;
+    color: white !important;
+}
+
+.resultado {
+    background: white;
+    padding: 20px;
+    border-radius: 12px;
+    margin-top: 20px;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+}
+
+table th {
+    background-color: var(--main-color);
+    color: white;
+    text-align: center;
+}
+
+table tr:nth-child(even) {
+    background-color: #f2f2f2;
+}
+
+table td {
+    vertical-align: middle;
+    text-align: center;
+}
+
+.toast-container {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    z-index: 9999;
+}
+
+.form-label {
+    font-weight: 600;
+    margin-bottom: 4px;
+}
+
+.nav {
+    border-bottom: 2px solid #e0e0e0;
+}
+#gridFixos {
+    border-radius: 10px;
+    overflow: hidden;
+}
+
+    #gridFixos th {
+        background-color: var(--main-color);
+        color: white;
+        text-align: center;
+    }
+
+    #gridFixos td {
+        text-align: center;
+        vertical-align: middle;
+    }
