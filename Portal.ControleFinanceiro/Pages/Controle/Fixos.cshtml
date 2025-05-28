@@ -10,6 +10,14 @@
 
 <h2><i class="bi bi-calendar-check"></i> Gastos Fixos</h2>
 
+@if (!string.IsNullOrEmpty(Model.Erro))
+{
+    <div class="alert alert-danger">
+        @Model.Erro
+    </div>
+}
+
+
 <form method="post">
 	<div class="row g-3 mb-3">
 		<div class="col-md-4">
@@ -25,6 +33,12 @@
 				<option value="Financiamento Veículo">Financiamento Veículo</option>
 				<option value="Financiamento Imóvel">Financiamento Imóvel</option>
 				<option value="Empréstimo">Empréstimo</option>
+				<option value="Vivo">Vivo</option>
+				<option value="Impostos">Impostos</option>
+				<option value="Contabilidade">Contabilidade</option>
+				<option value="Convenio">Convênio</option>
+				<option value="Criare">Criare</option>
+				<option value="SeguroCarro">Seguro Carro</option>
 			</select>
 		</div>
 	</div>
@@ -52,6 +66,7 @@
 						<th>Vencimento</th>
 						<th>Valor (R$)</th>
 						<th>Pago</th>
+						<th>Ações</th>
 					</tr>
 				</thead>
 				<tbody>
@@ -83,8 +98,17 @@
 								<input type="checkbox"
 									   name="FixosModel[@i].Pago"
 									   value="true"
-									   @(Model.FixosModel[i].Pago) />
+									    @(Model.FixosModel[i].Pago == "true" ? "checked" : "") />
 								<input type="hidden" name="FixosModel[@i].Pago" value="false" />
+							</td>
+							<td>
+								<button type="button"
+										class="btn btn-warning btn-sm btnDividir d-none"
+										data-id="@Model.FixosModel[i].Id"
+										data-tipo="@Model.FixosModel[i].Tipo"
+										data-valor="@Model.FixosModel[i].Valor">
+									Dividir
+								</button>
 							</td>
 						</tr>
 					}
@@ -101,6 +125,34 @@
 
 }
 
+<div class="modal fade" id="dividirModal" tabindex="-1" aria-hidden="true">
+	<div class="modal-dialog">
+		<div class="modal-content">
+			<form method="post" asp-page-handler="DividirGastoFixo">
+				<div class="modal-header">
+					<h5 class="modal-title">Dividir Gasto Fixo</h5>
+					<button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+				</div>
+				<div class="modal-body">
+					<input type="hidden" name="IdGasto" id="modalIdGasto" />
+					<div class="mb-3">
+						<label class="form-label">Dividir com:</label>
+						<input type="text" class="form-control" name="DividirCom" required />
+					</div>
+					<div class="mb-3">
+						<label class="form-label">Valor:</label>
+						<input type="text" class="form-control" name="ValorDivisao" required />
+					</div>
+				</div>
+				<div class="modal-footer">
+					<button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+					<button type="submit" class="btn btn-primary">OK</button>
+				</div>
+			</form>
+		</div>
+	</div>
+</div>
+
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/choices.js/public/assets/styles/choices.min.css" />
@@ -113,12 +165,41 @@
 		shouldSort: false,
 	});
 
-	// Adiciona as opções
-	tiposFixos.setChoices([
-		{ value: 'Condomínio', label: 'Condomínio' },
-		{ value: 'Conta de Luz', label: 'Conta de Luz' },
-		{ value: 'Financiamento Veículo', label: 'Financiamento Veículo' },
-		{ value: 'Financiamento Imóvel', label: 'Financiamento Imóvel' },
-		{ value: 'Empréstimo', label: 'Empréstimo' }
-	], 'value', 'label', false);
+		document.addEventListener('DOMContentLoaded', function () {
+		const grid = document.getElementById('gridFixos');
+		if (!grid) return;
+
+		let selectedRow = null;
+
+		grid.addEventListener('click', function (e) {
+			const row = e.target.closest('tr');
+			if (!row || !grid.contains(row)) return;
+
+			// Clique no botão dividir
+			if (e.target.classList.contains('btnDividir')) {
+				const id = e.target.dataset.id;
+				document.getElementById('modalIdGasto').value = id;
+
+				const modal = new bootstrap.Modal(document.getElementById('dividirModal'));
+				modal.show();
+				return;
+			}
+
+			// Seleção da linha
+			if (selectedRow) {
+				selectedRow.classList.remove('table-primary');
+				const btnAnterior = selectedRow.querySelector('.btnDividir');
+				if (btnAnterior) btnAnterior.classList.add('d-none');
+			}
+
+			selectedRow = row;
+			row.classList.add('table-primary');
+
+			const btnAtual = row.querySelector('.btnDividir');
+			if (btnAtual) btnAtual.classList.remove('d-none');
+		});
+	});
+
+
+	
 </script>

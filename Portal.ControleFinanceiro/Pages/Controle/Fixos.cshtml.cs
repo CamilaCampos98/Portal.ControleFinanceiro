@@ -30,6 +30,7 @@ public class Fixos : PageModel
     public string Mensagem { get; set; }
 
     public bool Sucesso { get; set; }
+    public string? Erro { get; set; }
 
     [BindProperty]
     public List<FixoModel> FixosModel { get; set; } = new List<FixoModel>();
@@ -53,8 +54,11 @@ public class Fixos : PageModel
             return Page();
         }
 
+
         var mesAno = GetMesAnoAtual();
-        var vencimento = $"{DateTime.Today.Year}-{DateTime.Today.Month.ToString("D2")}-15";
+
+        var proximoMes = DateTime.Today.AddMonths(1);
+        var vencimento = $"{proximoMes.Year}-{proximoMes.Month:D2}-15";
 
         var fixosGerados = new List<FixoModel>();
 
@@ -197,6 +201,10 @@ public class Fixos : PageModel
                     PropertyNameCaseInsensitive = true
                 });
 
+                foreach (var i in lista)
+                {
+                    i.Pago = i.Pago == "Sim" ? "true" : "false";
+                }
                 FixosModel = lista ?? new List<FixoModel>();
 
                 if (FixosModel.Any())
@@ -222,6 +230,117 @@ public class Fixos : PageModel
         }
 
         return Page();
+    }
+
+    public async Task<IActionResult> OnPostDividirGastoFixoAsync(string IdGasto, string DividirCom, string ValorDivisao)
+    {
+        using var httpClient = new HttpClient();
+        var urlApi = _configuration["UrlApi"];
+        var url = $"{urlApi}Compra/DividirGasto";
+
+        var valor = ParseDecimal(ValorDivisao);
+
+        var request = new
+        {
+            IdLinha = IdGasto,
+            NomeDestino = DividirCom,
+            ValorDividir = valor
+        };
+
+        var json = JsonSerializer.Serialize(request);
+        var content = new StringContent(json, Encoding.UTF8, "application/json");
+
+        try
+        {
+            var response = await httpClient.PostAsync(url, content);
+
+            if (response.IsSuccessStatusCode)
+            {
+                var resposta = await response.Content.ReadAsStringAsync();
+                // Você pode tratar a resposta aqui, exibir mensagem, atualizar a página, etc.
+
+                Sucesso = true;
+                Mensagem = "Gasto dividido com sucesso.";
+            }
+            else
+            {
+                var erro = await response.Content.ReadAsStringAsync();
+                
+                Erro = $"Erro ao dividir: {erro}";
+            }
+        }
+        catch (Exception ex)
+        {
+            Erro = $"Erro ao conectar na API: {ex.Message}";
+        }
+
+        return Page(); 
+    }
+
+    public decimal ParseDecimal(string? input)
+    {
+        if (string.IsNullOrWhiteSpace(input))
+            return 0;
+
+        input = input.Replace("R$", "").Trim();
+
+        // Remove espaços
+        input = input.Replace(" ", "");
+
+        // Conta quantas vírgulas e pontos existem
+        int commaCount = input.Count(c => c == ',');
+        int dotCount = input.Count(c => c == '.');
+
+        // Cenário 1: ambos existem
+        if (commaCount > 0 && dotCount > 0)
+        {
+            // Assume que o separador decimal é o último deles
+            if (input.LastIndexOf(",") > input.LastIndexOf("."))
+            {
+                // Vírgula é decimal → ponto é milhar
+                input = input.Replace(".", "");
+                input = input.Replace(",", ".");
+            }
+            else
+            {
+                // Ponto é decimal → vírgula é milhar
+                input = input.Replace(",", "");
+            }
+        }
+        // Cenário 2: só vírgula
+        else if (commaCount > 0)
+        {
+            if (input.LastIndexOf(",") >= input.Length - 3)
+            {
+                // vírgula é decimal
+                input = input.Replace(".", "");
+                input = input.Replace(",", ".");
+            }
+            else
+            {
+                // vírgula é milhar (raro, mas possível)
+                input = input.Replace(",", "");
+            }
+        }
+        // Cenário 3: só ponto
+        else if (dotCount > 0)
+        {
+            if (input.LastIndexOf(".") >= input.Length - 3)
+            {
+                // ponto é decimal
+                input = input.Replace(",", "");
+            }
+            else
+            {
+                // ponto é milhar
+                input = input.Replace(".", "");
+            }
+        }
+
+        if (decimal.TryParse(input, NumberStyles.Any, CultureInfo.InvariantCulture, out decimal result))
+            return result;
+
+        return 0;
     }
 
     private string GetMesAnoAtual()

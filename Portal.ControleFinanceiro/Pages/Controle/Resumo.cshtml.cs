@@ -98,6 +98,7 @@ public class ResumoModel : PageModel
                 var saldo = resultado.SaldoRestante;
                 var compras = resultado.Compras;
                 var totalGasto = resultado.TotalGasto;
+                var totalGastoFixos = resultado.GastosFixos;
                 var totalComExtras = resultado.Salario + (resultado.Extras);
 
                 bool saldoCritico = saldo < (Convert.ToDecimal(0.2) * totalComExtras); // Considera crítico se saldo for menor que 20% do total com extras
@@ -112,6 +113,7 @@ public class ResumoModel : PageModel
                     Salario = resultado.Salario,
                     Extras = resultado.Extras,
                     TotalGasto = totalGasto,
+                    GastosFixos = totalGastoFixos,
                     SaldoRestante = saldo,
                     SaldoCritico = saldoCritico,
                     Compras = compras
@@ -156,6 +158,7 @@ public class ResumoModel : PageModel
         public decimal Salario { get; set; }
         public decimal Extras { get; set; }
         public decimal TotalGasto { get; set; }
+        public decimal GastosFixos { get; set; }
         public decimal SaldoRestante { get; set; }
         public bool SaldoCritico { get; set; }
         public List<Dictionary<string, object>> Compras { get; set; }

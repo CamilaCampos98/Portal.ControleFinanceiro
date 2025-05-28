@@ -20,115 +20,121 @@
     <!-- Formulário de Filtro -->
     <form method="post" class="mb-4">
         <div class="row g-3">
-            <div class="col-md-4">
+            <div class="col-sm-12 col-md-4">
                 <label class="form-label">Pessoa</label>
                 <input asp-for="Filtro.Pessoa" class="form-control" />
             </div>
-            <div class="col-md-4">
+            <div class="col-sm-6 col-md-4">
                 <label class="form-label">Período Início</label>
                 <input asp-for="Filtro.DataInicio" class="form-control" type="date" />
             </div>
-            <div class="col-md-4">
+            <div class="col-sm-6 col-md-4">
                 <label class="form-label">Período Fim</label>
                 <input asp-for="Filtro.DataFim" class="form-control" type="date" />
             </div>
         </div>
 
-        <button type="submit" class="btn btn-success mt-3">
+        <button type="submit" class="btn btn-success mt-3 responsive-button">
             <i class="bi bi-search"></i> Buscar Resumo
         </button>
     </form>
 
-    <!-- Exibição do Resumo -->
     @if (Model.Resumo != null)
     {
-        <div class="card mb-4">
+        <div class="card shadow-sm mb-4">
+            <div class="card-header card-header-custom">
+                <h5 class="mb-0">
+                    <i class="bi bi-cart-check"></i> Compras de <strong>@Model.Resumo.Pessoa</strong>
+                </h5>
+            </div>
+
             <div class="card-body">
-                <h4 class="card-title mb-3">Resumo de <strong>@Model.Resumo.Pessoa</strong></h4>
-                <div class="row">
-                    <div class="col"><strong>Período:</strong> @Model.Resumo.Periodo</div>
-                    <div class="col"><strong>Salário:</strong> R$ @Model.Resumo.Salario.ToString("N2")</div>
-                    <div class="col"><strong>Extras:</strong> R$ @Model.Resumo.Extras.ToString("N2")</div>
-                    <div class="col"><strong>Total Gasto:</strong> R$ @Model.Resumo.TotalGasto.ToString("N2")</div>
-                    <div class="col">
-                        <strong>Saldo:</strong>
-                        <span class="@(Model.Resumo.SaldoCritico ? "text-danger fw-bold" : "")">
+                <div class="row mb-3">
+                    <div class="col-12 col-md"><strong>Período:</strong> @Model.Resumo.Periodo</div>
+                    <div class="col-12 col-md"><strong>Salário:</strong> R$ @Model.Resumo.Salario.ToString("N2")</div>
+                    <div class="col-12 col-md"><strong>Extras:</strong> R$ @Model.Resumo.Extras.ToString("N2")</div>
+                    <div class="col-12 col-md"><strong>Gastos Fixos:</strong> R$ @Model.Resumo.GastosFixos.ToString("N2")</div>
+                    <div class="col-12 col-md"><strong>Total Gasto:</strong> R$ @Model.Resumo.TotalGasto.ToString("N2")</div>
+                    <div class="col-12 col-md">
+                        <strong>Saldo:</strong> 
+                        <span class="@(Model.Resumo.SaldoCritico ? "text-danger fw-bold" : "fw-bold text-success")">
                             R$ @Model.Resumo.SaldoRestante.ToString("N2")
                         </span>
                     </div>
                 </div>
+
+                @if (Model.Resumo.Compras.Any())
+                {
+                    <div class="table-responsive">
+                        <table class="table table-hover table-bordered align-middle">
+                            <thead>
+                                <tr class="text-center">
+                                    <th>ID</th>
+                                    <th>Compra</th>
+                                    <th>Valor (R$)</th>
+                                    <th>Forma Pgto</th>
+                                    <th>Parcela</th>
+                                    <th>Fonte</th>
+                                    <th>Data</th>
+                                    <th>Mês/Ano</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var c in Model.Resumo.Compras)
+                                {
+                                    var valor = c["Valor"] is JsonElement el && el.ValueKind != JsonValueKind.Null
+                                        ? decimal.Parse(el.GetString(), new CultureInfo("pt-BR"))
+                                        : 0m;
+
+                                    <tr class="text-center">
+                                        <td>@c["IdLan"]</td>
+                                        <td class="text-start">@c["Compra"]</td>
+                                        <td>R$ @valor.ToString("N2")</td>
+                                        <td>@c["FormaPgto"]</td>
+                                        <td>@c["Parcela"]</td>
+                                        <td>@c["Fonte"]</td>
+                                        <td>@DateTime.Parse(c["Data"].ToString()).ToString("dd/MM/yyyy")</td>
+                                        <td>@c["MesAno"]</td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <!-- Paginação -->
+                    <nav aria-label="Paginação de compras">
+                        <ul class="pagination justify-content-center">
+                            <li class="page-item @(Model.PaginaAtual == 1 ? "disabled" : "")">
+                                <a class="page-link" asp-route-pagina="@(Model.PaginaAtual - 1)">Anterior</a>
+                            </li>
+
+                            @for (int i = 1; i <= Model.TotalPaginas; i++)
+                            {
+                                <li class="page-item @(i == Model.PaginaAtual ? "active" : "")">
+                                    <a class="page-link" asp-route-pagina="@i">@i</a>
+                                </li>
+                            }
+
+                            <li class="page-item @(Model.PaginaAtual == Model.TotalPaginas ? "disabled" : "")">
+                                <a class="page-link" asp-route-pagina="@(Model.PaginaAtual + 1)">Próxima</a>
+                            </li>
+                        </ul>
+                    </nav>
+                }
+                else
+                {
+                    <div class="alert alert-warning">
+                        Nenhuma compra encontrada neste período.
+                    </div>
+                }
+
+                <!-- Botão de limpar -->
+                <form method="post" asp-page-handler="LimparSessao">
+                    <button type="submit" class="btn btn-danger mt-3 responsive-button">
+                        <i class="bi bi-x-circle"></i> Limpar Resumo
+                    </button>
+                </form>
             </div>
         </div>
-
-        <!-- Tabela de Compras -->
-        @if (Model.Resumo.Compras.Any())
-        {
-            <div class="table-responsive mb-3">
-                <table class="table table-hover table-bordered align-middle">
-                    <thead class="table-light">
-                        <tr>
-                            <th>Id</th>
-                            <th>Compra</th>
-                            <th>Valor</th>
-                            <th>Forma Pgto</th>
-                            <th>Parcela</th>
-                            <th>Fonte</th>
-                            <th>Data</th>
-                            <th>Mês/Ano</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        @foreach (var c in Model.Resumo.Compras)
-                        {
-                            var valor = c["Valor"] is JsonElement el && el.ValueKind != JsonValueKind.Null
-                                ? decimal.Parse(el.GetString(), new CultureInfo("pt-BR"))
-                                : 0m;
-
-                            <tr>
-                                <td>@c["IdLan"]</td>
-                                <td>@c["Compra"]</td>
-                                <td>R$ @valor.ToString("N2")</td>
-                                <td>@c["FormaPgto"]</td>
-                                <td>@c["Parcela"]</td>
-                                <td>@c["Fonte"]</td>
-                                <td>@DateTime.Parse(c["Data"].ToString()).ToString("dd/MM/yyyy")</td>
-                                <td>@c["MesAno"]</td>
-                            </tr>
-                        }
-                    </tbody>
-                </table>
-            </div>
-
-            <!-- Paginação -->
-            <nav>
-                <ul class="pagination">
-                    <li class="page-item @(Model.PaginaAtual == 1 ? "disabled" : "")">
-                        <a class="page-link" asp-route-pagina="@(Model.PaginaAtual - 1)">Anterior</a>
-                    </li>
-
-                    @for (int i = 1; i <= Model.TotalPaginas; i++)
-                    {
-                        <li class="page-item @(i == Model.PaginaAtual ? "active" : "")">
-                            <a class="page-link" asp-route-pagina="@i">@i</a>
-                        </li>
-                    }
-
-                    <li class="page-item @(Model.PaginaAtual == Model.TotalPaginas ? "disabled" : "")">
-                        <a class="page-link" asp-route-pagina="@(Model.PaginaAtual + 1)">Próxima</a>
-                    </li>
-                </ul>
-            </nav>
-        }
-        else
-        {
-            <p>Não há compras neste período.</p>
-        }
-
-        <!-- Botão de limpar -->
-        <form method="post" asp-page-handler="LimparSessao">
-            <button type="submit" class="btn btn-danger">
-                <i class="bi bi-x-circle"></i> Limpar Resumo
-            </button>
-        </form>
     }
 </div>

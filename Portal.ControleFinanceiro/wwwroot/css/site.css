@@ -1,34 +1,42 @@
-html {
-  font-size: 14px;
-}
-
-@media (min-width: 768px) {
-  html {
-    font-size: 16px;
-  }
-}
-
-.btn:focus, .btn:active:focus, .btn-link.nav-link:focus, .form-control:focus, .form-check-input:focus {
-  box-shadow: 0 0 0 0.1rem white, 0 0 0 0.25rem #258cfb;
-}
-
-html {
-  position: relative;
-  min-height: 100%;
-}
-
 :root {
     --main-color: #264653;
     --accent-color: #2a9d8f;
     --bg-color: #f8f9fa;
+    --danger-color: #e76f51;
+    --text-color: #343a40;
 }
 
+/* Tamanho de fonte responsivo */
+html {
+    font-size: 14px;
+    position: relative;
+    min-height: 100%;
+}
+
+@media (min-width: 768px) {
+    html {
+        font-size: 16px;
+    }
+}
+
+/* Foco dos elementos */
+.btn:focus,
+.btn:active:focus,
+.btn-link.nav-link:focus,
+.form-control:focus,
+.form-check-input:focus {
+    box-shadow: 0 0 0 0.1rem white, 0 0 0 0.25rem var(--accent-color);
+}
+
+/* Layout geral */
 body {
     background-color: var(--bg-color);
     margin: 0;
-    padding-bottom: 70px; /* altura do footer */
+    padding-bottom: 70px; /* espaço para footer */
+    color: var(--text-color);
 }
 
+/* Header */
 header {
     background: var(--main-color);
     color: white;
@@ -37,34 +45,100 @@ header {
     border-bottom: 4px solid var(--accent-color);
 }
 
+/* Navegação */
 nav button.active {
     background-color: var(--main-color) !important;
     color: white !important;
 }
 
+.nav {
+    border-bottom: 2px solid #e0e0e0;
+}
+
+/* Cards e Resultados */
 .resultado {
     background: white;
     padding: 20px;
     border-radius: 12px;
     margin-top: 20px;
-    box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
 }
 
-table th {
+.card-header {
     background-color: var(--main-color);
     color: white;
-    text-align: center;
+    border-bottom: 2px solid var(--accent-color);
 }
 
-table tr:nth-child(even) {
-    background-color: #f2f2f2;
+.card-header-custom {
+    background-color: var(--main-color);
+    color: white;
 }
 
-table td {
-    vertical-align: middle;
-    text-align: center;
+/* Tabelas */
+.table,
+#gridFixos {
+    border-radius: 10px;
+    overflow: hidden;
 }
 
+    .table th,
+    #gridFixos th {
+        background-color: var(--main-color);
+        color: white;
+        text-align: center;
+    }
+
+    .table td,
+    .table th,
+    #gridFixos td {
+        vertical-align: middle;
+        text-align: center;
+    }
+
+        .table td.text-start {
+            text-align: left;
+        }
+
+    .table tr:nth-child(even),
+    #gridFixos tr:nth-child(even) {
+        background-color: #f2f2f2;
+    }
+
+.table-hover tbody tr:hover {
+    background-color: #f1f5f9;
+}
+
+/* Botões */
+.btn-success {
+    background-color: var(--accent-color);
+    border-color: var(--accent-color);
+    color: white;
+}
+
+    .btn-success:hover {
+        background-color: #21867a;
+        border-color: #21867a;
+    }
+
+.btn-danger {
+    background-color: var(--danger-color);
+    border-color: var(--danger-color);
+    color: white;
+}
+
+    .btn-danger:hover {
+        background-color: #d45a3f;
+        border-color: #d45a3f;
+    }
+
+/* Labels */
+.form-label {
+    font-weight: 600;
+    margin-bottom: 4px;
+}
+
+/* Toast (alerta flutuante) */
 .toast-container {
     position: fixed;
     top: 20px;
@@ -72,26 +146,86 @@ table td {
     z-index: 9999;
 }
 
-.form-label {
+/* Paginação */
+.pagination .page-link {
+    border-radius: 8px;
+    color: var(--main-color);
+}
+
+.pagination .page-item.active .page-link {
+    background-color: var(--accent-color);
+    border-color: var(--accent-color);
+    color: white;
+}
+.card-header.card-header-custom {
+    background-color: var(--main-color) !important;
+    color: white !important;
+}
+.btn-pagination-style {
+    background-color: var(--accent-color);
+    border-color: var(--accent-color);
+    color: white;
+    border-radius: 8px;
+    padding: 0.375rem 0.75rem; /* padrão bootstrap */
     font-weight: 600;
-    margin-bottom: 4px;
+    transition: background-color 0.3s ease, border-color 0.3s ease;
 }
 
-.nav {
-    border-bottom: 2px solid #e0e0e0;
-}
-#gridFixos {
-    border-radius: 10px;
-    overflow: hidden;
-}
-
-    #gridFixos th {
+    .btn-pagination-style:hover,
+    .btn-pagination-style:focus {
         background-color: var(--main-color);
+        border-color: var(--main-color);
         color: white;
-        text-align: center;
+        outline: none;
+        box-shadow: none;
+    }
+.table thead th,
+.table thead td {
+    background-color: var(--main-color) !important;
+    color: white !important;
+    text-align: center;
+}
+
+/* Responsividade */
+@media (max-width: 768px) {
+    .responsive-button,
+    .btn {
+        width: 100%;
+    }
+}
+
+@media (max-width: 576px) {
+    .responsive-button,
+    .btn {
+        width: 100%;
+    }
+}
+
+.table thead tr th {
+    background-color: var(--main-color) !important;
+    color: white !important;
+    text-align: center;
+}
+
+.table thead tr {
+    /* se quiser borda entre linhas no thead */
+    border-bottom: 2px solid var(--accent-color);
+}
+
+.table tbody tr:nth-child(even) {
+    background-color: #f2f2f2;
+}
+
+.table tbody tr:hover {
+    background-color: #dbe9e7; /* um tom suave para hover */
+}
+
+.table tbody td {
+    vertical-align: middle;
+    text-align: center;
+}
+
+    .table tbody td.text-start {
+        text-align: left;
     }
 
-    #gridFixos td {
-        text-align: center;
-        vertical-align: middle;
-    }
