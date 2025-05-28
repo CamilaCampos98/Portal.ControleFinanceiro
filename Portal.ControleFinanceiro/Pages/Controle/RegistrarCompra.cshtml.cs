@@ -97,7 +97,7 @@ namespace Portal.ControleFinanceiro.Pages.Controle
             public DateTime Data { get; set; } = DateTime.Today;
             public string FormaPgto { get; set; } = "C";
             public int TotalParcelas { get; set; } = 1;
-            public string Fonte { get; set; } = "Salário";
+            public string Fonte { get; set; } = "Salario";
         }
     }
 }
