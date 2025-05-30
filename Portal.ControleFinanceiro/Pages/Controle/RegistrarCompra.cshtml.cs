@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 using Portal.ControleFinanceiro.Models;
 using Portal.ControleFinanceiro.Models.Response;
+using System.ComponentModel.DataAnnotations;
 using System.Reflection.Metadata;
 using System.Text;
 using System.Text.Json;
@@ -18,7 +19,7 @@ namespace Portal.ControleFinanceiro.Pages.Controle
         }
 
         [BindProperty]
-        public CompraInput Input { get; set; } = new();
+        public CompraInputModel Input { get; set; } = new();
 
         public bool Sucesso { get; set; }
         public string? Erro { get; set; }
@@ -55,7 +56,8 @@ namespace Portal.ControleFinanceiro.Pages.Controle
                         Data = Input.Data,
                         FormaPgto = Input.FormaPgto,
                         TotalParcelas = Input.TotalParcelas,
-                        Fonte = Input.Fonte
+                        Fonte = Input.Fonte,
+                        Cartao = Input.Cartao
                     };
 
                     var json = JsonSerializer.Serialize(compra);
@@ -70,7 +72,7 @@ namespace Portal.ControleFinanceiro.Pages.Controle
                         ResultadoId = JsonSerializer.Deserialize<CompraResponseModel>(retorno).id;
 
                         Sucesso = true;
-                        Input = new CompraInput();
+                        Input = new CompraInputModel();
                     }
                     else
                     {
@@ -88,16 +90,5 @@ namespace Portal.ControleFinanceiro.Pages.Controle
             }
         }
 
-
-        public class CompraInput
-        {
-            public string Pessoa { get; set; } = string.Empty;
-            public string Descricao { get; set; } = string.Empty;
-            public decimal ValorTotal { get; set; }
-            public DateTime Data { get; set; } = DateTime.Today;
-            public string FormaPgto { get; set; } = "C";
-            public int TotalParcelas { get; set; } = 1;
-            public string Fonte { get; set; } = "Salario";
-        }
     }
 }

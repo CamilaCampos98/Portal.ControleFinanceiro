@@ -56,7 +56,13 @@ public class ResumoModel : PageModel
     {
         Resumo = await ObterResumoAsync(Filtro);
 
-        if (Resumo.Compras.Count > 0)
+        if (!Sucesso)
+        {
+            Erro = $"Erro ao obter resumo: {Erro}";
+            return;
+        }
+
+        if (Resumo?.Compras?.Count > 0)
         {
             var totalItens = Resumo.Compras.Count;
 
@@ -94,6 +100,7 @@ public class ResumoModel : PageModel
 
                 var resultado = JsonSerializer.Deserialize<ResultadoResumo>(content, options);
 
+            
                 // A partir daqui você usa normalmente:
                 var saldo = resultado.SaldoRestante;
                 var compras = resultado.Compras;
@@ -116,7 +123,9 @@ public class ResumoModel : PageModel
                     GastosFixos = totalGastoFixos,
                     SaldoRestante = saldo,
                     SaldoCritico = saldoCritico,
-                    Compras = compras
+                    Compras = compras,
+                    ResumoPorCartao = resultado.ResumoPorCartao,
+                    ResumoPorCartaoTipo = resultado.ResumoPorCartaoTipo
                 };
             }
             else
@@ -162,6 +171,17 @@ public class ResumoModel : PageModel
         public decimal SaldoRestante { get; set; }
         public bool SaldoCritico { get; set; }
         public List<Dictionary<string, object>> Compras { get; set; }
+        public Dictionary<string, decimal> ResumoPorCartao { get; set; }
+        public List<CartaoTipoResumo> ResumoPorCartaoTipo { get; set; } = new();
+
     }
 
+
+}
+
+public class CartaoTipoResumo
+{
+    public string? Cartao { get; set; }
+    public string? Tipo { get; set; }
+    public decimal Valor { get; set; }
 }

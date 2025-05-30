@@ -44,6 +44,17 @@
                 <option value="D">Débito</option>
             </select>
         </div>
+        <div class="col-md-4" id="cartao-div">
+            <label class="form-label">Cartão</label>
+            <select asp-for="Input.Cartao" class="form-select">
+                <option value="">Selecione...</option>
+                <option value="Bradesco Titular">Bradesco Titular</option>
+                <option value="Itau Titular">Itau Titular</option>
+                <option value="Itau Adicional">Itau Adicional</option>
+                <option value="Santander Titular">Santander Titular</option>
+                <option value="Santander Adicional">Santander Adicional</option>
+            </select>
+        </div>
         <div class="col-md-4">
             <label class="form-label">Parcelas</label>
             <input asp-for="Input.TotalParcelas" class="form-control" type="number" value="1" />
@@ -58,3 +69,25 @@
         <i class="bi bi-check-circle"></i> Registrar
     </button>
 </form>
+
+<script>
+    const formaPgto = document.querySelector('[name="Input.FormaPgto"]');
+    const cartaoDiv = document.querySelector('#cartao-div');
+    const cartaoSelect = document.querySelector('[name="Input.Cartao"]');
+
+    function toggleCartao() {
+        if (formaPgto.value === 'C') {
+            cartaoDiv.style.display = 'block';
+            cartaoSelect.setAttribute('required', 'required');
+        } else {
+            cartaoDiv.style.display = 'none';
+            cartaoSelect.removeAttribute('required');
+            cartaoSelect.value = '';
+        }
+    }
+
+    formaPgto.addEventListener('change', toggleCartao);
+
+    // Executa no carregamento inicial
+    toggleCartao();
+</script>

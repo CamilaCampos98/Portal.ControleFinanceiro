@@ -63,20 +63,29 @@
                     </div>
                 </div>
 
+                
+                    <button type="button" class="btn btn-primary mb-3" data-bs-toggle="modal" data-bs-target="#modalResumoPorCartao">
+                        <i class="bi bi-credit-card-2-front"></i> Resumo por Cartão
+                    </button>
+                
+
                 @if (Model.Resumo.Compras.Any())
                 {
                     <div class="table-responsive">
-                        <table class="table table-hover table-bordered align-middle">
+                        <table class="table table-bordered table-hover align-middle">
                             <thead>
                                 <tr class="text-center">
                                     <th>ID</th>
-                                    <th>Compra</th>
-                                    <th>Valor (R$)</th>
-                                    <th>Forma Pgto</th>
-                                    <th>Parcela</th>
-                                    <th>Fonte</th>
                                     <th>Data</th>
+                                    <th>Compra</th>
+                                    <th style="min-width: 120px;">Valor (R$)</th>
+                                    <th>Forma Pgto</th>
+                                    <th>Cartao</th>
+                                    <th>Parcela</th>
                                     <th>Mês/Ano</th>
+                                    <th>Fonte</th>
+                                    
+                                    
                                 </tr>
                             </thead>
                             <tbody>
@@ -88,13 +97,16 @@
 
                                     <tr class="text-center">
                                         <td>@c["IdLan"]</td>
+                                        <td>@DateTime.Parse(c["Data"].ToString()).ToString("dd/MM/yyyy")</td>
                                         <td class="text-start">@c["Compra"]</td>
                                         <td>R$ @valor.ToString("N2")</td>
                                         <td>@c["FormaPgto"]</td>
+                                        <td>@c["Cartao"]</td>
                                         <td>@c["Parcela"]</td>
-                                        <td>@c["Fonte"]</td>
-                                        <td>@DateTime.Parse(c["Data"].ToString()).ToString("dd/MM/yyyy")</td>
                                         <td>@c["MesAno"]</td>
+                                        <td>@c["Fonte"]</td>
+                                        
+                                        
                                     </tr>
                                 }
                             </tbody>
@@ -120,6 +132,77 @@
                             </li>
                         </ul>
                     </nav>
+
+                    <div class="modal fade" id="modalResumoPorCartao" tabindex="-1" aria-labelledby="modalResumoPorCartaoLabel" aria-hidden="true">
+                        <div class="modal-dialog modal-xl modal-dialog-centered">
+                            <div class="modal-content">
+                                <div class="modal-header">
+                                    <h5 class="modal-title" id="modalResumoPorCartaoLabel">
+                                        <i class="bi bi-credit-card-2-front"></i> Resumo por Cartão
+                                    </h5>
+                                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+                                </div>
+
+                                <div class="modal-body">
+                                    <div class="row">
+                                        <!-- Grid 1 - Resumo por Cartão -->
+                                        <div class="col-md-4">
+                                            <div class="table-responsive">
+                                                <table class="table table-bordered table-hover align-middle">
+                                                    <thead class="table-primary">
+                                                        <tr class="text-center">
+                                                            <th>Cartão</th>
+                                                            <th>Total (R$)</th>
+                                                        </tr>
+                                                    </thead>
+                                                    <tbody>
+                                                        @foreach (var item in Model.Resumo.ResumoPorCartao)
+                                                        {
+                                                            <tr class="text-center">
+                                                                <td class="text-start">@item.Key</td>
+                                                                <td>R$ @item.Value.ToString("N2")</td>
+                                                            </tr>
+                                                        }
+                                                    </tbody>
+                                                </table>
+                                            </div>
+                                        </div>
+
+                                        <!-- Grid 2 - Detalhe por Tipo (Titular / Adicional) -->
+                                        <div class="col-md-8">
+                                            <div class="table-responsive">
+                                                <table class="table table-bordered table-hover align-middle">
+                                                    <thead class="table-success">
+                                                        <tr class="text-center">
+                                                            <th>Cartão</th>
+                                                            <th>Tipo</th>
+                                                            <th>Total (R$)</th>
+                                                        </tr>
+                                                    </thead>
+                                                    <tbody>
+                                                        @foreach (var item in Model.Resumo.ResumoPorCartaoTipo)
+                                                        {
+                                                            <tr class="text-center">
+                                                                <td class="text-start">@item.Cartao</td>
+                                                                <td>@item.Tipo</td>
+                                                                <td>R$ @item.Valor.ToString("N2")</td>
+                                                            </tr>
+                                                        }
+                                                    </tbody>
+                                                </table>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="modal-footer">
+                                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                                        <i class="bi bi-x-circle"></i> Fechar
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
                 }
                 else
                 {
@@ -135,6 +218,10 @@
                     </button>
                 </form>
             </div>
+            
         </div>
+
+
     }
+
 </div>
