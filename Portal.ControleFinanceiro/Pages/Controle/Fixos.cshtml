@@ -34,6 +34,7 @@
 					<option value="Financiamento Veículo">Financiamento Veículo</option>
 					<option value="Financiamento Imóvel">Financiamento Imóvel</option>
 					<option value="Empréstimo">Empréstimo</option>
+					<option value="Empréstimo">Empréstimo Janio</option>
 					<option value="Vivo">Vivo</option>
 					<option value="Impostos">Impostos</option>
 					<option value="Contabilidade">Contabilidade</option>
@@ -43,9 +44,15 @@
 				</select>
 			</div>
 		</div>
-		<button type="submit" asp-page-handler="Gerar" class="btn btn-primary"><i class="bi bi-plus-circle"></i> Gerar</button>
+		<button type="submit" asp-page-handler="Gerar" class="btn btn-primary">
+			<i class="bi bi-plus-circle"></i>
+			Gerar
+		</button>
 
-		<button type="submit" asp-page-handler="Listar" class="btn btn-secondary"><i class="bi bi-list"></i> Listar Fixos</button>
+		<button type="submit" asp-page-handler="Listar" class="btn btn-secondary">
+			<i class="bi bi-list"></i>
+			Listar Fixos
+		</button>
 	</form>
 
 	@if (!string.IsNullOrEmpty(Model.Mensagem))
@@ -64,7 +71,7 @@
 					<table class="table table-bordered table-hover align-middle" id="gridFixos">
 						<thead>
 							<tr>
-								@* <th>ID</th> *@
+							    <th style="display:none">ID</th> 
 								<th>Tipo</th>
 								<th>Mês/Ano</th>
 								<th>Vencimento</th>
@@ -77,10 +84,10 @@
 							@for (int i = 0; i < Model.FixosModel.Count; i++)
 							{
 								<tr>
-									@* <td>
-								@Model.FixosModel[i].Id
-								<input type="hidden" name="FixosModel[@i].Id" value="@Model.FixosModel[i].Id" />
-							</td> *@
+									<td style="display:none">
+										@Model.FixosModel[i].Id
+										<input type="hidden" name="FixosModel[@i].Id" value="@Model.FixosModel[i].Id" />
+									</td>
 									<td>
 										@Model.FixosModel[i].Tipo
 										<input type="hidden" name="FixosModel[@i].Tipo" value="@Model.FixosModel[i].Tipo" />
@@ -151,11 +158,18 @@
 					</div>
 					<div class="modal-footer">
 						<button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
-						<button type="submit" class="btn btn-primary">OK</button>
+						<button type="submit" class="btn btn-primary">
+							OK
+						</button>
 					</div>
 				</form>
 			</div>
 		</div>
+	</div>
+</div>
+<div class="loading-overlay" id="loadingOverlay">
+	<div>
+		<div class="spinner-border text-primary" role="status"></div>
 	</div>
 </div>
 
@@ -206,5 +220,24 @@
 	});
 
 
+	document.addEventListener('DOMContentLoaded', function () {
+		const overlay = document.getElementById('loadingOverlay');
+
+		const forms = document.querySelectorAll('form');
+		const buttons = document.querySelectorAll('form button[type="submit"]');
+
+		forms.forEach(form => {
+			form.addEventListener('submit', function () {
+				// Ativa overlay
+				overlay.style.display = 'flex';
+
+				// Ativa loading nos botões do formulário
+				const btns = form.querySelectorAll('button[type="submit"]');
+				btns.forEach(btn => {
+					btn.classList.add('btn-loading');
+				});
+			});
+		});
+	});
 
 </script>

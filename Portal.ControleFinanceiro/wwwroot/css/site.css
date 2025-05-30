@@ -228,4 +228,36 @@ nav button.active {
     .table tbody td.text-start {
         text-align: left;
     }
+.loading-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background-color: rgba(255, 255, 255, 0.8);
+    z-index: 9999;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    display: none;
+}
+
+    .loading-overlay .spinner-border {
+        width: 3rem;
+        height: 3rem;
+    }
+
+.btn-loading {
+    pointer-events: none;
+    opacity: 0.7;
+}
+
+.btn-spinner {
+    display: none;
+    margin-left: 5px;
+}
+
+.btn-loading .btn-spinner {
+    display: inline-block;
+}
 

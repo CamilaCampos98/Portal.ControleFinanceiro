@@ -1,5 +1,6 @@
 ﻿using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
+using Microsoft.Extensions.Options;
 using Portal.ControleFinanceiro.Models;
 using Portal.ControleFinanceiro.Models.Response;
 using System.ComponentModel.DataAnnotations;
@@ -7,6 +8,7 @@ using System.Globalization;
 using System.Text;
 using System.Text.Json;
 using static Portal.ControleFinanceiro.Pages.Controle.RegistrarCompraModel;
+using static ResumoModel;
 using static System.Runtime.InteropServices.JavaScript.JSType;
 
 public class Fixos : PageModel
@@ -54,23 +56,37 @@ public class Fixos : PageModel
             return Page();
         }
 
+        var vencimento = string.Empty;
+        var mesAno = await GetMesAnoRefAsync();
 
-        var mesAno = GetMesAnoAtual();
+        if (DateTime.TryParseExact(mesAno, "MM/yyyy", CultureInfo.InvariantCulture, DateTimeStyles.None, out var dataRef))
+        {
+            // Soma 1 mês
+            var proximoMes = dataRef.AddMonths(1);
 
-        var proximoMes = DateTime.Today.AddMonths(1);
-        var vencimento = $"{proximoMes.Year}-{proximoMes.Month:D2}-15";
+            // Formata no padrão "yyyy-MM-15"
+            vencimento = $"{proximoMes.Year}-{proximoMes.Month:D2}-10";
+
+            Console.WriteLine(vencimento); // Ex.: "2025-07-15"
+        }
+        else
+        {
+            // Tratar erro se não conseguir converter
+            throw new Exception($"Formato de data inválido: {mesAno}");
+        }
+
 
         var fixosGerados = new List<FixoModel>();
 
         foreach (var tipo in TiposSelecionados)
         {
-            if(FixosModel.Count == 0 || !FixosModel.Any(f => f.Tipo == tipo && f.MesAno == mesAno))
+            if(FixosModel.Count == 0 || !FixosModel.Any(f => f.Tipo == tipo && f.MesAno == mesAno.ToString()))
             {
                 var fixo = new FixoModel
                 {
                     Id = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds() + new Random().Next(1000, 9999),
                     Tipo = tipo,
-                    MesAno = mesAno,
+                    MesAno = mesAno.ToString(),
                     Vencimento = vencimento,
                     Valor = "",
                     Pago = ""
@@ -125,7 +141,7 @@ public class Fixos : PageModel
         }
 
         // Atualiza lista para exibir na tela
-        FixosModel = FixosModel.Where(f => f.MesAno == mesAno && TiposSelecionados.Contains(f.Tipo)).ToList();
+        FixosModel = FixosModel.Where(f => f.MesAno == mesAno.ToString() && TiposSelecionados.Contains(f.Tipo)).ToList();
 
         return Page();
     }
@@ -349,5 +365,39 @@ public class Fixos : PageModel
         return $"{hoje.Month:D2}/{hoje.Year}";
     }
 
-    
+    public async Task<string> GetMesAnoRefAsync()
+    {
+        var urlApi = _configuration["UrlApi"];
+        var url = $"{urlApi}Compra/BuscaDataRef";
+
+        using var httpClient = new HttpClient();
+
+        var response = await httpClient.GetAsync(url);
+
+        if (response.IsSuccessStatusCode)
+        {
+            var content = await response.Content.ReadAsStringAsync();
+
+            var options = new JsonSerializerOptions
+            {
+                PropertyNameCaseInsensitive = true
+            };
+
+            var resultado = JsonSerializer.Deserialize<DataRefResponse>(content, options);
+
+            return resultado?.MesAno ?? string.Empty;
+        }
+        else
+        {
+            var erro = await response.Content.ReadAsStringAsync();
+            Erro = $"Erro buscar data: {erro}";
+            return string.Empty;
+        }
+    }
+
+    public class DataRefResponse
+    {
+        public string Status { get; set; }
+        public string MesAno { get; set; }
+    }
 }
