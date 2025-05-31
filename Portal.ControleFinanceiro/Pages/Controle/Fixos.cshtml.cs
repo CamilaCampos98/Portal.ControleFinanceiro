@@ -89,7 +89,8 @@ public class Fixos : PageModel
                     MesAno = mesAno.ToString(),
                     Vencimento = vencimento,
                     Valor = "",
-                    Pago = ""
+                    Pago = "",
+                    Dividido = "Não"
                 };
 
                 fixosGerados.Add(fixo);
@@ -164,7 +165,8 @@ public class Fixos : PageModel
                     {
                         Id = fixo.Id.ToString(),
                         Valor = decimal.TryParse(fixo.Valor, NumberStyles.Any, CultureInfo.InvariantCulture, out var val) ? val : 0,
-                        Pago = fixo.Pago?.ToLower() == "true"
+                        Pago = fixo.Pago?.ToLower() == "true",
+                        Dividido = fixo.Dividido?.ToLower() == "true"
                     };
 
                     var json = JsonSerializer.Serialize(payload);
@@ -260,7 +262,8 @@ public class Fixos : PageModel
         {
             IdLinha = IdGasto,
             NomeDestino = DividirCom,
-            ValorDividir = valor
+            ValorDividir = valor,
+            Dividido = "Sim"
         };
 
         var json = JsonSerializer.Serialize(request);
@@ -357,12 +360,6 @@ public class Fixos : PageModel
             return result;
 
         return 0;
-    }
-
-    private string GetMesAnoAtual()
-    {
-        var hoje = DateTime.Today;
-        return $"{hoje.Month:D2}/{hoje.Year}";
     }
 
     public async Task<string> GetMesAnoRefAsync()

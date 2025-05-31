@@ -77,6 +77,7 @@
 								<th>Vencimento</th>
 								<th style="min-width: 120px;">Valor (R$)</th>
 								<th style="min-width: 120px;">Pago</th>
+								<th style="min-width: 120px;">Dividido</th>
 								<th style="min-width: 120px;">Ações</th>
 							</tr>
 						</thead>
@@ -111,6 +112,13 @@
 											   value="true"
 											   @(Model.FixosModel[i].Pago == "true" ? "checked" : "") />
 										<input type="hidden" name="FixosModel[@i].Pago" value="false" />
+									</td>
+									<td>
+										<input type="checkbox"
+											   name="FixosModel[@i].Dividido"
+											   value="true"
+											   @(Model.FixosModel[i].Dividido == "Sim" ? "checked" : "") />
+										<input type="hidden" name="FixosModel[@i].Dividido" value="false" />
 									</td>
 									<td>
 										<button type="button"
