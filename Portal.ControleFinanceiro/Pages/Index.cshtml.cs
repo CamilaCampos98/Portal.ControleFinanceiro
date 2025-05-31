@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Mvc.RazorPages;
 using Portal.ControleFinanceiro.Models;
 using System.Text;
 using System.Text.Json;
+using static ResumoModel;
 
 namespace Portal.ControleFinanceiro.Pages
 {
@@ -21,33 +22,50 @@ namespace Portal.ControleFinanceiro.Pages
         public bool Sucesso { get; set; }
         public string? Erro { get; set; }
 
+        public List<ResultadoResumoGeral>? ResumoGeral { get; set; }
+
         public async Task OnGetAsync()
         {
             try
             {
-                using var httpClient = new HttpClient();
                 var urlApi = _configuration["UrlApi"];
-                var url = $"{urlApi}Compra/Get";
+                var url = $"{urlApi}Compra/ResumoGeral";
 
-              
-
+                using var httpClient = new HttpClient();
                 var response = await httpClient.GetAsync(url);
 
                 if (response.IsSuccessStatusCode)
                 {
-                    Sucesso = true;
-                    //Mensagem = $"⚠️ Gastos fixos para {Pessoa} gerados, preencha os valores.";
+                    var content = await response.Content.ReadAsStringAsync();
+
+                    var options = new JsonSerializerOptions
+                    {
+                        PropertyNameCaseInsensitive = true
+                    };
+
+                    ResumoGeral = JsonSerializer.Deserialize<List<ResultadoResumoGeral>>(content, options);
                 }
                 else
                 {
-                    var errorContent = await response.Content.ReadAsStringAsync();
-                    Erro = $"❌ Erro ao salvar na API: {errorContent}";
+                    var error = await response.Content.ReadAsStringAsync();
+                    Erro = $"Erro ao buscar resumo: {error}";
+                    ResumoGeral = new List<ResultadoResumoGeral>();
                 }
             }
             catch (Exception ex)
             {
-                Mensagem = $"❌ Erro na comunicação com a API: {ex.Message}";
+                Erro = $"Erro: {ex.Message}";
+                ResumoGeral = new List<ResultadoResumoGeral>();
             }
         }
+
+        public class ResultadoResumoGeral
+        {
+            public string? Pessoa { get; set; }
+            public decimal SaldoRestante { get; set; }
+            public string? UltimaCompra { get; set; }
+            public string? DescricaoUltimaCompra { get; set; }
+        }
+
     }
 }

@@ -94,8 +94,39 @@
 }
 
 <div class="main-container">
-    <h1>Bem-vindo!</h1>
-    <p class="lead">
-        Cadastre seus gastos!
-    </p>
+    <h1>Resumo Financeiro</h1>
+
+    <p class="lead">Veja abaixo o saldo atual:</p>
+    <div class="table-responsive">
+        <table class="table table-bordered table-hover align-middle">
+        <thead>
+            <tr>
+                <th>Pessoa</th>
+                <th>Saldo</th>
+                <th>Última Compra</th>
+                <th>Descrição</th>
+            </tr>
+        </thead>
+        <tbody>
+            @if (Model.ResumoGeral != null && Model.ResumoGeral.Any())
+            {
+                foreach (var item in Model.ResumoGeral)
+                {
+                    <tr>
+                        <td>@item.Pessoa</td>
+                        <td>R$ @item.SaldoRestante.ToString("N2")</td>
+                        <td>@item.UltimaCompra</td>
+                        <td>@item.DescricaoUltimaCompra</td>
+                    </tr>
+                }
+            }
+            else
+            {
+                <tr>
+                    <td colspan="4" style="text-align:center;">Nenhum dado encontrado.</td>
+                </tr>
+            }
+        </tbody>
+    </table>
+    </div>
 </div>
