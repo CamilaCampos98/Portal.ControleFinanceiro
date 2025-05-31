@@ -6,16 +6,11 @@
 
 <h2><i class="bi bi-wallet2"></i> Registrar Entrada</h2>
 
-@if (Model.Sucesso)
+@if (!string.IsNullOrEmpty(Model.Mensagem))
 {
-    <div class="alert alert-success">
-        <pre>@Model.ResultadoTexto</pre>
-    </div>
-}
-@if (!string.IsNullOrEmpty(Model.Erro))
-{
-    <div class="alert alert-danger">
-        @Model.Erro
+    <div class="alert @(Model.Sucesso ? "alert-success" : "alert-danger") alert-dismissible fade show shadow-sm mt-3" role="alert">
+        <pre class="m-0">@Model.Mensagem</pre>
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
     </div>
 }
 

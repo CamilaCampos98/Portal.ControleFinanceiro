@@ -86,10 +86,11 @@
   
 </style>
 
-@if (!string.IsNullOrEmpty(Model.Erro))
+@if (!string.IsNullOrEmpty(Model.Mensagem))
 {
-    <div class="alert-danger">
-        @Model.Erro
+    <div class="alert @(Model.Sucesso ? "alert-success" : "alert-danger") alert-dismissible fade show shadow-sm mt-3" role="alert">
+        <pre class="m-0">@Model.Mensagem</pre>
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
     </div>
 }
 

@@ -14,7 +14,7 @@ using static System.Runtime.InteropServices.JavaScript.JSType;
 public class Fixos : PageModel
 {
     private readonly IConfiguration _configuration;
-
+    public string UrlApi { get; set; }
     public Fixos(IConfiguration configuration)
     {
         _configuration = configuration;
@@ -39,7 +39,7 @@ public class Fixos : PageModel
 
     public void OnGet()
     {
-        
+        UrlApi = _configuration["UrlApi"];
     }
 
     public async Task<IActionResult> OnPostGerarAsync()
@@ -80,7 +80,7 @@ public class Fixos : PageModel
 
         foreach (var tipo in TiposSelecionados)
         {
-            if(FixosModel.Count == 0 || !FixosModel.Any(f => f.Tipo == tipo && f.MesAno == mesAno.ToString()))
+            if (FixosModel.Count == 0 || !FixosModel.Any(f => f.Tipo == tipo && f.MesAno == mesAno.ToString()))
             {
                 var fixo = new FixoModel
                 {
@@ -96,8 +96,8 @@ public class Fixos : PageModel
                 fixosGerados.Add(fixo);
                 FixosModel.Add(fixo);
             }
-            
-           
+
+
         }
 
         if (fixosGerados.Any())
@@ -120,21 +120,42 @@ public class Fixos : PageModel
 
                 var response = await httpClient.PostAsync(url, content);
 
+                var responseContent = await response.Content.ReadAsStringAsync();
+
                 if (response.IsSuccessStatusCode)
                 {
-                    Sucesso = true;
-                    Mensagem = $"⚠️ Gastos fixos para {Pessoa} gerados, preencha os valores.";
+                    var options = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
+
+                    var resultado = JsonSerializer.Deserialize<RetornoApiFixos>(responseContent, options);
+
+                    if (resultado != null)
+                    {
+                        Sucesso = true;
+                        var msg = $"✔️ {resultado.Message}";
+
+                        if (resultado.Inseridos != null && resultado.Inseridos.Any())
+                            msg += $"\n✅ Inseridos: {string.Join(", ", resultado.Inseridos.Select(i => $"{i.Tipo} ({i.MesAno})"))}";
+
+                        if (resultado.Ignorados != null && resultado.Ignorados.Any())
+                            msg += $"\n⚠️ Ignorados (já existiam): {string.Join(", ", resultado.Ignorados.Select(i => $"{i.Tipo} ({i.MesAno})"))}";
+
+                        Mensagem = msg;
+                    }
+                    else
+                    {
+                        Mensagem = "⚠️ Resposta da API vazia.";
+                    }
                 }
                 else
                 {
-                    var errorContent = await response.Content.ReadAsStringAsync();
-                    Mensagem = $"❌ Erro ao salvar na API: {errorContent}";
+                    Mensagem = $"❌ Erro ao salvar na API: {responseContent}";
                 }
             }
             catch (Exception ex)
             {
                 Mensagem = $"❌ Erro na comunicação com a API: {ex.Message}";
             }
+
         }
         else
         {
@@ -147,7 +168,38 @@ public class Fixos : PageModel
         return Page();
     }
 
+    public async Task<IActionResult> OnPostExcluirAsync(string Id, string MesAno, string Pessoa)
+    {
+        using var httpClient = new HttpClient();
+        var urlApi = _configuration["UrlApi"];
+        var url = $"{urlApi}Compra/DeletarFixo";
 
+        var payload = new DeletarFixoPayload
+        {
+            Id = Id,
+            MesAno = MesAno,
+            Pessoa = Pessoa
+        };
+
+        var json = JsonSerializer.Serialize(payload);
+        var content = new StringContent(json, Encoding.UTF8, "application/json");
+
+        var response = await httpClient.PostAsync(url, content);
+
+        var responseContent = await response.Content.ReadAsStringAsync();
+
+        if (response.IsSuccessStatusCode)
+        {
+            Sucesso = true;
+            Mensagem = "Gasto fixo excluído com sucesso.";
+        }
+        else
+        {
+            Erro = $"❌ Erro ao excluir o gasto fixo.";
+        }
+
+        return Page(); 
+    }
     public async Task<IActionResult> OnPostSalvarAsync()
     {
         try
@@ -181,9 +233,10 @@ public class Fixos : PageModel
                     }
                 }
 
+                Sucesso = true;
                 Mensagem = "Todos os gastos fixos foram atualizados com sucesso!";
             }
-            
+
         }
         catch (Exception ex)
         {
@@ -227,6 +280,7 @@ public class Fixos : PageModel
 
                 if (FixosModel.Any())
                 {
+                    Sucesso = true;
                     Mensagem = $"✅ Foram encontrados {FixosModel.Count} gastos fixos para {Pessoa}.";
                 }
                 else
@@ -284,7 +338,7 @@ public class Fixos : PageModel
             else
             {
                 var erro = await response.Content.ReadAsStringAsync();
-                
+
                 Erro = $"Erro ao dividir: {erro}";
             }
         }
@@ -293,7 +347,7 @@ public class Fixos : PageModel
             Erro = $"Erro ao conectar na API: {ex.Message}";
         }
 
-        return Page(); 
+        return Page();
     }
 
     public decimal ParseDecimal(string? input)
@@ -397,4 +451,27 @@ public class Fixos : PageModel
         public string Status { get; set; }
         public string MesAno { get; set; }
     }
+
+    public class RetornoApiFixos
+    {
+        public string Status { get; set; } = "";
+        public string Message { get; set; } = "";
+        public List<ItemFixo> Inseridos { get; set; }
+        public List<ItemFixo> Ignorados { get; set; }
+    }
+
+    public class ItemFixo
+    {
+        public string Tipo { get; set; } = "";
+        public string MesAno { get; set; } = "";
+        public string Pessoa { get; set; } = "";
+    }
+
+    public class DeletarFixoPayload
+    {
+        public string Id { get; set; } = string.Empty;
+        public string MesAno { get; set; } = string.Empty;
+        public string Pessoa { get; set; } = string.Empty;
+    }
+
 }

@@ -24,7 +24,7 @@ namespace Portal.ControleFinanceiro.Pages.Controle
         public bool Sucesso { get; set; }
         public string? Erro { get; set; }
         public int ResultadoId { get; set; }
-
+        public string? Mensagem { get; set; }
         public void OnGet()
         {
             // Inicialização se necessário
@@ -72,12 +72,13 @@ namespace Portal.ControleFinanceiro.Pages.Controle
                         ResultadoId = JsonSerializer.Deserialize<CompraResponseModel>(retorno).id;
 
                         Sucesso = true;
+                        Mensagem = "Compra Registrar Com Sucesso!";
                         Input = new CompraInputModel();
                     }
                     else
                     {
                         var errorContent = await response.Content.ReadAsStringAsync();
-                        Erro = $"{errorContent}";
+                        Mensagem = $"{errorContent}";
                     }
                 }
 

@@ -42,19 +42,19 @@ namespace Portal.ControleFinanceiro.Pages
                     {
                         PropertyNameCaseInsensitive = true
                     };
-
+                    Sucesso = true;
                     ResumoGeral = JsonSerializer.Deserialize<List<ResultadoResumoGeral>>(content, options);
                 }
                 else
                 {
                     var error = await response.Content.ReadAsStringAsync();
-                    Erro = $"Erro ao buscar resumo: {error}";
+                    Mensagem = $"Erro ao buscar resumo: {error}";
                     ResumoGeral = new List<ResultadoResumoGeral>();
                 }
             }
             catch (Exception ex)
             {
-                Erro = $"Erro: {ex.Message}";
+                Mensagem = $"Erro: {ex.Message}";
                 ResumoGeral = new List<ResultadoResumoGeral>();
             }
         }

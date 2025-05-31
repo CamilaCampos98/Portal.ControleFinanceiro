@@ -57,7 +57,10 @@
 
 	@if (!string.IsNullOrEmpty(Model.Mensagem))
 	{
-		<div class="alert alert-info mt-3">@Model.Mensagem</div>
+		<div class="alert @(Model.Sucesso ? "alert-success" : "alert-danger") alert-dismissible fade show shadow-sm mt-3" role="alert">
+			<pre class="m-0">@Model.Mensagem</pre>
+			<button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+		</div>
 	}
 
 	@if (Model.FixosModel != null && Model.FixosModel.Any())
@@ -71,14 +74,14 @@
 					<table class="table table-bordered table-hover align-middle" id="gridFixos">
 						<thead>
 							<tr>
-							    <th style="display:none">ID</th> 
+								<th style="display:none">ID</th>
 								<th>Tipo</th>
 								<th>Mês/Ano</th>
 								<th>Vencimento</th>
-								<th style="min-width: 120px;">Valor (R$)</th>
-								<th style="min-width: 120px;">Pago</th>
-								<th style="min-width: 120px;">Dividido</th>
-								<th style="min-width: 120px;">Ações</th>
+								<th style="min-width: 80px;">Valor (R$)</th>
+								<th style="min-width: 50px;">Pago</th>
+								<th style="min-width: 30px;">Dividido</th>
+								<th style="min-width: 50px;">Ações</th>
 							</tr>
 						</thead>
 						<tbody>
@@ -126,8 +129,18 @@
 												data-id="@Model.FixosModel[i].Id"
 												data-tipo="@Model.FixosModel[i].Tipo"
 												data-valor="@Model.FixosModel[i].Valor">
-											Dividir
+											<i class="bi bi-arrow-left-right"></i>
 										</button>
+
+										<!-- Formulário separado para excluir -->
+										<form method="post" asp-page-handler="Excluir" class="d-inline" onsubmit="return confirm('Deseja realmente excluir o fixo \'@Model.FixosModel[i].Tipo\' do mês @Model.FixosModel[i].MesAno?');">
+											<input type="hidden" name="Id" value="@Model.FixosModel[i].Id" />
+											<input type="hidden" name="MesAno" value="@Model.FixosModel[i].MesAno" />
+											<input type="hidden" name="Pessoa" value="@Model.Pessoa" />
+											<button type="submit" class="btn btn-secondary btn-sm">
+												<i class="bi bi-trash"></i> 
+											</button>
+										</form>
 									</td>
 								</tr>
 							}
@@ -140,11 +153,9 @@
 						<i class="bi bi-save"></i> Salvar Todos
 					</button>
 				</div>
-
 			</form>
 		</div>
 	}
-
 	<div class="modal fade" id="dividirModal" tabindex="-1" aria-hidden="true">
 		<div class="modal-dialog">
 			<div class="modal-content">
@@ -186,6 +197,8 @@
 <script src="https://cdn.jsdelivr.net/npm/choices.js/public/assets/scripts/choices.min.js"></script>
 
 <script>
+	
+
 	// Inicializa o Choices no seletor
 	const tiposFixos = new Choices('#TiposSelecionados', {
 		removeItemButton: true,

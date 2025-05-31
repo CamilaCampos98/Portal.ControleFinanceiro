@@ -10,12 +10,13 @@
 
     <h2><i class="bi bi-bar-chart-line"></i> Resumo por Pessoa e Período</h2>
 
-    @if (!string.IsNullOrEmpty(Model.Erro))
-    {
-        <div class="alert alert-danger">
-            @Model.Erro
-        </div>
-    }
+    @if (!string.IsNullOrEmpty(Model.Mensagem))
+{
+    <div class="alert @(Model.Sucesso ? "alert-success" : "alert-danger") alert-dismissible fade show shadow-sm mt-3" role="alert">
+        <pre class="m-0">@Model.Mensagem</pre>
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+    </div>
+}
 
     <!-- Formulário de Filtro -->
     <form method="post" class="mb-4">

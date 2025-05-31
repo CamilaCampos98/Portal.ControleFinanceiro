@@ -24,7 +24,7 @@ namespace Portal.ControleFinanceiro.Pages.Controle
 
         public bool Sucesso { get; set; }
         public string ResultadoTexto { get; set; } = "";
-        public string? Erro { get; set; }
+        public string? Mensagem { get; set; }
 
         public void OnGet()
         {
@@ -37,7 +37,7 @@ namespace Portal.ControleFinanceiro.Pages.Controle
             {
                 if (string.IsNullOrWhiteSpace(Input.Pessoa) || string.IsNullOrWhiteSpace(Input.MesAno))
                 {
-                    Erro = "Pessoa e Mês/Ano são obrigatórios.";
+                    Mensagem = "Pessoa e Mês/Ano são obrigatórios.";
                     return Page();
                 }
 
@@ -45,7 +45,7 @@ namespace Portal.ControleFinanceiro.Pages.Controle
                 {
                     if (Input.HorasExtras <= 0)
                     {
-                        Erro = "Informe as Horas Extras corretamente.";
+                        Mensagem = "Informe as Horas Extras corretamente.";
                         return Page();
                     }
                 }
@@ -53,12 +53,12 @@ namespace Portal.ControleFinanceiro.Pages.Controle
                 {
                     if (Input.ValorHora <= 0)
                     {
-                        Erro = "Informe o Valor Hora corretamente.";
+                        Mensagem = "Informe o Valor Hora corretamente.";
                         return Page();
                     }
                     if (Input.HorasUteisMes <= 0)
                     {
-                        Erro = "Informe as Horas Úteis no Mês corretamente.";
+                        Mensagem = "Informe as Horas Úteis no Mês corretamente.";
                         return Page();
                     }
                 }
@@ -115,21 +115,21 @@ namespace Portal.ControleFinanceiro.Pages.Controle
                                       """;
 
                         Sucesso = true;
-
+                        Mensagem = ResultadoTexto;
                         // Limpa os campos após submit
                         Input = new EntradaInput();
                     }
                     else
                     {
                         var errorContent = await response.Content.ReadAsStringAsync();
-                        Erro = $"{errorContent}";
+                        Mensagem = $"{errorContent}";
                     }
                 }
                 return Page();
             }
             catch (Exception ex)
             {
-                Erro = ex.Message;
+                Mensagem = ex.Message;
                 return Page();
             }
         }

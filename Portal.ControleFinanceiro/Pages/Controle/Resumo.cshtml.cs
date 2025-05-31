@@ -14,7 +14,7 @@ public class ResumoModel : PageModel
         _configuration = configuration;
     }
     public bool Sucesso { get; set; }
-    public string? Erro { get; set; }
+    public string? Mensagem { get; set; }
 
     public int PaginaAtual { get; set; } = 1;
     public int TotalPaginas { get; set; }
@@ -58,7 +58,8 @@ public class ResumoModel : PageModel
 
         if (!Sucesso)
         {
-            Erro = $"Erro ao obter resumo: {Erro}";
+            Resumo.Compras = new List<Dictionary<string, object>>();
+            Mensagem = $"Erro ao obter resumo: {Mensagem}";
             return;
         }
 
@@ -131,7 +132,7 @@ public class ResumoModel : PageModel
             else
             {
                 var error = await response.Content.ReadAsStringAsync();
-                Erro = $"Erro ao buscar resumo: {error}";
+                Mensagem = $"Erro ao buscar resumo: {error}";
 
                 return new ResultadoResumo();
             }
@@ -141,7 +142,7 @@ public class ResumoModel : PageModel
         }
         catch (Exception ex)
         {
-            Erro = $"Erro: {ex.Message}";
+            Mensagem = $"Erro: {ex.Message}";
             return new ResultadoResumo();
         }
 
