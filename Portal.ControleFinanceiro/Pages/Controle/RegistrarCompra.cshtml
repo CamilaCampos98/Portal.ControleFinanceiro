@@ -3,7 +3,7 @@
 @{
     ViewData["Title"] = "Registrar Compra";
 }
-
+<div class="main-container">
 <h2><i class="bi bi-cart-plus"></i> Registrar Compra</h2>
 
 @if (!string.IsNullOrEmpty(Model.Mensagem))
@@ -64,7 +64,7 @@
         <i class="bi bi-check-circle"></i> Registrar
     </button>
 </form>
-
+</div>
 <div class="loading-overlay" id="loadingOverlay">
     <div>
         <div class="spinner-border text-primary" role="status"></div>
