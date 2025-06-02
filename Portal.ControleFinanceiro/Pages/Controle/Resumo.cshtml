@@ -6,6 +6,25 @@
     ViewData["Title"] = "Resumo por Pessoa e Período";
 }
 
+<style>
+	#gridResumo th.pago-col,
+	#gridResumo td.pago-col {
+		display: none;
+	}
+
+    .valor-sigiloso {
+    filter: blur(5px);
+    color: #6c757d; /* Cinza */
+    cursor: pointer;
+    transition: filter 0.3s ease, color 0.3s ease;
+}
+
+.valor-sigiloso.revelado {
+    filter: none;
+    color: inherit;
+}
+</style>
+
 <div class="main-container">
     <h2><i class="bi bi-bar-chart-line"></i> Resumo por Pessoa e Período</h2>
 
@@ -49,15 +68,32 @@
             </div>
 
             <div class="card-body">
-                <div class="row mb-3">
+               <div class="row mb-3">
                     <div class="col-12 col-md"><strong>Período:</strong> @Model.Resumo.Periodo</div>
-                    <div class="col-12 col-md"><strong>Salário:</strong> R$ @Model.Resumo.Salario.ToString("N2")</div>
-                    <div class="col-12 col-md"><strong>Extras:</strong> R$ @Model.Resumo.Extras.ToString("N2")</div>
-                    <div class="col-12 col-md"><strong>Gastos Fixos:</strong> R$ @Model.Resumo.GastosFixos.ToString("N2")</div>
-                    <div class="col-12 col-md"><strong>Total Gasto:</strong> R$ @Model.Resumo.TotalGasto.ToString("N2")</div>
+                    <div class="col-12 col-md"><strong>Salário:</strong> 
+                        <span class="valor-sigiloso" onclick="toggleTodos()">
+                            R$ @Model.Resumo.Salario.ToString("N2")
+                        </span>
+                    </div>
+                    <div class="col-12 col-md"><strong>Extras:</strong> 
+                        <span class="valor-sigiloso" onclick="toggleTodos()">
+                            R$ @Model.Resumo.Extras.ToString("N2")
+                        </span>
+                    </div>
+                    <div class="col-12 col-md"><strong>Gastos Fixos:</strong> 
+                        <span class="valor-sigiloso" onclick="toggleTodos()">
+                            R$ @Model.Resumo.GastosFixos.ToString("N2")
+                        </span>
+                    </div>
+                    <div class="col-12 col-md"><strong>Total Gasto:</strong> 
+                        <span class="valor-sigiloso" onclick="toggleTodos()">
+                            R$ @Model.Resumo.TotalGasto.ToString("N2")
+                        </span>
+                    </div>
                     <div class="col-12 col-md">
                         <strong>Saldo:</strong> 
-                        <span class="@(Model.Resumo.SaldoCritico ? "text-danger fw-bold" : "fw-bold text-success")">
+                        <span class="valor-sigiloso @(Model.Resumo.SaldoCritico ? "text-danger fw-bold" : "fw-bold text-success")" 
+                              onclick="toggleTodos()">
                             R$ @Model.Resumo.SaldoRestante.ToString("N2")
                         </span>
                     </div>
@@ -67,18 +103,25 @@
                     <button type="button" class="btn btn-primary mb-3" data-bs-toggle="modal" data-bs-target="#modalResumoPorCartao">
                         <i class="bi bi-credit-card-2-front"></i> Resumo por Cartão
                     </button>
+                    <div class="text-end mb-2">
+			            <button id="btnTogglePago"
+					            type="button"
+					            class="btn btn-outline-secondary btn-sm">
+				            <i class="bi bi-eye-slash" id="iconTogglePago"></i> Mostrar Valor
+			            </button>
+		            </div>
                 
 
                 @if (Model.Resumo.Compras.Any())
                 {
                     <div class="table-responsive">
-                        <table class="table table-bordered table-hover align-middle">
+                        <table class="table table-bordered table-hover align-middle" id="gridResumo">
                             <thead>
                                 <tr class="text-center">
                                     <th>ID</th>
                                     <th>Data</th>
                                     <th>Compra</th>
-                                    <th style="min-width: 120px;">Valor (R$)</th>
+                                    <th class="pago-col" style="min-width: 120px;">Valor (R$)</th>
                                     <th>Forma Pgto</th>
                                     <th>Cartao</th>
                                     <th>Parcela</th>
@@ -99,7 +142,7 @@
                                         <td>@c["IdLan"]</td>
                                         <td>@DateTime.Parse(c["Data"].ToString()).ToString("dd/MM/yyyy")</td>
                                         <td class="text-start">@c["Compra"]</td>
-                                        <td>R$ @valor.ToString("N2")</td>
+                                        <td class="pago-col">R$ @valor.ToString("N2")</td>
                                         <td>@c["FormaPgto"]</td>
                                         <td>@c["Cartao"]</td>
                                         <td>@c["Parcela"]</td>
@@ -254,4 +297,49 @@
 			});
 		});
 	});
+
+    document.addEventListener('DOMContentLoaded', function () {
+		const btn = document.getElementById('btnTogglePago');
+		const icon = document.getElementById('iconTogglePago');
+		let isVisible = false;
+
+		btn.addEventListener('click', function () {
+			const ths = document.querySelectorAll('#gridResumo th.pago-col');
+			const tds = document.querySelectorAll('#gridResumo td.pago-col');
+
+			isVisible = !isVisible;
+
+			ths.forEach(th => {
+				th.style.display = isVisible ? 'table-cell' : 'none';
+			});
+
+			tds.forEach(td => {
+				td.style.display = isVisible ? 'table-cell' : 'none';
+			});
+
+			if (isVisible) {
+				icon.classList.remove('bi-eye-slash');
+				icon.classList.add('bi-eye');
+				btn.innerHTML = '<i class="bi bi-eye" id="iconTogglePago"></i> Ocultar Valor';
+			} else {
+				icon.classList.remove('bi-eye');
+				icon.classList.add('bi-eye-slash');
+				btn.innerHTML = '<i class="bi bi-eye-slash" id="iconTogglePago"></i> Mostrar Valor';
+			}
+		});
+	});
+
+    function toggleTodos() {
+        const valores = document.querySelectorAll('.valor-sigiloso');
+        const algumRevelado = Array.from(valores).some(v => v.classList.contains('revelado'));
+
+        valores.forEach(v => {
+            if (algumRevelado) {
+                v.classList.remove('revelado');
+            } else {
+                v.classList.add('revelado');
+            }
+        });
+    }
+
 </script>
