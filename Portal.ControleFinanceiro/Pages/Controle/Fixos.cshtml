@@ -71,6 +71,12 @@
 
 	@if (Model.FixosModel != null && Model.FixosModel.Any())
 	{
+		<form id="formExcluir" method="post" asp-page-handler="Excluir">
+	<input type="hidden" name="Id" id="formExcluir_Id" />
+	<input type="hidden" name="MesAno" id="formExcluir_MesAno" />
+	<input type="hidden" name="Pessoa" value="@Model.Pessoa" />
+		</form>
+
 		<div class="text-end mb-2">
 			<button id="btnTogglePago"
 					type="button"
@@ -147,14 +153,12 @@
 										</button>
 
 										<!-- Formulário separado para excluir -->
-										<form method="post" asp-page-handler="Excluir" class="d-inline" onsubmit="return confirm('Deseja realmente excluir o fixo \'@Model.FixosModel[i].Tipo\' do mês @Model.FixosModel[i].MesAno?');">
-											<input type="hidden" name="Id" value="@Model.FixosModel[i].Id" />
-											<input type="hidden" name="MesAno" value="@Model.FixosModel[i].MesAno" />
-											<input type="hidden" name="Pessoa" value="@Model.Pessoa" />
-											<button type="submit" class="btn btn-secondary btn-sm">
-												<i class="bi bi-trash"></i> 
-											</button>
-										</form>
+										<button type="submit"
+												form="formExcluir"
+												class="btn btn-secondary btn-sm"
+												onclick="return confirmarExcluir('@Model.FixosModel[i].Id', '@Model.FixosModel[i].MesAno', '@Model.FixosModel[i].Tipo');">
+											<i class="bi bi-trash"></i>
+										</button>
 									</td>
 								</tr>
 							}
@@ -212,6 +216,15 @@
 <script src="https://cdn.jsdelivr.net/npm/choices.js/public/assets/scripts/choices.min.js"></script>
 
 <script>
+
+		function confirmarExcluir(id, mesAno, tipo) {
+			if (confirm(`Deseja realmente excluir o fixo '${tipo}' do mês ${mesAno}?`)) {
+				document.getElementById('formExcluir_Id').value = id;
+				document.getElementById('formExcluir_MesAno').value = mesAno;
+				return true;
+			}
+			return false;
+		}
 
 		document.addEventListener('DOMContentLoaded', function () {
 		const btn = document.getElementById('btnTogglePago');
