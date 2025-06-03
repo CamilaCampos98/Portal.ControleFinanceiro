@@ -1,6 +1,8 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
+using System.Net.Http;
 using System.Reflection;
+using System.Text;
 using System.Text.Json;
 using static ResumoModel;
 using static System.Runtime.InteropServices.JavaScript.JSType;
@@ -24,6 +26,8 @@ public class ResumoModel : PageModel
     public FiltroResumo Filtro { get; set; }
 
     public ResultadoResumo Resumo { get; set; }
+    [BindProperty]
+    public EditarCompraRequest Compra { get; set; } = new();
 
     public IActionResult OnGet(int pagina = 1)
     {
@@ -41,13 +45,13 @@ public class ResumoModel : PageModel
                 TotalPaginas = (int)Math.Ceiling(totalItens / (double)ItensPorPagina);
 
                 Resumo.Compras = Resumo.Compras
-                    .OrderByDescending(x => Convert.ToInt32(x["IdLan"].ToString()))
+                    .OrderByDescending(x => DateTime.Parse(x["Data"].ToString()))
                     .Skip((PaginaAtual - 1) * ItensPorPagina)
                     .Take(ItensPorPagina)
                     .ToList();
             }
         }
-       
+
         return Page();
 
     }
@@ -70,7 +74,7 @@ public class ResumoModel : PageModel
             TotalPaginas = (int)Math.Ceiling(totalItens / (double)ItensPorPagina);
 
             Resumo.Compras = Resumo.Compras
-                            .OrderByDescending(x => Convert.ToInt32(x["IdLan"].ToString()))
+                            .OrderByDescending(x => DateTime.Parse(x["Data"].ToString()))
                             .ToList()
                             .Skip((PaginaAtual - 1) * ItensPorPagina)
                             .Take(ItensPorPagina)
@@ -101,7 +105,7 @@ public class ResumoModel : PageModel
 
                 var resultado = JsonSerializer.Deserialize<ResultadoResumo>(content, options);
 
-            
+
                 // A partir daqui você usa normalmente:
                 var saldo = resultado.SaldoRestante;
                 var compras = resultado.Compras;
@@ -148,10 +152,68 @@ public class ResumoModel : PageModel
 
     }
 
+
+    
+
+    public async Task<IActionResult> OnPostEditarAsync()
+    {
+        using var httpClient = new HttpClient();
+
+        var urlApi = _configuration["UrlApi"];
+        var url = $"{urlApi}Compra/EditarCompra";
+
+        Compra.MesAno = Compra.Data?.ToString("MM/yyyy");
+        Compra.Parcela = Compra.Parcela ?? "";
+
+        var json = JsonSerializer.Serialize(Compra, new JsonSerializerOptions
+        {
+            PropertyNamingPolicy = JsonNamingPolicy.CamelCase
+        });
+
+        var content = new StringContent(json, Encoding.UTF8, "application/json");
+
+        var response = await httpClient.PutAsync(url, content);
+
+        if (response.IsSuccessStatusCode)
+        {
+            Mensagem = "Compra atualizada com sucesso.";
+            Sucesso = true;
+            // Retornar para a página de pesquisa, mantendo os filtros preenchidos
+            return RedirectToPage("./Resumo", new
+            {
+               pagina = 1
+            });
+        }
+        else
+        {
+            var erro = await response.Content.ReadAsStringAsync();
+            Mensagem = $"Erro ao editar: {erro}";
+            return Page();
+        }
+    }
+
     public IActionResult OnPostLimparSessao()
     {
         HttpContext.Session.Remove("ResumoJson");
         return RedirectToPage(); // Redireciona para a primeira página limpa
+    }
+
+
+    #region classes
+    public class EditarCompraRequest
+    {
+        public string IdLan { get; set; } = string.Empty;
+        public string Compra { get; set; } = string.Empty;
+        public decimal Valor { get; set; }
+        public string FormaPgto { get; set; } = string.Empty;
+        public string Cartao { get; set; } = string.Empty;
+        public DateTime? Data { get; set; }
+
+        public string Parcela { get; set; } = string.Empty;  // se quiser editar
+        public string MesAno { get; set; } = string.Empty;   // se quiser editar
+        public string Fonte { get; set; } = string.Empty;    // se quiser editar
+
+        public string Pessoa { get; set; } = string.Empty;   // só se precisar mesmo
     }
 
     public class FiltroResumo
@@ -178,11 +240,12 @@ public class ResumoModel : PageModel
     }
 
 
-}
 
-public class CartaoTipoResumo
-{
-    public string? Cartao { get; set; }
-    public string? Tipo { get; set; }
-    public decimal Valor { get; set; }
+    public class CartaoTipoResumo
+    {
+        public string? Cartao { get; set; }
+        public string? Tipo { get; set; }
+        public decimal Valor { get; set; }
+    }
+    #endregion
 }

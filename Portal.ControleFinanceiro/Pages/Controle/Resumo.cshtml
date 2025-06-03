@@ -41,7 +41,7 @@
         <div class="row g-3">
             <div class="col-sm-12 col-md-4">
                 <label class="form-label">Pessoa</label>
-                <input asp-for="Filtro.Pessoa" class="form-control" />
+                <input asp-for="Filtro.Pessoa" id="filtroPessoa" class="form-control" />
             </div>
             <div class="col-sm-6 col-md-4">
                 <label class="form-label">Período Início</label>
@@ -127,7 +127,7 @@
                                     <th>Parcela</th>
                                     <th>Mês/Ano</th>
                                     <th>Fonte</th>
-                                    
+                                    <th>Ações</th>
                                     
                                 </tr>
                             </thead>
@@ -148,7 +148,12 @@
                                         <td>@c["Parcela"]</td>
                                         <td>@c["MesAno"]</td>
                                         <td>@c["Fonte"]</td>
-                                        
+                                        <td>
+                                            <button class="btn btn-sm btn-warning"
+                                                    onclick="editarCompra('@c["IdLan"]')">
+                                                <i class="bi bi-pencil-square"></i> Editar
+                                            </button>
+                                        </td>
                                         
                                     </tr>
                                 }
@@ -175,6 +180,63 @@
                             </li>
                         </ul>
                     </nav>
+
+                    <div class="modal fade" id="modalEditarCompra" tabindex="-1" aria-labelledby="modalEditarCompraLabel" aria-hidden="true">
+                      <div class="modal-dialog">
+                        <div class="modal-content">
+                          <form id="formEditarCompra" method="post" asp-page-handler="Editar">
+                            <div class="modal-header">
+                              <h5 class="modal-title" id="modalEditarCompraLabel">
+                                <i class="bi bi-pencil-square"></i> Editar Compra
+                              </h5>
+                              <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+                            </div>
+                            <div class="modal-body">
+                              <!-- Campo escondido para IdLan -->
+                              <input type="hidden" id="editIdLan" name="Compra.IdLan" />
+
+                              <div class="mb-3">
+                                <label class="form-label">Pessoa</label>
+                                <input type="text" class="form-control" id="editPessoa" name="Compra.Pessoa" required />
+                              </div>
+                              <div class="mb-3">
+                                <label class="form-label">Compra</label>
+                                <input type="text" class="form-control" id="editCompra" name="Compra.Compra" required />
+                              </div>
+
+                              <div class="mb-3">
+                                <label class="form-label">Valor (R$)</label>
+                                <input type="number" step="0.01" class="form-control" id="editValor" name="Compra.Valor" required />
+                              </div>
+
+                              <div class="mb-3">
+                                <label class="form-label">Forma Pgto</label>
+                                <input type="text" class="form-control" id="editFormaPgto" name="Compra.FormaPgto" />
+                              </div>
+
+                              <div class="mb-3">
+                                <label class="form-label">Cartão</label>
+                                <input type="text" class="form-control" id="editCartao" name="Compra.Cartao" />
+                              </div>
+
+                              <div class="mb-3">
+                                <label class="form-label">Parcela</label>
+                                <input type="text" class="form-control" id="editParcela" name="Compra.Parcela" />
+                              </div>
+
+                              <div class="mb-3">
+                               <label class="form-label">Data</label>
+                               <input type="date" class="form-control" id="editData" name="Compra.Data" />
+                             </div>
+                            </div>
+                            <div class="modal-footer">
+                              <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Fechar</button>
+                              <button type="submit" class="btn btn-success">Salvar Alterações</button>
+                            </div>
+                          </form>
+                        </div>
+                      </div>
+                    </div>
 
                     <div class="modal fade" id="modalResumoPorCartao" tabindex="-1" aria-labelledby="modalResumoPorCartaoLabel" aria-hidden="true">
                         <div class="modal-dialog modal-xl modal-dialog-centered">
@@ -341,5 +403,65 @@
             }
         });
     }
+
+    function editarCompra(idLan) {
+    const row = Array.from(document.querySelectorAll('#gridResumo tbody tr'))
+                      .find(tr => tr.children[0].innerText == idLan);
+
+    const pessoa = document.getElementById('filtroPessoa').value;
+
+    if (row) {
+        const dadosCompra = {
+            idLan: idLan,
+            pessoa: pessoa,
+            compra: row.children[2].innerText,
+            valor: parseFloat(row.children[3].innerText.replace('R$', '').trim().replace('.', '').replace(',', '.')),
+            formaPgto: row.children[4].innerText,
+            cartao: row.children[5].innerText,
+            parcela: row.children[6].innerText,
+            data: row.children[1].innerText // data está na coluna 1, talvez precise converter
+        };
+
+        abrirModalEditarCompra(dadosCompra);
+    }
+}
+
+
+    function abrirModalEditarCompra(dadosCompra) {
+        document.getElementById('editIdLan').value = dadosCompra.idLan || '';
+        document.getElementById('editCompra').value = dadosCompra.compra || '';
+        document.getElementById('editPessoa').value = dadosCompra.pessoa || '';
+        document.getElementById('editValor').value = dadosCompra.valor ?? '';
+        document.getElementById('editFormaPgto').value = dadosCompra.formaPgto || '';
+        document.getElementById('editCartao').value = dadosCompra.cartao || '';
+         document.getElementById('editParcela').value = dadosCompra.parcela || '';
+
+        // Tratamento da data
+        let dataFormatada = '';
+        if (dadosCompra.data) {
+            if (typeof dadosCompra.data === 'string' && dadosCompra.data.includes('/')) {
+                // Caso a data esteja no formato "dd/MM/yyyy"
+                const partes = dadosCompra.data.split('/');
+                if (partes.length === 3) {
+                    const dia = partes[0].padStart(2, '0');
+                    const mes = partes[1].padStart(2, '0');
+                    const ano = partes[2];
+                    dataFormatada = `${ano}-${mes}-${dia}`;
+                }
+            } else {
+                // Caso a data esteja no formato Date ou ISO (ex.: "2025-06-03")
+                const dateObj = new Date(dadosCompra.data);
+                if (!isNaN(dateObj)) {
+                    dataFormatada = dateObj.toISOString().split('T')[0];
+                }
+            }
+        }
+
+        document.getElementById('editData').value = dataFormatada;
+
+        var modal = new bootstrap.Modal(document.getElementById('modalEditarCompra'));
+        modal.show();
+    }
+
 
 </script>
