@@ -88,7 +88,8 @@ public class ResumoModel : PageModel
         try
         {
             var urlApi = _configuration["UrlApi"];
-            var url = $"{urlApi}Compra/ResumoPessoaPeriodo?pessoa={filtro.Pessoa}&dataInicio={filtro.DataInicio:yyyy-MM-dd}&dataFim={filtro.DataFim:yyyy-MM-dd}";
+            var mesAnoParam = filtro.Periodo; 
+            var url = $"{urlApi}Compra/ResumoPessoaPeriodo?pessoa={filtro.Pessoa}&mesAno={mesAnoParam}";
 
             using var httpClient = new HttpClient();
 
@@ -105,33 +106,20 @@ public class ResumoModel : PageModel
 
                 var resultado = JsonSerializer.Deserialize<ResultadoResumo>(content, options);
 
+                if (resultado == null)
+                    return new ResultadoResumo();
 
-                // A partir daqui você usa normalmente:
-                var saldo = resultado.SaldoRestante;
-                var compras = resultado.Compras;
-                var totalGasto = resultado.TotalGasto;
-                var totalGastoFixos = resultado.GastosFixos;
-                var totalComExtras = resultado.Salario + (resultado.Extras);
+                // Calcula saldo crítico no front
+                var totalComExtras = resultado.Salario + resultado.Extras;
+                var saldoCritico = resultado.SaldoRestante < (0.2m * totalComExtras);
 
-                bool saldoCritico = saldo < (Convert.ToDecimal(0.2) * totalComExtras); // Considera crítico se saldo for menor que 20% do total com extras
+                // Atualiza propriedades importantes antes de retornar
+                resultado.SaldoCritico = saldoCritico;
+
                 Sucesso = true;
-
                 HttpContext.Session.SetString("ResumoJson", JsonSerializer.Serialize(resultado));
 
-                return new ResultadoResumo
-                {
-                    Pessoa = filtro.Pessoa,
-                    Periodo = $"{filtro.DataInicio:dd/MM/yyyy} a {filtro.DataFim:dd/MM/yyyy}",
-                    Salario = resultado.Salario,
-                    Extras = resultado.Extras,
-                    TotalGasto = totalGasto,
-                    GastosFixos = totalGastoFixos,
-                    SaldoRestante = saldo,
-                    SaldoCritico = saldoCritico,
-                    Compras = compras,
-                    ResumoPorCartao = resultado.ResumoPorCartao,
-                    ResumoPorCartaoTipo = resultado.ResumoPorCartaoTipo
-                };
+                return resultado;
             }
             else
             {
@@ -140,20 +128,16 @@ public class ResumoModel : PageModel
 
                 return new ResultadoResumo();
             }
-
-
-
         }
         catch (Exception ex)
         {
             Mensagem = $"Erro: {ex.Message}";
             return new ResultadoResumo();
         }
-
     }
 
 
-    
+
 
     public async Task<IActionResult> OnPostEditarAsync()
     {
@@ -219,8 +203,7 @@ public class ResumoModel : PageModel
     public class FiltroResumo
     {
         public string Pessoa { get; set; }
-        public DateTime DataInicio { get; set; }
-        public DateTime DataFim { get; set; }
+        public string Periodo { get; set; }
     }
 
     public class ResultadoResumo
@@ -236,7 +219,6 @@ public class ResumoModel : PageModel
         public List<Dictionary<string, object>> Compras { get; set; }
         public Dictionary<string, decimal> ResumoPorCartao { get; set; }
         public List<CartaoTipoResumo> ResumoPorCartaoTipo { get; set; } = new();
-
     }
 
 

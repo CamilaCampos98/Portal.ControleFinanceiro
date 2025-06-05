@@ -44,12 +44,8 @@
                 <input asp-for="Filtro.Pessoa" id="filtroPessoa" class="form-control" />
             </div>
             <div class="col-sm-6 col-md-4">
-                <label class="form-label">Período Início</label>
-                <input asp-for="Filtro.DataInicio" class="form-control" type="date" />
-            </div>
-            <div class="col-sm-6 col-md-4">
-                <label class="form-label">Período Fim</label>
-                <input asp-for="Filtro.DataFim" class="form-control" type="date" />
+                <label class="form-label">Período</label>
+                <input asp-for="Filtro.Periodo" id="filtroPeriodo" placeholder="Ex.: 05/2025" class="form-control" />
             </div>
         </div>
 
@@ -134,10 +130,21 @@
                             <tbody>
                                 @foreach (var c in Model.Resumo.Compras)
                                 {
-                                    var valor = c["Valor"] is JsonElement el && el.ValueKind != JsonValueKind.Null
-                                        ? decimal.Parse(el.GetString(), new CultureInfo("pt-BR"))
-                                        : 0m;
+                                    decimal valor = 0m;
 
+                                    if (c["Valor"] is JsonElement el && el.ValueKind == JsonValueKind.Number)
+                                    {
+                                        valor = el.GetDecimal();
+                                    }
+                                    else if (c["Valor"] is JsonElement elStr && elStr.ValueKind == JsonValueKind.String)
+                                    {
+                                        // Caso venha como string, tenta parsear usando pt-BR
+                                        if (decimal.TryParse(elStr.GetString(), NumberStyles.Number, new CultureInfo("pt-BR"), out var valParsed))
+                                        {
+                                            valor = valParsed;
+                                        }
+                                    }
+                                    
                                     <tr class="text-center">
                                         <td>@c["IdLan"]</td>
                                         <td>@DateTime.Parse(c["Data"].ToString()).ToString("dd/MM/yyyy")</td>
@@ -405,26 +412,26 @@
     }
 
     function editarCompra(idLan) {
-    const row = Array.from(document.querySelectorAll('#gridResumo tbody tr'))
-                      .find(tr => tr.children[0].innerText == idLan);
+        const row = Array.from(document.querySelectorAll('#gridResumo tbody tr'))
+                          .find(tr => tr.children[0].innerText == idLan);
 
-    const pessoa = document.getElementById('filtroPessoa').value;
+        const pessoa = document.getElementById('filtroPessoa').value;
 
-    if (row) {
-        const dadosCompra = {
-            idLan: idLan,
-            pessoa: pessoa,
-            compra: row.children[2].innerText,
-            valor: parseFloat(row.children[3].innerText.replace('R$', '').trim().replace('.', '').replace(',', '.')),
-            formaPgto: row.children[4].innerText,
-            cartao: row.children[5].innerText,
-            parcela: row.children[6].innerText,
-            data: row.children[1].innerText // data está na coluna 1, talvez precise converter
-        };
+        if (row) {
+            const dadosCompra = {
+                idLan: idLan,
+                pessoa: pessoa,
+                compra: row.children[2].innerText,
+                valor: parseFloat(row.children[3].innerText.replace('R$', '').trim().replace('.', '').replace(',', '.')),
+                formaPgto: row.children[4].innerText,
+                cartao: row.children[5].innerText,
+                parcela: row.children[6].innerText,
+                data: row.children[1].innerText // data está na coluna 1, talvez precise converter
+            };
 
-        abrirModalEditarCompra(dadosCompra);
+            abrirModalEditarCompra(dadosCompra);
+        }
     }
-}
 
 
     function abrirModalEditarCompra(dadosCompra) {
