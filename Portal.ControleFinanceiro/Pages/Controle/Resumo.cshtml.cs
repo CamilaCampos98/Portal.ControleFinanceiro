@@ -74,7 +74,7 @@ public class ResumoModel : PageModel
             TotalPaginas = (int)Math.Ceiling(totalItens / (double)ItensPorPagina);
 
             Resumo.Compras = Resumo.Compras
-                            .OrderByDescending(x => DateTime.Parse(x["Data"].ToString()))
+                            .OrderByDescending(x => (x["IdLan"].ToString()))
                             .ToList()
                             .Skip((PaginaAtual - 1) * ItensPorPagina)
                             .Take(ItensPorPagina)
