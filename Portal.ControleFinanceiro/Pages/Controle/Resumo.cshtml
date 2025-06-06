@@ -3,6 +3,7 @@
 @using System.Globalization
 @model ResumoModel
 @{
+    var cultura = new CultureInfo("pt-BR");
     ViewData["Title"] = "Resumo por Pessoa e Período";
 }
 
@@ -64,36 +65,44 @@
             </div>
 
             <div class="card-body">
-               <div class="row mb-3">
-                    <div class="col-12 col-md"><strong>Período:</strong> @Model.Resumo.Periodo</div>
-                    <div class="col-12 col-md"><strong>Salário:</strong> 
-                        <span class="valor-sigiloso" onclick="toggleTodos()">
-                            R$ @Model.Resumo.Salario.ToString("N2")
-                        </span>
-                    </div>
-                    <div class="col-12 col-md"><strong>Extras:</strong> 
-                        <span class="valor-sigiloso" onclick="toggleTodos()">
-                            R$ @Model.Resumo.Extras.ToString("N2")
-                        </span>
-                    </div>
-                    <div class="col-12 col-md"><strong>Gastos Fixos:</strong> 
-                        <span class="valor-sigiloso" onclick="toggleTodos()">
-                            R$ @Model.Resumo.GastosFixos.ToString("N2")
-                        </span>
-                    </div>
-                    <div class="col-12 col-md"><strong>Total Gasto:</strong> 
-                        <span class="valor-sigiloso" onclick="toggleTodos()">
-                            R$ @Model.Resumo.TotalGasto.ToString("N2")
-                        </span>
-                    </div>
-                    <div class="col-12 col-md">
-                        <strong>Saldo:</strong> 
-                        <span class="valor-sigiloso @(Model.Resumo.SaldoCritico ? "text-danger fw-bold" : "fw-bold text-success")" 
-                              onclick="toggleTodos()">
-                            R$ @Model.Resumo.SaldoRestante.ToString("N2")
-                        </span>
-                    </div>
+               <div class="card-body">
+                    <div class="row mb-3">
+                         <div class="col-12 col-md"><strong>Período:</strong> @Model.Resumo.Periodo</div>
+         
+                         <div class="col-12 col-md"><strong>Salário:</strong> 
+                             <span class="valor-sigiloso" onclick="toggleTodos()">
+                                 @Model.Resumo.Salario.ToString("C", cultura)
+                             </span>
+                         </div>
+
+                         <div class="col-12 col-md"><strong>Extras:</strong> 
+                             <span class="valor-sigiloso" onclick="toggleTodos()">
+                                 @Model.Resumo.Extras.ToString("C", cultura)
+                             </span>
+                         </div>
+
+                         <div class="col-12 col-md"><strong>Gastos Fixos:</strong> 
+                             <span class="valor-sigiloso" onclick="toggleTodos()">
+                                 @Model.Resumo.GastosFixos.ToString("C", cultura)
+                             </span>
+                         </div>
+
+                         <div class="col-12 col-md"><strong>Total Gasto:</strong> 
+                             <span class="valor-sigiloso" onclick="toggleTodos()">
+                                 @Model.Resumo.TotalGasto.ToString("C", cultura)
+                             </span>
+                         </div>
+
+                         <div class="col-12 col-md">
+                             <strong>Saldo:</strong> 
+                             <span class="valor-sigiloso @(Model.Resumo.SaldoCritico ? "text-danger fw-bold" : "fw-bold text-success")" 
+                                   onclick="toggleTodos()">
+                                 @Model.Resumo.SaldoRestante.ToString("C", cultura)
+                             </span>
+                         </div>
+                     </div>
                 </div>
+
 
                 
                     <button type="button" class="btn btn-primary mb-3" data-bs-toggle="modal" data-bs-target="#modalResumoPorCartao">
