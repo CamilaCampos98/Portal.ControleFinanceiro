@@ -1,3 +1,5 @@
+using System.Globalization;
+
 var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
@@ -11,6 +13,10 @@ builder.Services.AddSession(options =>
 });
 
 var app = builder.Build();
+
+var defaultCulture = new CultureInfo("pt-BR");
+CultureInfo.DefaultThreadCurrentCulture = defaultCulture;
+CultureInfo.DefaultThreadCurrentUICulture = defaultCulture;
 
 //// Configure the HTTP request pipeline.
 //if (!app.Environment.IsDevelopment())
