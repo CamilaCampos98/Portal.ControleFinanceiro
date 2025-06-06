@@ -5,6 +5,16 @@
 @{
     var cultura = new CultureInfo("pt-BR");
     ViewData["Title"] = "Resumo por Pessoa e Período";
+
+    var totaisPorCartao = new Dictionary<string, decimal>();
+
+    if (Model.Resumo != null && Model.Resumo.ResumoPorCartaoTipo.Count > 0)
+    {
+         totaisPorCartao = Model.Resumo?.ResumoPorCartaoTipo?
+        .GroupBy(x => x.Cartao)
+        .ToDictionary(g => g.Key, g => g.Sum(x => x.Valor));
+    }
+   
 }
 
 <style>
@@ -307,6 +317,13 @@
                                                                 <td class="text-start">@item.Cartao</td>
                                                                 <td>@item.Tipo</td>
                                                                 <td>R$ @item.Valor.ToString("N2")</td>
+                                                            </tr>
+                                                        }
+                                                         @foreach (var cartao in totaisPorCartao)
+                                                        {
+                                                            <tr class="fw-bold text-center table-light">
+                                                                <td class="text-end" colspan="2">Total @cartao.Key:</td>
+                                                                <td>R$ @cartao.Value.ToString("N2")</td>
                                                             </tr>
                                                         }
                                                     </tbody>
