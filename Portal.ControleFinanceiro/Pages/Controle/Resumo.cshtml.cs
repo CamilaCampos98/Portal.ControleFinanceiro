@@ -45,7 +45,7 @@ public class ResumoModel : PageModel
                 TotalPaginas = (int)Math.Ceiling(totalItens / (double)ItensPorPagina);
 
                 Resumo.Compras = Resumo.Compras
-                    .OrderByDescending(x => DateTime.Parse(x["Data"].ToString()))
+                    .OrderByDescending(x => Convert.ToInt32(x["IdLan"].ToString()))
                     .Skip((PaginaAtual - 1) * ItensPorPagina)
                     .Take(ItensPorPagina)
                     .ToList();
@@ -74,11 +74,16 @@ public class ResumoModel : PageModel
             TotalPaginas = (int)Math.Ceiling(totalItens / (double)ItensPorPagina);
 
             Resumo.Compras = Resumo.Compras
-                            .OrderByDescending(x => (x["IdLan"].ToString()))
-                            .ToList()
-                            .Skip((PaginaAtual - 1) * ItensPorPagina)
-                            .Take(ItensPorPagina)
-                            .ToList();
+       .OrderByDescending(x => string.IsNullOrEmpty(x["Parcela"]?.ToString())
+                               ? DateTime.Parse(x["Data"].ToString())
+                               : DateTime.MinValue) // joga parceladas pro fim
+       .ThenBy(x => string.IsNullOrEmpty(x["Parcela"]?.ToString())
+                    ? 0
+                    : Convert.ToInt32(x["IdLan"].ToString())) // ordena parceladas por IdLan crescente
+       .Skip((PaginaAtual - 1) * ItensPorPagina)
+       .Take(ItensPorPagina)
+       .ToList();
+
 
         }
     }
