@@ -6,7 +6,7 @@ namespace Portal.ControleFinanceiro.Models
     {
         public string Pessoa { get; set; } = string.Empty;
         public string Descricao { get; set; } = string.Empty;
-        public decimal ValorTotal { get; set; }
+        public decimal? ValorTotal { get; set; }
         public DateTime Data { get; set; } = DateTime.Today;
         public string FormaPgto { get; set; } = "C";
         public int TotalParcelas { get; set; } = 1;

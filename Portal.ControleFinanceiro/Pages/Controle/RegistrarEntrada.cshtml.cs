@@ -68,18 +68,18 @@ namespace Portal.ControleFinanceiro.Pages.Controle
 
                 if (Input.TipoEntrada == "Extra")
                 {
-                    valorExtraCalculado = Math.Round(Input.HorasExtras * Input.ValorHora, 2);
+                    valorExtraCalculado = Math.Round(Convert.ToInt32(Input.HorasExtras) * Convert.ToDecimal(Input.ValorHora), 2);
                     novosExtras = valorExtraCalculado;
                 }
 
                 var Entrada = new EntradaModel
                 {
                     Pessoa = Input.Pessoa,
-                    ValorHora = Input.ValorHora,
-                    HorasUteisMes = Input.HorasUteisMes,
+                    ValorHora = Convert.ToDecimal(Input.ValorHora),
+                    HorasUteisMes = Convert.ToInt32(Input.HorasUteisMes),
                     MesAno = Input.MesAno,
                     TipoEntrada = Input.TipoEntrada,
-                    HorasExtras = Input.HorasExtras
+                    HorasExtras = Convert.ToInt32(Input.HorasExtras)
                 };
 
                 using (var httpClient = new HttpClient())
@@ -138,9 +138,9 @@ namespace Portal.ControleFinanceiro.Pages.Controle
         {
             public string TipoEntrada { get; set; } = "Salario";
             public string Pessoa { get; set; } = string.Empty;
-            public decimal ValorHora { get; set; }
-            public int HorasUteisMes { get; set; }
-            public int HorasExtras { get; set; }
+            public decimal? ValorHora { get; set; }
+            public int? HorasUteisMes { get; set; }
+            public int? HorasExtras { get; set; }
             public string MesAno { get; set; } = string.Empty;
         }
     }

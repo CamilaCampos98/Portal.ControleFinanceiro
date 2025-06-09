@@ -38,7 +38,7 @@ namespace Portal.ControleFinanceiro.Pages.Controle
                     string.IsNullOrWhiteSpace(Input.Descricao) ||
                     Input.ValorTotal <= 0)
                 {
-                    Erro = "Preencha todos os campos obrigatórios corretamente.";
+                    Mensagem = "Pelo menos Pessoa, Descricao e Valor Total devem ser preenchidos!";
                     return Page();
                 }
 
@@ -52,7 +52,7 @@ namespace Portal.ControleFinanceiro.Pages.Controle
                     {
                         Pessoa = Input.Pessoa,
                         Descricao = Input.Descricao,
-                        ValorTotal = Input.ValorTotal,
+                        ValorTotal = Convert.ToDecimal(Input.ValorTotal),
                         Data = Input.Data,
                         FormaPgto = Input.FormaPgto,
                         TotalParcelas = Input.TotalParcelas,
