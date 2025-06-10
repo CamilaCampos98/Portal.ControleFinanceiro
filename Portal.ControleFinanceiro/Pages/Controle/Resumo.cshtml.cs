@@ -45,10 +45,12 @@ public class ResumoModel : PageModel
                 TotalPaginas = (int)Math.Ceiling(totalItens / (double)ItensPorPagina);
 
                 Resumo.Compras = Resumo.Compras
-                    .OrderByDescending(x => Convert.ToInt32(x["IdLan"].ToString()))
-                    .Skip((PaginaAtual - 1) * ItensPorPagina)
-                    .Take(ItensPorPagina)
-                    .ToList();
+     .OrderByDescending(x => DateTime.Parse(x["Data"].ToString()))
+     .ThenByDescending(x => Convert.ToInt32(x["IdLan"].ToString()))
+     .Skip((PaginaAtual - 1) * ItensPorPagina)
+     .Take(ItensPorPagina)
+     .ToList();
+
             }
         }
 
@@ -74,15 +76,12 @@ public class ResumoModel : PageModel
             TotalPaginas = (int)Math.Ceiling(totalItens / (double)ItensPorPagina);
 
             Resumo.Compras = Resumo.Compras
-       .OrderByDescending(x => string.IsNullOrEmpty(x["Parcela"]?.ToString())
-                               ? DateTime.Parse(x["Data"].ToString())
-                               : DateTime.MinValue) // joga parceladas pro fim
-       .ThenBy(x => string.IsNullOrEmpty(x["Parcela"]?.ToString())
-                    ? 0
-                    : Convert.ToInt32(x["IdLan"].ToString())) // ordena parceladas por IdLan crescente
-       .Skip((PaginaAtual - 1) * ItensPorPagina)
-       .Take(ItensPorPagina)
-       .ToList();
+     .OrderByDescending(x => DateTime.Parse(x["Data"].ToString()))
+     .ThenByDescending(x => Convert.ToInt32(x["IdLan"].ToString()))
+     .Skip((PaginaAtual - 1) * ItensPorPagina)
+     .Take(ItensPorPagina)
+     .ToList();
+
 
 
         }
@@ -93,7 +92,7 @@ public class ResumoModel : PageModel
         try
         {
             var urlApi = _configuration["UrlApi"];
-            var mesAnoParam = filtro.Periodo; 
+            var mesAnoParam = filtro.Periodo;
             var url = $"{urlApi}Compra/ResumoPessoaPeriodo?pessoa={filtro.Pessoa}&mesAno={mesAnoParam}";
 
             using var httpClient = new HttpClient();
@@ -170,7 +169,7 @@ public class ResumoModel : PageModel
             // Retornar para a página de pesquisa, mantendo os filtros preenchidos
             return RedirectToPage("./Resumo", new
             {
-               pagina = 1
+                pagina = 1
             });
         }
         else
