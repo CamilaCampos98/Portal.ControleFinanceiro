@@ -1,9 +1,10 @@
-using Microsoft.AspNetCore.Mvc;
+﻿using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 using System.Net.Http;
 using System.Reflection;
 using System.Text;
 using System.Text.Json;
+using static Fixos;
 using static ResumoModel;
 using static System.Runtime.InteropServices.JavaScript.JSType;
 
@@ -36,7 +37,7 @@ public class ResumoModel : PageModel
         var resumoJson = HttpContext.Session.GetString("ResumoJson");
         Resumo = resumoJson != null ? JsonSerializer.Deserialize<ResultadoResumo>(resumoJson) : null;
 
-        // C�digo para buscar Resumo, etc.
+        // Código para buscar Resumo, etc.
         if (Resumo != null)
         {
             if (Resumo.Compras.Count > 0)
@@ -113,7 +114,7 @@ public class ResumoModel : PageModel
                 if (resultado == null)
                     return new ResultadoResumo();
 
-                // Calcula saldo cr�tico no front
+                // Calcula saldo crítico no front
                 var totalComExtras = resultado.Salario + resultado.Extras;
                 var saldoCritico = resultado.SaldoRestante < (0.2m * totalComExtras);
 
@@ -140,9 +141,6 @@ public class ResumoModel : PageModel
         }
     }
 
-
-
-
     public async Task<IActionResult> OnPostEditarAsync()
     {
         using var httpClient = new HttpClient();
@@ -166,7 +164,7 @@ public class ResumoModel : PageModel
         {
             Mensagem = "Compra atualizada com sucesso.";
             Sucesso = true;
-            // Retornar para a p�gina de pesquisa, mantendo os filtros preenchidos
+            // Retornar para a página de pesquisa, mantendo os filtros preenchidos
             return RedirectToPage("./Resumo", new
             {
                 pagina = 1
@@ -180,10 +178,42 @@ public class ResumoModel : PageModel
         }
     }
 
+
+    public async Task<IActionResult> OnPostExcluirAsync(string Id, string MesAno)
+    {
+        using var httpClient = new HttpClient();
+        var urlApi = _configuration["UrlApi"];
+        var url = $"{urlApi}Compra/DeletarPorId";
+
+        var payload = new
+        {
+            Id = Id,
+            NomeBase = "Controle"
+        };
+
+        var json = JsonSerializer.Serialize(payload);
+        var content = new StringContent(json, Encoding.UTF8, "application/json");
+
+        var response = await httpClient.PostAsync(url, content);
+
+        var responseContent = await response.Content.ReadAsStringAsync();
+
+        if (response.IsSuccessStatusCode)
+        {
+            Sucesso = true;
+            Mensagem = "✔️ Lançamento excluído com sucesso.";
+        }
+        else
+        {
+            Mensagem = $"❌ Erro ao excluir lançamento.";
+        }
+
+        return Page();
+    }
     public IActionResult OnPostLimparSessao()
     {
         HttpContext.Session.Remove("ResumoJson");
-        return RedirectToPage(); // Redireciona para a primeira p�gina limpa
+        return RedirectToPage(); // Redireciona para a primeira página limpa
     }
 
 
@@ -201,7 +231,7 @@ public class ResumoModel : PageModel
         public string MesAno { get; set; } = string.Empty;   // se quiser editar
         public string Fonte { get; set; } = string.Empty;    // se quiser editar
 
-        public string Pessoa { get; set; } = string.Empty;   // s� se precisar mesmo
+        public string Pessoa { get; set; } = string.Empty;   // só se precisar mesmo
     }
 
     public class FiltroResumo
@@ -233,5 +263,11 @@ public class ResumoModel : PageModel
         public string? Tipo { get; set; }
         public decimal Valor { get; set; }
     }
+    public class DeletarPorIdModel
+    {
+        public string Id { get; set; }
+        public string NomeBase { get; set; }
+    }
+
     #endregion
 }

@@ -195,6 +195,11 @@
 
                 @if (Model.Resumo.Compras.Any())
                 {
+                    <form id="formExcluir" method="post" asp-page-handler="Excluir">
+                    	<input type="hidden" name="Id" id="formExcluir_Id" />
+	                    <input type="hidden" name="MesAno" id="formExcluir_MesAno" />
+                    </form>
+
                     <div class="table-responsive">
                         <table class="table table-bordered table-hover align-middle" id="gridResumo">
                             <thead>
@@ -272,8 +277,15 @@
                                         <td>
                                             <button class="btn btn-sm btn-warning"
                                                     onclick="editarCompra('@c["IdLan"]')">
-                                                <i class="bi bi-pencil-square"></i> Editar
+                                                <i class="bi bi-pencil-square"></i>
                                             </button>
+
+                                             <button type="submit"
+												form="formExcluir"
+												class="btn btn-secondary btn-sm"
+												onclick="return confirmarExcluir('@c["IdLan"]', '@c["MesAno"]');">
+											<i class="bi bi-trash"></i>
+										</button>
                                         </td>
                                         
                                     </tr>
@@ -470,6 +482,15 @@
 <script src="https://unpkg.com/imask"></script>
 
 <script>
+
+    function confirmarExcluir(id, mesAno) {
+			if (confirm(`Deseja realmente excluir o id '${id}' do mês ${mesAno}?`)) {
+				document.getElementById('formExcluir_Id').value = id;
+				document.getElementById('formExcluir_MesAno').value = mesAno;
+				return true;
+			}
+			return false;
+		}
 
      window.addEventListener("DOMContentLoaded", function () {
             const alvo = document.querySelector(".linha-alvo");
