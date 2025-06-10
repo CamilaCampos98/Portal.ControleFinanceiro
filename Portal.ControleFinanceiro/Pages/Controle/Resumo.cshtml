@@ -10,11 +10,77 @@
 
     if (Model.Resumo != null && Model.Resumo.ResumoPorCartaoTipo.Count > 0)
     {
-         totaisPorCartao = Model.Resumo?.ResumoPorCartaoTipo?
-        .GroupBy(x => x.Cartao)
-        .ToDictionary(g => g.Key, g => g.Sum(x => x.Valor));
+         totaisPorCartao = Model.Resumo.ResumoPorCartaoTipo
+            .GroupBy(x => x.Cartao)
+            .ToDictionary(g => g.Key, g => g.Sum(x => x.Valor));
     }
-   
+
+    DateTime hoje = DateTime.Today;
+    DateTime? dataMaisProxima = null;
+    TimeSpan menorDiferenca = TimeSpan.MaxValue;
+
+    if (Model.Resumo?.Compras != null)
+    {
+        foreach (var c in Model.Resumo.Compras)
+        {
+            if (c.TryGetValue("Data", out var objData))
+            {
+                DateTime dataCompra;
+
+                if (objData is JsonElement jsonEl)
+                {
+                    // Se for string, tenta parsear
+                    if (jsonEl.ValueKind == JsonValueKind.String && DateTime.TryParse(jsonEl.GetString(), out dataCompra))
+                    {
+                        var diferenca = (dataCompra - hoje).Duration();
+                        if (diferenca < menorDiferenca)
+                        {
+                            menorDiferenca = diferenca;
+                            dataMaisProxima = dataCompra;
+                        }
+                    }
+                    // Se for número, tenta interpretar como ticks
+                    else if (jsonEl.ValueKind == JsonValueKind.Number && jsonEl.TryGetInt64(out long ticks))
+                    {
+                        try
+                        {
+                            dataCompra = new DateTime(ticks);
+                            var diferenca = (dataCompra - hoje).Duration();
+                            if (diferenca < menorDiferenca)
+                            {
+                                menorDiferenca = diferenca;
+                                dataMaisProxima = dataCompra;
+                            }
+                        }
+                        catch
+                        {
+                            // Caso ticks estejam inválidos, ignora
+                        }
+                    }
+                }
+                // Caso objData já seja DateTime (raro nesse contexto)
+                else if (objData is DateTime dt)
+                {
+                    var diferenca = (dt - hoje).Duration();
+                    if (diferenca < menorDiferenca)
+                    {
+                        menorDiferenca = diferenca;
+                        dataMaisProxima = dt;
+                    }
+                }
+                // Caso objData seja string ou outro objeto
+                else if (DateTime.TryParse(objData?.ToString(), out dataCompra))
+                {
+                    var diferenca = (dataCompra - hoje).Duration();
+                    if (diferenca < menorDiferenca)
+                    {
+                        menorDiferenca = diferenca;
+                        dataMaisProxima = dataCompra;
+                    }
+                }
+            }
+        }
+    }
 }
 
 <style>
@@ -141,7 +207,7 @@
                                     <th>Cartao</th>
                                     <th>Parcela</th>
                                     <th>Mês/Ano</th>
-                                    <th>Fonte</th>
+                                    <th style="display:none">Fonte</th>
                                     <th>Ações</th>
                                     
                                 </tr>
@@ -163,8 +229,37 @@
                                             valor = valParsed;
                                         }
                                     }
+
+                                    // Extrair dataAtualLinha da compra para usar na comparação
+                                    DateTime dataAtualLinha = DateTime.MinValue;
+                                    if (c.TryGetValue("Data", out var objData))
+                                    {
+                                        if (objData is JsonElement jsonEl)
+                                        {
+                                            if (jsonEl.ValueKind == JsonValueKind.String && DateTime.TryParse(jsonEl.GetString(), out var dt))
+                                            {
+                                                dataAtualLinha = dt;
+                                            }
+                                            else if (jsonEl.ValueKind == JsonValueKind.Number && jsonEl.TryGetInt64(out long ticks))
+                                            {
+                                                try
+                                                {
+                                                    dataAtualLinha = new DateTime(ticks);
+                                                }
+                                                catch { }
+                                            }
+                                        }
+                                        else if (objData is DateTime dt)
+                                        {
+                                            dataAtualLinha = dt;
+                                        }
+                                        else if (DateTime.TryParse(objData?.ToString(), out var dt1))
+                                        {
+                                            dataAtualLinha = dt1;
+                                        }
+                                    }
                                     
-                                    <tr class="text-center">
+                                    <tr class="text-center @(dataAtualLinha.Date == dataMaisProxima?.Date ? "table-primary linha-alvo" : "")">
                                         <td>@c["IdLan"]</td>
                                         <td>@DateTime.Parse(c["Data"].ToString()).ToString("dd/MM/yyyy")</td>
                                         <td class="text-start">@c["Compra"]</td>
@@ -173,7 +268,7 @@
                                         <td>@c["Cartao"]</td>
                                         <td>@c["Parcela"]</td>
                                         <td>@c["MesAno"]</td>
-                                        <td>@c["Fonte"]</td>
+                                        <td style="display:none">@c["Fonte"]</td>
                                         <td>
                                             <button class="btn btn-sm btn-warning"
                                                     onclick="editarCompra('@c["IdLan"]')">
@@ -375,6 +470,14 @@
 <script src="https://unpkg.com/imask"></script>
 
 <script>
+
+     window.addEventListener("DOMContentLoaded", function () {
+            const alvo = document.querySelector(".linha-alvo");
+            if (alvo) {
+                alvo.scrollIntoView({ behavior: "smooth", block: "center" });
+            }
+        });
+
         window.onload = function() {
       var elemento = document.getElementById('filtroPeriodo');
       if (elemento) {
