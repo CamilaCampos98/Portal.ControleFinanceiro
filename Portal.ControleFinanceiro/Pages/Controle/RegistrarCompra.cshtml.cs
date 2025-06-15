@@ -20,6 +20,7 @@ namespace Portal.ControleFinanceiro.Pages.Controle
 
         [BindProperty]
         public CompraInputModel Input { get; set; } = new();
+        public string UrlApi { get; set; }
 
         public bool Sucesso { get; set; }
         public string? Erro { get; set; }
@@ -27,7 +28,7 @@ namespace Portal.ControleFinanceiro.Pages.Controle
         public string? Mensagem { get; set; }
         public void OnGet()
         {
-            // Inicialização se necessário
+            UrlApi = _configuration["UrlApi"];
         }
 
         public async Task<IActionResult> OnPostAsync()

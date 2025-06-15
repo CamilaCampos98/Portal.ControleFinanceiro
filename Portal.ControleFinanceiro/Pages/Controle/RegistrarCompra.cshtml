@@ -39,19 +39,12 @@
                 <option value="D">Débito</option>
             </select>
         </div>
-        <div class="col-md-4" id="cartao-div">
-            <label class="form-label">Cartão</label>
-            <select asp-for="Input.Cartao" class="form-select">
-                <option value="">Selecione...</option>
-                <option value="Bradesco Titular">Bradesco Titular</option>
-                <option value="Itau Titular">Itau Titular</option>
-                <option value="Itau Adicional">Itau Adicional</option>
-                <option value="Santander Titular">Santander Titular</option>
-                <option value="Santander Adicional">Santander Adicional</option>
-                <option value="Riachuelo">Riachuelo</option>
-                <option value="C&A">C&A</option>
-            </select>
-        </div>
+            <div class="col-md-4" id="cartao-div">
+                <label class="form-label">Cartão</label>
+                <select asp-for="Input.Cartao" class="form-select" id="selectCartao">
+                    <option value="">Selecione...</option>
+                </select>
+            </div>
         <div class="col-md-4">
             <label class="form-label">Parcelas</label>
             <input asp-for="Input.TotalParcelas" class="form-control" type="number" value="1" />
@@ -77,7 +70,7 @@
 
 @section Scripts {
     <script>
-               const formaPgto = document.querySelector('[name="Input.FormaPgto"]');
+        const formaPgto = document.querySelector('[name="Input.FormaPgto"]');
         const cartaoDiv = document.querySelector('#cartao-div');
         const cartaoSelect = document.querySelector('[name="Input.Cartao"]');
 
@@ -115,6 +108,29 @@
                     });
                 });
             });
+        });
+
+             document.addEventListener("DOMContentLoaded", async function () {
+            const selectCartao = document.getElementById("selectCartao");
+            const urlApi = '@Model.UrlApi';
+
+            try {
+                const response = await fetch(`${urlApi}Compra/GetCartoes`);
+
+                if (!response.ok) throw new Error("Erro ao buscar cartões.");
+
+                const cartoes = await response.json();
+
+                cartoes.forEach(cartao => {
+                    const option = document.createElement("option");
+                    option.value = cartao;
+                    option.text = cartao;
+                    selectCartao.appendChild(option);
+                });
+            } catch (error) {
+                console.error("Erro ao carregar cartões:", error);
+                // Opcional: mostrar uma mensagem no HTML
+            }
         });
     </script>
 }
