@@ -22,6 +22,8 @@ public class Fixos : PageModel
 
     [BindProperty]
     public string Pessoa { get; set; }
+    [BindProperty]
+    public string Periodo { get; set; }
 
     [BindProperty]
     public List<string> TiposSelecionados { get; set; }
@@ -259,7 +261,7 @@ public class Fixos : PageModel
             using var httpClient = new HttpClient();
 
             var urlApi = _configuration["UrlApi"];
-            var url = $"{urlApi}Compra/ListarFixos?pessoa={Pessoa}";
+            var url = $"{urlApi}Compra/ListarFixos?pessoa={Pessoa}&periodo={Periodo}";
 
             var response = await httpClient.GetAsync(url);
 

@@ -32,26 +32,17 @@
 				<input asp-for="Pessoa" id="Pessoa" class="form-control" />
 
 			</div>
-			<div class="col-md-6">
+			<div class="col-sm-4 col-md-4">
+                <label class="form-label">Período</label>
+                <input asp-for="Periodo" id="Periodo" placeholder="Ex.: 05/2025" class="form-control" />
+            </div>
+			<div class="col-md-4">
 				<label for="TiposSelecionados" class="form-label">Tipos de Gastos Fixos</label>
 				<select asp-for="TiposSelecionados" id="TiposSelecionados" class="form-select" multiple size="5">
-					<option value="Condomínio">Condomínio</option>
-					<option value="Conta de Luz">Conta de Luz</option>
-					<option value="Financiamento Veículo">Financiamento Veículo</option>
-					<option value="Financiamento Imóvel">Financiamento Imóvel</option>
-					<option value="Empréstimo">Empréstimo</option>
-					<option value="Empréstimo">Empréstimo Janio</option>
-					<option value="Vivo">Vivo</option>
-					<option value="Impostos">Impostos</option>
-					<option value="Contabilidade">Contabilidade</option>
-					<option value="Convenio">Convênio</option>
-					<option value="Criare">Criare</option>
-					<option value="SeguroCarro">Seguro Carro</option>
-					<option value="CompraMes">Compra Mês</option>
-					<option value="IPTU">IPTU</option>
-					<option value="Guardado">Guardado</option>
+					 <option value="">Selecione...</option>
 				</select>
 			</div>
+			
 		</div>
 		<button type="submit" asp-page-handler="Gerar" class="btn btn-primary">
 			<i class="bi bi-plus-circle"></i>
@@ -222,6 +213,35 @@
 
 @section Scripts {
 	<script>
+		 document.addEventListener("DOMContentLoaded", async function () {
+			const urlApi = '@Model.UrlApi';
+			const tiposFixos = new Choices('#TiposSelecionados', {
+				removeItemButton: true,
+				shouldSort: false
+			});
+
+			try {
+				const response = await fetch(`${urlApi}Compra/GetTiposFixos`);
+
+				if (!response.ok) throw new Error("Erro ao buscar tipos de fixos.");
+
+				const tipos = await response.json();
+
+				// Converte array de strings em array de objetos { value, label }
+				const choices = tipos.map(tipo => ({
+					value: tipo,
+					label: tipo,
+					selected: false
+				}));
+
+				// Adiciona as opções usando a API do Choices.js
+				tiposFixos.setChoices(choices, 'value', 'label', true);
+
+			} catch (error) {
+				console.error("Erro ao carregar tipos de fixos:", error);
+			}
+		});
+
 		function confirmarExcluir(id, mesAno, tipo) {
 			Swal.fire({
 				title: 'Tem certeza?',
@@ -246,37 +266,39 @@
 			const icon = document.getElementById('iconTogglePago');
 			let isVisible = false;
 
-			btn.addEventListener('click', function () {
-				const ths = document.querySelectorAll('#gridFixos th.pago-col');
-				const tds = document.querySelectorAll('#gridFixos td.pago-col');
+			if(btn != null){
+				btn.addEventListener('click', function () {
+					const ths = document.querySelectorAll('#gridFixos th.pago-col');
+					const tds = document.querySelectorAll('#gridFixos td.pago-col');
 
-				isVisible = !isVisible;
+					isVisible = !isVisible;
 
-				ths.forEach(th => {
-					th.style.display = isVisible ? 'table-cell' : 'none';
+					ths.forEach(th => {
+						th.style.display = isVisible ? 'table-cell' : 'none';
+					});
+
+					tds.forEach(td => {
+						td.style.display = isVisible ? 'table-cell' : 'none';
+					});
+
+					if (isVisible) {
+						icon.classList.remove('bi-eye-slash');
+						icon.classList.add('bi-eye');
+						btn.innerHTML = '<i class="bi bi-eye" id="iconTogglePago"></i> Ocultar Valor';
+					} else {
+						icon.classList.remove('bi-eye');
+						icon.classList.add('bi-eye-slash');
+						btn.innerHTML = '<i class="bi bi-eye-slash" id="iconTogglePago"></i> Mostrar Valor';
+					}
 				});
-
-				tds.forEach(td => {
-					td.style.display = isVisible ? 'table-cell' : 'none';
-				});
-
-				if (isVisible) {
-					icon.classList.remove('bi-eye-slash');
-					icon.classList.add('bi-eye');
-					btn.innerHTML = '<i class="bi bi-eye" id="iconTogglePago"></i> Ocultar Valor';
-				} else {
-					icon.classList.remove('bi-eye');
-					icon.classList.add('bi-eye-slash');
-					btn.innerHTML = '<i class="bi bi-eye-slash" id="iconTogglePago"></i> Mostrar Valor';
-				}
-			});
+			}
 		});
 
-		// Inicializa o Choices no seletor
-		const tiposFixos = new Choices('#TiposSelecionados', {
-			removeItemButton: true,
-			shouldSort: false,
-		});
+		// // Inicializa o Choices no seletor
+		// const tiposFixos = new Choices('#TiposSelecionados', {
+		// 	removeItemButton: true,
+		// 	shouldSort: false,
+		// });
 
 		document.addEventListener('DOMContentLoaded', function () {
 			const grid = document.getElementById('gridFixos');
