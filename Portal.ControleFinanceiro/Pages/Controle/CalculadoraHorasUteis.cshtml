@@ -1,0 +1,74 @@
+﻿@page
+@model CalculadoraHorasUteisModel
+@{
+    ViewData["Title"] = "Calculadora de Horas Úteis";
+}
+
+<div class="main-container">
+    <h2>
+        <i class="bi bi-calculator"></i>
+        Calculadora de Horas Úteis – Barueri
+    </h2>
+
+    <form method="post">
+        <div>
+            <label class="form-label">Mês de Referência:</label>
+            <input asp-for="Input.MesReferencia" class="form-control" type="month" required />
+        </div>
+        <div>
+            <label class="form-label">Horas por dia:</label>
+            <input asp-for="Input.HorasPorDia" class="form-control" type="number" min="1" max="24" required />
+        </div>
+        <div class="mt-2">
+            <button type="submit" class="btn btn-success mt-3 responsive-button">Calcular</button>
+        </div>
+    </form>
+
+    @if (Model.Resultado is not null)
+    {
+        <div class="card mt-4 shadow-sm p-4" style="border-left: 5px solid #0d6efd; background-color: #f8f9fa;">
+            <h4 class="mb-3 text-primary">
+                <i class="bi bi-calendar-check"></i>
+                Resumo do Período
+            </h4>
+
+            <dl class="row">
+                <dt class="col-sm-4">📅 Período:</dt>
+                <dd class="col-sm-8">@Model.Resultado.Periodo</dd>
+
+                <dt class="col-sm-4">📆 Dias totais:</dt>
+                <dd class="col-sm-8">@Model.Resultado.DiasTotais</dd>
+
+                <dt class="col-sm-4">🗓️ Dias úteis:</dt>
+                <dd class="col-sm-8">@Model.Resultado.DiasUteis</dd>
+
+                <dt class="col-sm-4">⏱️ Horas por dia:</dt>
+                <dd class="col-sm-8">@Model.Resultado.HorasPorDia</dd>
+
+                <dt class="col-sm-4">💼 Total de horas úteis:</dt>
+                <dd class="col-sm-8 fw-bold">@Model.Resultado.TotalHorasUteis</dd>
+            </dl>
+
+            <h5 class="text-secondary mt-4">
+                <i class="bi bi-exclamation-triangle-fill"></i>
+                Feriados no Período
+            </h5>
+
+            <ul class="list-group list-group-flush">
+                @if (Model.Resultado.Feriados.Count == 0)
+                {
+                    <li class="list-group-item">Nenhum feriado no período.</li>
+                }
+                else
+                {
+                    @foreach (var feriado in Model.Resultado.Feriados)
+                    {
+                        <li class="list-group-item">
+                            📌 <strong>@feriado.Data.ToString("dddd, dd/MM/yyyy")</strong> – @feriado.Nome
+                        </li>
+                    }
+                }
+            </ul>
+        </div>
+    }
+</div>
