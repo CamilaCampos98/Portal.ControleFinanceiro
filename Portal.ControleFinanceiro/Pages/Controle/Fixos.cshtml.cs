@@ -46,6 +46,7 @@ public class Fixos : PageModel
 
     public async Task<IActionResult> OnPostGerarAsync()
     {
+        UrlApi = _configuration["UrlApi"];
         if (Pessoa == null)
         {
             Mensagem = "Informe a Pessoa!";
@@ -172,6 +173,7 @@ public class Fixos : PageModel
 
     public async Task<IActionResult> OnPostExcluirAsync(string Id, string MesAno, string Pessoa)
     {
+        UrlApi = _configuration["UrlApi"];
         using var httpClient = new HttpClient();
         var urlApi = _configuration["UrlApi"];
         var url = $"{urlApi}Compra/DeletarFixo";
@@ -204,6 +206,7 @@ public class Fixos : PageModel
     }
     public async Task<IActionResult> OnPostSalvarAsync()
     {
+        UrlApi = _configuration["UrlApi"];
         try
         {
             var urlApi = _configuration["UrlApi"];
@@ -250,6 +253,7 @@ public class Fixos : PageModel
 
     public async Task<IActionResult> OnPostListarAsync()
     {
+        UrlApi = _configuration["UrlApi"];
         if (Pessoa == null)
         {
             Mensagem = "⚠️ Informe uma pessoa para listar os gastos fixos.";
@@ -308,6 +312,7 @@ public class Fixos : PageModel
 
     public async Task<IActionResult> OnPostDividirGastoFixoAsync(string IdGasto, string DividirCom, string ValorDivisao)
     {
+        UrlApi = _configuration["UrlApi"];
         using var httpClient = new HttpClient();
         var urlApi = _configuration["UrlApi"];
         var url = $"{urlApi}Compra/DividirGasto";

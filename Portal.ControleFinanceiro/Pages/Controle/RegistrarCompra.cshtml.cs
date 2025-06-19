@@ -35,6 +35,8 @@ namespace Portal.ControleFinanceiro.Pages.Controle
         {
             try
             {
+                UrlApi = _configuration["UrlApi"];
+
                 if (string.IsNullOrWhiteSpace(Input.Pessoa) ||
                     string.IsNullOrWhiteSpace(Input.Descricao) ||
                     Input.ValorTotal <= 0)
