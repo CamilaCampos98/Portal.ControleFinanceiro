@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Authentication.Cookies;
 using System.Globalization;
 
 var builder = WebApplication.CreateBuilder(args);
