@@ -57,7 +57,7 @@ public class LoginModel : PageModel
 
             // Buscar usuário válido na lista (case insensitive)
             var usuarioValido = usuarios.FirstOrDefault(u =>
-                u.Usuario.Equals(Input.Usuario, StringComparison.OrdinalIgnoreCase) &&
+                u.Usuario.ToUpper().Equals(Input.Usuario.ToUpper(), StringComparison.OrdinalIgnoreCase) &&
                 u.Senha == Input.Senha);
 
             if (usuarioValido != null)
