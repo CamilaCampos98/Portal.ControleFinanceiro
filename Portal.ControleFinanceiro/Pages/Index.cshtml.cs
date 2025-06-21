@@ -1,4 +1,5 @@
-﻿using Microsoft.AspNetCore.Mvc;
+﻿using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 using Portal.ControleFinanceiro.Models;
 using System.Text;
@@ -7,6 +8,7 @@ using static ResumoModel;
 
 namespace Portal.ControleFinanceiro.Pages
 {
+    [Authorize]
     public class IndexModel : PageModel
     {
         private readonly IConfiguration _configuration;

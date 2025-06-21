@@ -12,6 +12,18 @@ builder.Services.AddSession(options =>
     options.Cookie.IsEssential = true; // para GDPR compliance
 });
 
+// Autenticação Cookie
+builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
+    .AddCookie(options =>
+    {
+        options.LoginPath = "/Login";          // Página de login
+        options.AccessDeniedPath = "/Login";   // Página para acesso negado
+        options.ExpireTimeSpan = TimeSpan.FromHours(1);
+    });
+
+
+builder.Services.AddAuthorization();
+
 var app = builder.Build();
 
 var defaultCulture = new CultureInfo("pt-BR");
@@ -36,6 +48,7 @@ app.UseRouting();
 
 app.UseSession();
 
+app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapRazorPages();

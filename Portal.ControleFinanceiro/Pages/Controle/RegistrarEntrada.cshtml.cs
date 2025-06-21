@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 using Portal.ControleFinanceiro.Models;
@@ -10,6 +11,7 @@ using static Portal.ControleFinanceiro.Pages.Controle.RegistrarCompraModel;
 
 namespace Portal.ControleFinanceiro.Pages.Controle
 {
+    [Authorize]
     public class RegistrarEntradaModel : PageModel
     {
         private readonly IConfiguration _configuration;

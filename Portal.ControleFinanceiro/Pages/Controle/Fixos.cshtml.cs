@@ -1,4 +1,5 @@
-﻿using Microsoft.AspNetCore.Mvc;
+﻿using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 using Microsoft.Extensions.Options;
 using Portal.ControleFinanceiro.Models;
@@ -11,6 +12,7 @@ using static Portal.ControleFinanceiro.Pages.Controle.RegistrarCompraModel;
 using static ResumoModel;
 using static System.Runtime.InteropServices.JavaScript.JSType;
 
+[Authorize]
 public class Fixos : PageModel
 {
     private readonly IConfiguration _configuration;

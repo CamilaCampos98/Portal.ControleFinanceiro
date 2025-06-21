@@ -1,4 +1,5 @@
-﻿using Microsoft.AspNetCore.Mvc;
+﻿using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 using System.Net.Http;
 using System.Reflection;
@@ -8,6 +9,7 @@ using static Fixos;
 using static ResumoModel;
 using static System.Runtime.InteropServices.JavaScript.JSType;
 
+[Authorize]
 public class ResumoModel : PageModel
 {
     private readonly IConfiguration _configuration;

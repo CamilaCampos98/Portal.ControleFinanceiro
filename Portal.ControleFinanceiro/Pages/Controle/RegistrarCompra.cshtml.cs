@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 using Portal.ControleFinanceiro.Models;
@@ -9,6 +10,7 @@ using System.Text.Json;
 
 namespace Portal.ControleFinanceiro.Pages.Controle
 {
+    [Authorize]
     public class RegistrarCompraModel : PageModel
     {
         private readonly IConfiguration _configuration;
