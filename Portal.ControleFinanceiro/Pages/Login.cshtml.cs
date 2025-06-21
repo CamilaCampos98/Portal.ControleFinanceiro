@@ -70,7 +70,7 @@ public class LoginModel : PageModel
                 return RedirectToPage("/Index");
             }
 
-            MensagemErro = "Usuário ou senha inválidos.";
+            MensagemErro = "Login incorreto.";
             return Page();
         }
 
