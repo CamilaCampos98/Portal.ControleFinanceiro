@@ -30,7 +30,7 @@
         </div>
         <div class="col-md-4">
             <label class="form-label">Valor Hora (R$)</label>
-            <input asp-for="Input.ValorHora" class="form-control" type="number" step="0.01" />
+                <input asp-for="Input.ValorHora" class="form-control" type="text" inputmode="decimal" step="0.01" />
         </div>
         <div class="col-md-4">
             <label class="form-label">Horas Úteis no Mês</label>
@@ -38,11 +38,11 @@
         </div>
         <div class="col-md-4">
             <label class="form-label">Horas Extras</label>
-            <input asp-for="Input.HorasExtras" class="form-control" type="number" />
+                <input asp-for="Input.HorasExtras" class="form-control" type="text" inputmode="decimal" />
         </div>
         <div class="col-md-4">
             <label class="form-label">Mês/Ano (MM/yyyy)</label>
-            <input asp-for="Input.MesAno" class="form-control" placeholder="Ex.: 05/2025" />
+                <input asp-for="Input.MesAno" id="filtroPeriodo" class="form-control" placeholder="Ex.: 05/2025" />
         </div>
     </div>
 
@@ -58,10 +58,20 @@
 </div>
 
 @* <script src="~/js/registrarentrada.js"></script>*@
+<script src="https://unpkg.com/imask"></script>
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 
  @section Scripts {
     <script>
-
+         window.onload = function () {
+            var elemento = document.getElementById('filtroPeriodo');
+            if (elemento) {
+                IMask(elemento, {
+                    mask: '00/0000',
+                    placeholderChar: '_',
+                });
+            }
+        }
          // Executa na primeira carga para ajustar os campos
         document.addEventListener("DOMContentLoaded", function () {
             atualizarCamposEntrada();

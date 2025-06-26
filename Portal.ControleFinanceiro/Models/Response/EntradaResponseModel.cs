@@ -4,7 +4,7 @@
     {
         public string Message { get; set; }
         public decimal ValorHoraExtra { get; set; }
-        public int HorasExtras { get; set; }
+        public decimal HorasExtras { get; set; }
         public decimal ValorExtraCalculado { get; set; }
         public decimal NovosExtras { get; set; }
     }
