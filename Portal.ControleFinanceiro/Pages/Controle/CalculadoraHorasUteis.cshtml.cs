@@ -90,6 +90,11 @@ public class CalculadoraHorasUteisModel : PageModel
                 }
             }
 
+            // Feriado estadual de SP – 09 de julho
+            var sp = new DateTime(ano, 7, 9);
+            if (sp >= inicio && sp <= fim)
+                feriados.Add(new FeriadoInfo { Data = sp, Nome = "Revolução Constitucionalista (SP)" });
+
             // Feriados móveis - cuidado para não duplicar os que já vieram da API
             foreach (var movel in CalculaFeriadosMoveis(ano))
             {
