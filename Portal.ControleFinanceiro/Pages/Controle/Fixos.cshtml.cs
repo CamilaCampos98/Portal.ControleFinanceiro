@@ -21,6 +21,11 @@ public class Fixos : PageModel
     {
         _configuration = configuration;
     }
+    [BindProperty]
+    public List<string> MesesNaoGerados { get; set; } = new();
+
+    [BindProperty]
+    public List<string> MesesSelecionados { get; set; } = new();
 
     [BindProperty]
     public string Pessoa { get; set; }
@@ -49,49 +54,41 @@ public class Fixos : PageModel
     public async Task<IActionResult> OnPostGerarAsync()
     {
         UrlApi = _configuration["UrlApi"];
-        if (Pessoa == null)
+
+        if (string.IsNullOrWhiteSpace(Pessoa))
         {
             Mensagem = "Informe a Pessoa!";
             return Page();
         }
 
-        if (TiposSelecionados == null || !TiposSelecionados.Any())
-        {
-            Mensagem = "Selecione pelo menos um tipo de gasto fixo.";
-            return Page();
-        }
-
         var vencimento = string.Empty;
-        var mesAno = await GetMesAnoRefAsync();
+        var mesAno = await GetMesAnoRefAsync(Periodo);
 
-        if (DateTime.TryParseExact(mesAno, "MM/yyyy", CultureInfo.InvariantCulture, DateTimeStyles.None, out var dataRef))
-        {
-            // Soma 1 mês
-            var proximoMes = dataRef.AddMonths(1);
-
-            // Formata no padrão "yyyy-MM-15"
-            vencimento = $"{proximoMes.Year}-{proximoMes.Month:D2}-10";
-
-            Console.WriteLine(vencimento); // Ex.: "2025-07-15"
-        }
-        else
-        {
-            // Tratar erro se não conseguir converter
+        if (!DateTime.TryParseExact(mesAno, "MM/yyyy", CultureInfo.InvariantCulture, DateTimeStyles.None, out var dataRef))
             throw new Exception($"Formato de data inválido: {mesAno}");
-        }
 
+        vencimento = $"{dataRef.Year}-{dataRef.Month:D2}-10";
 
         var fixosGerados = new List<FixoModel>();
 
-        foreach (var tipo in TiposSelecionados)
+        // Se veio da cópia do mês anterior, FixosModel já está preenchido
+        var fixosDoMesAtual = FixosModel.Where(f => f.MesAno == mesAno).ToList();
+
+        if (!fixosDoMesAtual.Any())
         {
-            if (FixosModel.Count == 0 || !FixosModel.Any(f => f.Tipo == tipo && f.MesAno == mesAno.ToString()))
+            if (TiposSelecionados == null || !TiposSelecionados.Any())
+            {
+                Mensagem = "Selecione pelo menos um tipo de gasto fixo ou copie de um mês anterior.";
+                return Page();
+            }
+
+            foreach (var tipo in TiposSelecionados)
             {
                 var fixo = new FixoModel
                 {
                     Id = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds() + new Random().Next(1000, 9999),
                     Tipo = tipo,
-                    MesAno = mesAno.ToString(),
+                    MesAno = mesAno,
                     Vencimento = vencimento,
                     Valor = "",
                     Pago = "",
@@ -101,17 +98,24 @@ public class Fixos : PageModel
                 fixosGerados.Add(fixo);
                 FixosModel.Add(fixo);
             }
-
-
+        }
+        else
+        {
+            // Se já temos fixos na tela para o mês atual, envia todos
+            fixosGerados = fixosDoMesAtual;
         }
 
         if (fixosGerados.Any())
         {
             try
             {
+                foreach (var i in fixosGerados)
+                {
+                    i.MesAno = mesAno;
+                    i.Vencimento = vencimento;
+                }
                 using var httpClient = new HttpClient();
-                var urlApi = _configuration["UrlApi"];
-                var url = $"{urlApi}Compra/GeraFixos";
+                var url = $"{UrlApi}Compra/GeraFixos";
 
                 var payload = new FixosPayload
                 {
@@ -122,7 +126,6 @@ public class Fixos : PageModel
 
                 var json = JsonSerializer.Serialize(payload);
                 var content = new StringContent(json, Encoding.UTF8, "application/json");
-
                 var response = await httpClient.PostAsync(url, content);
 
                 var responseContent = await response.Content.ReadAsStringAsync();
@@ -130,7 +133,6 @@ public class Fixos : PageModel
                 if (response.IsSuccessStatusCode)
                 {
                     var options = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
-
                     var resultado = JsonSerializer.Deserialize<RetornoApiFixos>(responseContent, options);
 
                     if (resultado != null)
@@ -138,10 +140,10 @@ public class Fixos : PageModel
                         Sucesso = true;
                         var msg = $"✔️ {resultado.Message}";
 
-                        if (resultado.Inseridos != null && resultado.Inseridos.Any())
+                        if (resultado.Inseridos?.Any() == true)
                             msg += $"\n✅ Inseridos: {string.Join(", ", resultado.Inseridos.Select(i => $"{i.Tipo} ({i.MesAno})"))}";
 
-                        if (resultado.Ignorados != null && resultado.Ignorados.Any())
+                        if (resultado.Ignorados?.Any() == true)
                             msg += $"\n⚠️ Ignorados (já existiam): {string.Join(", ", resultado.Ignorados.Select(i => $"{i.Tipo} ({i.MesAno})"))}";
 
                         Mensagem = msg;
@@ -160,7 +162,6 @@ public class Fixos : PageModel
             {
                 Mensagem = $"❌ Erro na comunicação com a API: {ex.Message}";
             }
-
         }
         else
         {
@@ -168,10 +169,13 @@ public class Fixos : PageModel
         }
 
         // Atualiza lista para exibir na tela
-        FixosModel = FixosModel.Where(f => f.MesAno == mesAno.ToString() && TiposSelecionados.Contains(f.Tipo)).ToList();
+        FixosModel = FixosModel
+            .Where(f => f.MesAno == mesAno && (TiposSelecionados?.Contains(f.Tipo) ?? true))
+            .ToList();
 
         return Page();
     }
+
 
     public async Task<IActionResult> OnPostExcluirAsync(string Id, string MesAno, string Pessoa)
     {
@@ -359,6 +363,101 @@ public class Fixos : PageModel
         return Page();
     }
 
+    public async Task<IActionResult> OnPostCopiarMesAnteriorAsync()
+    {
+        UrlApi = _configuration["UrlApi"];
+
+        if (string.IsNullOrEmpty(Pessoa) || string.IsNullOrEmpty(Periodo))
+        {
+            Mensagem = "Pessoa ou período não informado.";
+            return Page();
+        }
+
+        if (!DateTime.TryParseExact(Periodo, "MM/yyyy", CultureInfo.InvariantCulture, DateTimeStyles.None, out var dataAtual))
+        {
+            Mensagem = "Período inválido.";
+            return Page();
+        }
+
+        var mesAnterior = dataAtual.AddMonths(-1).ToString("MM/yyyy");
+
+        var payload = new
+        {
+            Pessoa,
+            MesAnoOrigem = mesAnterior,
+            MesAnoDestino = Periodo
+        };
+
+        try
+        {
+            using var httpClient = new HttpClient();
+            var url = $"{UrlApi}Compra/CopiarFixos";
+
+            var json = JsonSerializer.Serialize(payload);
+            var content = new StringContent(json, Encoding.UTF8, "application/json");
+
+            var response = await httpClient.PostAsync(url, content);
+            var responseText = await response.Content.ReadAsStringAsync();
+
+            if (response.IsSuccessStatusCode)
+            {
+                Sucesso = true;
+                Mensagem = $"✅ {responseText}";
+                // Agora recarrega os fixos do novo mês copiado
+                await CarregarFixosDoPeriodoAsync();
+
+                // E chama o Gerar com o FixosModel atualizado
+                return await OnPostListarAsync();
+
+            }
+            else
+            {
+                Mensagem = $"⚠️ Falha ao copiar: {responseText}";
+            }
+        }
+        catch (Exception ex)
+        {
+            Mensagem = $"❌ Erro na requisição: {ex.Message}";
+        }
+
+        // Recarrega os fixos para o período atual (destino da cópia)
+        await CarregarFixosDoPeriodoAsync();
+
+        // Agora sim, chama o gerar usando FixosModel preenchido
+        return Page();
+
+    }
+
+    private async Task CarregarFixosDoPeriodoAsync()
+    {
+        try
+        {
+            using var httpClient = new HttpClient();
+
+            var url = $"{UrlApi}Compra/ListarFixos?pessoa={Pessoa}&periodo={Periodo}";
+            var response = await httpClient.GetAsync(url);
+
+            if (response.IsSuccessStatusCode)
+            {
+                var json = await response.Content.ReadAsStringAsync();
+
+                FixosModel = JsonSerializer.Deserialize<List<FixoModel>>(json, new JsonSerializerOptions
+                {
+                    PropertyNameCaseInsensitive = true
+                }) ?? new List<FixoModel>();
+            }
+            else
+            {
+                FixosModel = new List<FixoModel>();
+            }
+        }
+        catch
+        {
+            FixosModel = new List<FixoModel>();
+        }
+    }
+
+
     public decimal ParseDecimal(string? input)
     {
         if (string.IsNullOrWhiteSpace(input))
@@ -425,10 +524,10 @@ public class Fixos : PageModel
         return 0;
     }
 
-    public async Task<string> GetMesAnoRefAsync()
+    public async Task<string> GetMesAnoRefAsync(string mesAno)
     {
         var urlApi = _configuration["UrlApi"];
-        var url = $"{urlApi}Compra/BuscaDataRef";
+        var url = $"{urlApi}Compra/BuscaDataRef?mesAno={mesAno}";
 
         using var httpClient = new HttpClient();
 
@@ -450,10 +549,11 @@ public class Fixos : PageModel
         else
         {
             var erro = await response.Content.ReadAsStringAsync();
-            Erro = $"Erro buscar data: {erro}";
+            Erro = $"Erro ao validar mês {mesAno}: {erro}";
             return string.Empty;
         }
     }
+
 
     public class DataRefResponse
     {
