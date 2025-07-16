@@ -24,7 +24,7 @@ namespace Portal.ControleFinanceiro.Pages
         public bool Sucesso { get; set; }
         public string? Erro { get; set; }
 
-        public List<ResultadoResumoGeral>? ResumoGeral { get; set; }
+        public List<ResumoPessoaMesDTO>? ResumoGeral { get; set; }
 
         public async Task OnGetAsync()
         {
@@ -44,29 +44,29 @@ namespace Portal.ControleFinanceiro.Pages
                     {
                         PropertyNameCaseInsensitive = true
                     };
+
+                    ResumoGeral = JsonSerializer.Deserialize<List<ResumoPessoaMesDTO>>(content, options) ?? new();
                     Sucesso = true;
-                    ResumoGeral = JsonSerializer.Deserialize<List<ResultadoResumoGeral>>(content, options);
                 }
                 else
                 {
                     var error = await response.Content.ReadAsStringAsync();
                     Mensagem = $"Erro ao buscar resumo: {error}";
-                    ResumoGeral = new List<ResultadoResumoGeral>();
+                    ResumoGeral = new List<ResumoPessoaMesDTO>();
                 }
             }
             catch (Exception ex)
             {
                 Mensagem = $"Erro: {ex.Message}";
-                ResumoGeral = new List<ResultadoResumoGeral>();
+                ResumoGeral = new List<ResumoPessoaMesDTO>();
             }
         }
 
-        public class ResultadoResumoGeral
+        public class ResumoPessoaMesDTO
         {
-            public string? Pessoa { get; set; }
+            public string Pessoa { get; set; }
+            public string MesAno { get; set; } // Ex: "07/2025"
             public decimal SaldoRestante { get; set; }
-            public string? UltimaCompra { get; set; }
-            public string? DescricaoUltimaCompra { get; set; }
         }
 
     }

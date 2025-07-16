@@ -2,6 +2,19 @@
 @model IndexModel
 @{
     ViewData["Title"] = "Home page";
+
+    // 📅 Captura todos os meses únicos ordenados
+    var meses = Model.ResumoGeral?
+        .Select(x => x.MesAno)
+        .Distinct()
+        .OrderBy(m => DateTime.ParseExact(m, "MM/yyyy", null))
+        .ToList() ?? new List<string>();
+
+    // 👤 Agrupar por pessoa
+    var pessoas = Model.ResumoGeral?
+        .GroupBy(x => x.Pessoa)
+        .OrderBy(g => g.Key)
+        .ToList();
 }
 
 <style>
@@ -93,41 +106,43 @@
         <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
     </div>
 }
+else if (pessoas != null && pessoas.Any())
+{
+    <div class="main-container">
+        <h1>Resumo Financeiro</h1>
 
-<div class="main-container">
-    <h1>Resumo Financeiro</h1>
-
-    <p class="lead">Veja abaixo o saldo atual:</p>
-    <div class="table-responsive">
-        <table class="table table-bordered table-hover align-middle">
-        <thead>
-            <tr>
-                <th>Pessoa</th>
-                <th>Saldo</th>
-                <th>Última Compra</th>
-                <th>Descrição</th>
-            </tr>
-        </thead>
-        <tbody>
-            @if (Model.ResumoGeral != null && Model.ResumoGeral.Any())
-            {
-                foreach (var item in Model.ResumoGeral)
-                {
+        <p class="lead">Veja abaixo o saldo atual:</p>
+        <div class="table-responsive">
+            <table class="table table-bordered table-striped text-center">
+                <thead class="thead-dark">
                     <tr>
-                        <td>@item.Pessoa</td>
-                        <td>R$ @item.SaldoRestante.ToString("N2")</td>
-                        <td>@item.UltimaCompra</td>
-                        <td>@item.DescricaoUltimaCompra</td>
+                        <th style="text-align:left;">Pessoa</th>
+                        @foreach (var mes in meses)
+                        {
+                            <th>@mes</th>
+                        }
                     </tr>
-                }
-            }
-            else
-            {
-                <tr>
-                    <td colspan="4" style="text-align:center;">Nenhum dado encontrado.</td>
-                </tr>
-            }
-        </tbody>
-    </table>
+                </thead>
+                <tbody>
+                    @foreach (var grupo in pessoas)
+                    {
+                        <tr>
+                            <td style="text-align:left;">@grupo.Key</td>
+                            @foreach (var mes in meses)
+                            {
+                                var valor = grupo.FirstOrDefault(x => x.MesAno == mes)?.SaldoRestante ?? 0;
+                                <td>R$ @valor.ToString("N2")</td>
+                            }
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
     </div>
-</div>
+}
+else
+{
+    <p class="text-center">Nenhum dado encontrado.</p>
+}
+
+
