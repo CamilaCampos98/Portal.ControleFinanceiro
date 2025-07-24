@@ -130,8 +130,16 @@ else if (pessoas != null && pessoas.Any())
                             <td style="text-align:left;">@grupo.Key</td>
                             @foreach (var mes in meses)
                             {
-                                var valor = grupo.FirstOrDefault(x => x.MesAno == mes)?.SaldoRestante ?? 0;
-                                <td>R$ @valor.ToString("N2")</td>
+                                var resumoMes = grupo.FirstOrDefault(x => x.MesAno == mes);
+                                decimal saldoRestante = resumoMes?.SaldoRestante ?? 0;
+                                decimal valorGuardado = resumoMes?.ValorGuardado ?? 0;
+
+                                <td style="vertical-align: top; text-align: right;">
+                                    <div><strong>Saldo:</strong> R$ @saldoRestante.ToString("N2")</div>
+                                    <div style="color: gray; font-size: smaller;">
+                                        Guardado: R$ @valorGuardado.ToString("N2")
+                                    </div>
+                                </td>
                             }
                         </tr>
                     }
