@@ -41,7 +41,7 @@ namespace Portal.ControleFinanceiro.Pages.Controle
 
                 if (string.IsNullOrWhiteSpace(Input.Pessoa) ||
                     string.IsNullOrWhiteSpace(Input.Descricao) ||
-                    Input.ValorTotal <= 0)
+                    Input.ValorTotal == null)
                 {
                     Mensagem = "Pelo menos Pessoa, Descricao e Valor Total devem ser preenchidos!";
                     return Page();
