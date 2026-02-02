@@ -86,7 +86,24 @@ public class CalculadoraHorasUteisModel : PageModel
                         var dataDate = data.Date;
                         if (dataDate >= inicio && dataDate <= fim)
                             feriados.Add(new FeriadoInfo { Data = dataDate, Nome = item.name ?? "Feriado Nacional" });
+
+                        // Se for Carnaval (terça), inclui a segunda-feira também
+                        if (!string.IsNullOrWhiteSpace(item.name) &&
+                            item.name.Contains("Carnaval", StringComparison.OrdinalIgnoreCase))
+                        {
+                            var segundaCarnaval = dataDate.AddDays(-1);
+
+                            if (segundaCarnaval >= inicio && segundaCarnaval <= fim)
+                            {
+                                feriados.Add(new FeriadoInfo
+                                {
+                                    Data = segundaCarnaval,
+                                    Nome = "Carnaval (segunda-feira)"
+                                });
+                            }
+                        }
                     }
+
                 }
             }
 
