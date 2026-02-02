@@ -1,0 +1,125 @@
+﻿<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+<meta charset="utf-8">
+<title>Itaú → CSV (Camila / Diego)</title>
+<style>
+body { font-family: Arial; padding: 20px; }
+textarea { width: 100%; height: 200px; }
+button { padding: 10px 20px; margin-top:10px; }
+</style>
+</head>
+<body>
+
+<h3>Cole aqui os lançamentos copiados do Itaú</h3>
+
+<textarea id="entrada"></textarea>
+
+<br>
+
+<label>Ano da fatura:
+    <input type="number" id="ano" value="2026">
+</label>
+
+<br><br>
+
+<button onclick="gerar()">Gerar CSV</button>
+
+<h4>CSV – Camila</h4>
+<textarea id="saidaCamila"></textarea>
+
+<h4>CSV – Diego</h4>
+<textarea id="saidaDiego"></textarea>
+
+<script>
+function gerar() {
+
+    const texto = document.getElementById("entrada").value;
+    const ano = document.getElementById("ano").value;
+
+    const linhas = texto.split(/\r?\n/);
+
+    let csvCamila = "data,lançamento,valor\n";
+    let csvDiego  = "data,lançamento,valor\n";
+
+    const meses = {
+        "jan.": "01",
+        "fev.": "02",
+        "mar.": "03",
+        "abr.": "04",
+        "mai.": "05",
+        "jun.": "06",
+        "jul.": "07",
+        "ago.": "08",
+        "set.": "09",
+        "out.": "10",
+        "nov.": "11",
+        "dez.": "12"
+    };
+
+    for (let i = 0; i < linhas.length; i++) {
+
+        let linha = linhas[i].trim();
+
+        if (!linha)
+            continue;
+
+        const l = linha.toLowerCase();
+
+        // ignora linhas de parcela
+        if (l.startsWith("parcela"))
+            continue;
+
+        // ignora pagamento
+        if (l.includes("pagamento efetuado"))
+            continue;
+
+        // Ex: 31 jan.	bar e lanches amigos d adicional	R$ 15,00
+        const partes = linha.split(/\t+/);
+
+        if (partes.length < 3)
+            continue;
+
+        const dataTxt = partes[0].trim();     // 31 jan.
+        const descricao = partes[1].trim();
+        const valorTxt = partes[2].trim();    // R$ 15,00
+
+        const p = dataTxt.split(" ");
+
+        if (p.length < 2)
+            continue;
+
+        const dia = p[0].padStart(2, "0");
+        const mesTxt = p[1].toLowerCase();
+
+        const mes = meses[mesTxt];
+
+        if (!mes)
+            continue;
+
+        const dataIso = `${ano}-${mes}-${dia}`;
+
+        const valor = valorTxt
+            .replace("R$", "")
+            .replace(/\./g, "")
+            .replace(",", ".")
+            .trim();
+
+        const ehAdicional = descricao.toLowerCase().includes("adicional");
+
+        const linhaCsv = `${dataIso},"${descricao}",${valor}\n`;
+
+        if (ehAdicional)
+            csvDiego += linhaCsv;
+        else
+            csvCamila += linhaCsv;
+    }
+
+    document.getElementById("saidaCamila").value = csvCamila;
+    document.getElementById("saidaDiego").value = csvDiego;
+}
+</script>
+
+</body>
+</html>
+

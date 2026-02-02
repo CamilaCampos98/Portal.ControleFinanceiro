@@ -4,61 +4,68 @@
     ViewData["Title"] = "Registrar Compra";
 }
 <div class="main-container">
-<h2><i class="bi bi-cart-plus"></i> Registrar Compra</h2>
+    <h2><i class="bi bi-cart-plus"></i> Registrar Compra</h2>
 
-@if (!string.IsNullOrEmpty(Model.Mensagem))
-{
-    <div class="alert @(Model.Sucesso ? "alert-success" : "alert-danger") alert-dismissible fade show shadow-sm mt-3" role="alert">
-        <pre class="m-0">@Model.Mensagem</pre>
-        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-    </div>
-}
+    @if (!string.IsNullOrEmpty(Model.Mensagem))
+    {
+        <div class="alert @(Model.Sucesso ? "alert-success" : "alert-danger") alert-dismissible fade show shadow-sm mt-3" role="alert">
+            <pre class="m-0">@Model.Mensagem</pre>
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+    }
 
-<form method="post">
-    <div class="row g-3">
-        <div class="col-md-4">
-            <label class="form-label">Pessoa</label>
-            <input asp-for="Input.Pessoa" class="form-control" placeholder="Ex.: João" />
-        </div>
-        <div class="col-md-4">
-            <label class="form-label">Descrição</label>
-            <input asp-for="Input.Descricao" class="form-control" placeholder="Ex.: Mercado" />
-        </div>
-        <div class="col-md-4">
-            <label class="form-label">Valor (R$)</label>
+    <form method="post">
+        <div class="row g-3">
+            <div class="col-md-4">
+                <label class="form-label">Pessoa</label>
+                <input asp-for="Input.Pessoa" class="form-control" placeholder="Ex.: João" />
+            </div>
+            <div class="col-md-4">
+                <label class="form-label">Descrição</label>
+                <input asp-for="Input.Descricao" class="form-control" placeholder="Ex.: Mercado" />
+            </div>
+            <div class="col-md-4">
+                <label class="form-label">Valor (R$)</label>
                 <input asp-for="Input.ValorTotal" class="form-control" type="number" step="0.01" />
-        </div>
-        <div class="col-md-4">
-            <label class="form-label">Data da Compra</label>
-            <input asp-for="Input.Data" class="form-control" type="date" />
-        </div>
-        <div class="col-md-4">
-            <label class="form-label">Forma de Pagamento</label>
-            <select asp-for="Input.FormaPgto" class="form-select">
-                <option value="C">Crédito</option>
-                <option value="D">Débito</option>
-            </select>
-        </div>
+            </div>
+            <div class="col-md-4">
+                <label class="form-label">Data da Compra</label>
+                <input asp-for="Input.Data" class="form-control" type="date" />
+            </div>
+            <div class="col-md-4">
+                <label class="form-label">Forma de Pagamento</label>
+                <select asp-for="Input.FormaPgto" class="form-select">
+                    <option value="C">Crédito</option>
+                    <option value="D">Débito</option>
+                </select>
+            </div>
             <div class="col-md-4" id="cartao-div">
                 <label class="form-label">Cartão</label>
                 <select asp-for="Input.Cartao" class="form-select" id="selectCartao">
                     <option value="">Selecione...</option>
                 </select>
             </div>
-        <div class="col-md-4">
-            <label class="form-label">Parcelas</label>
-            <input asp-for="Input.TotalParcelas" class="form-control" type="number" value="1" />
+            <div class="col-md-4">
+                <label class="form-label">Parcelas</label>
+                <input asp-for="Input.TotalParcelas" class="form-control" type="number" value="1" />
+            </div>
+            <div class="col-md-4">
+                <label class="form-label">Fonte (Ex.: Salário)</label>
+                <input asp-for="Input.Fonte" class="form-control" />
+            </div>
         </div>
-        <div class="col-md-4">
-            <label class="form-label">Fonte (Ex.: Salário)</label>
-            <input asp-for="Input.Fonte" class="form-control" />
-        </div>
-    </div>
 
-    <button class="btn btn-success mt-3" type="submit">
-        <i class="bi bi-check-circle"></i> Registrar
-    </button>
-</form>
+        <button type="button"
+                class="btn btn-outline-primary mt-3 me-2"
+                data-bs-toggle="modal"
+                data-bs-target="#importarModal">
+            <i class="bi bi-upload"></i> Importar fatura (CSV)
+        </button>
+
+        <button class="btn btn-success mt-3" type="submit">
+            <i class="bi bi-check-circle"></i> Registrar
+        </button>
+    </form>
 </div>
 <div class="loading-overlay" id="loadingOverlay">
     <div>
@@ -66,71 +73,253 @@
     </div>
 </div>
 
+<div class="modal fade" id="importarModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+
+            <form method="post"
+                  enctype="multipart/form-data"
+                  asp-page-handler="ImportarFatura">
+
+                <div class="modal-header">
+                    <h5 class="modal-title">Importar fatura do cartão</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label">Pessoa</label>
+                        <input type="text"
+                               name="PessoaImportacao"
+                               class="form-control"
+                               placeholder="Ex: Camila ou Diego"
+                               required />
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">Cartão</label>
+                        <select name="CartaoImportacao"
+                                class="form-select"
+                                required>
+                            <option value="">Selecione...</option>
+                            @* reaproveita os mesmos cartões *@
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Mês da fatura</label>
+                        <input type="month"
+                               name="MesFatura"
+                               class="form-control"
+                               required />
+                    </div>
+                    <h6>Cole aqui os lançamentos do Itaú</h6>
+                    <textarea id="entrada" class="form-control" rows="6"></textarea>
+
+                    <input type="number" id="ano" class="form-control mt-2" value="2026">
+
+                    <textarea id="saidaCamila" hidden></textarea>
+                    <textarea id="saidaDiego" hidden></textarea>
+
+                    <div class="modal-footer">
+                        <button type="submit" class="btn btn-primary">
+                            Importar
+                        </button>
+                    </div>
+                    <input type="hidden" name="CsvGerado" id="CsvGerado" />
+                </div>
+            </form>
+
+        </div>
+    </div>
+</div>
+
 @* <script src="~/js/registrarcompra.js"></script> *@
 
 @section Scripts {
     <script>
-        const formaPgto = document.querySelector('[name="Input.FormaPgto"]');
-        const cartaoDiv = document.querySelector('#cartao-div');
-        const cartaoSelect = document.querySelector('[name="Input.Cartao"]');
+         const formaPgto = document.querySelector('[name="Input.FormaPgto"]');
+         const cartaoDiv = document.querySelector('#cartao-div');
+         const cartaoSelect = document.querySelector('[name="Input.Cartao"]');
 
-        function toggleCartao() {
-            if (formaPgto.value === 'C') {
-                cartaoDiv.style.display = 'block';
-                cartaoSelect.setAttribute('required', 'required');
-            } else {
-                cartaoDiv.style.display = 'none';
-                cartaoSelect.removeAttribute('required');
-                cartaoSelect.value = '';
-            }
-        }
+         function toggleCartao() {
+             if (formaPgto.value === 'C') {
+                 cartaoDiv.style.display = 'block';
+                 cartaoSelect.setAttribute('required', 'required');
+             } else {
+                 cartaoDiv.style.display = 'none';
+                 cartaoSelect.removeAttribute('required');
+                 cartaoSelect.value = '';
+             }
+         }
 
-        formaPgto.addEventListener('change', toggleCartao);
+         formaPgto.addEventListener('change', toggleCartao);
 
-        // Executa no carregamento inicial
-        toggleCartao();
+         // Executa no carregamento inicial
+         toggleCartao();
 
-        document.addEventListener('DOMContentLoaded', function () {
-            const overlay = document.getElementById('loadingOverlay');
+         document.addEventListener('DOMContentLoaded', function () {
+             const overlay = document.getElementById('loadingOverlay');
 
-            const forms = document.querySelectorAll('form');
-            const buttons = document.querySelectorAll('form button[type="submit"]');
+             const forms = document.querySelectorAll('form');
+             const buttons = document.querySelectorAll('form button[type="submit"]');
 
-            forms.forEach(form => {
-                form.addEventListener('submit', function () {
-                    // Ativa overlay
-                    overlay.style.display = 'flex';
+             forms.forEach(form => {
+                 form.addEventListener('submit', function () {
+                     // Ativa overlay
+                     overlay.style.display = 'flex';
 
-                    // Ativa loading nos botões do formulário
-                    const btns = form.querySelectorAll('button[type="submit"]');
-                    btns.forEach(btn => {
-                        btn.classList.add('btn-loading');
-                    });
-                });
-            });
-        });
+                     // Ativa loading nos botões do formulário
+                     const btns = form.querySelectorAll('button[type="submit"]');
+                     btns.forEach(btn => {
+                         btn.classList.add('btn-loading');
+                     });
+                 });
+             });
+         });
 
-             document.addEventListener("DOMContentLoaded", async function () {
-            const selectCartao = document.getElementById("selectCartao");
-            const urlApi = '@Model.UrlApi';
+         document.addEventListener("DOMContentLoaded", async function () {
+             const selectCartao = document.getElementById("selectCartao");
+             const selectCartaoImportacao = document.querySelector('select[name="CartaoImportacao"]');
+             const urlApi = '@Model.UrlApi';
 
-            try {
-                const response = await fetch(`${urlApi}Compra/GetCartoes`);
+                 try {
+             const response = await fetch(`${urlApi}Compra/GetCartoes`);
 
-                if (!response.ok) throw new Error("Erro ao buscar cartões.");
+             if (!response.ok) throw new Error("Erro ao buscar cartões.");
 
-                const cartoes = await response.json();
+             const cartoes = await response.json();
 
-                cartoes.forEach(cartao => {
-                    const option = document.createElement("option");
-                    option.value = cartao;
-                    option.text = cartao;
-                    selectCartao.appendChild(option);
-                });
-            } catch (error) {
-                console.error("Erro ao carregar cartões:", error);
-                // Opcional: mostrar uma mensagem no HTML
-            }
-        });
+             cartoes.forEach(cartao => {
+
+                 // select da tela principal
+                 if (selectCartao) {
+                     const option = document.createElement("option");
+                     option.value = cartao;
+                     option.text = cartao;
+                     selectCartao.appendChild(option);
+                 }
+
+                 // select do modal de importação
+                 if (selectCartaoImportacao) {
+                     const option2 = document.createElement("option");
+                     option2.value = cartao;
+                     option2.text = cartao;
+                     selectCartaoImportacao.appendChild(option2);
+                 }
+
+             });
+
+         } catch (error) {
+             console.error("Erro ao carregar cartões:", error);
+         }
+         });
+
+        const form = document.querySelector('#importarModal form');
+
+         form.addEventListener("submit", function () {
+
+             gerar(); // usa sua função existente
+
+             const pessoa =
+                 document.querySelector('input[name="PessoaImportacao"]').value
+                     .trim()
+                     .toLowerCase();
+
+             let csv;
+
+             if (pessoa.includes("diego"))
+                 csv = document.getElementById("saidaDiego").value;
+             else
+                 csv = document.getElementById("saidaCamila").value;
+
+             document.getElementById("CsvGerado").value = csv;
+         });
+
+          function gerar() {
+
+              const texto = document.getElementById("entrada").value;
+              const ano = document.getElementById("ano").value;
+
+              const linhas = texto.split(/\r?\n/);
+
+              let csvCamila = "data,lançamento,valor\n";
+              let csvDiego  = "data,lançamento,valor\n";
+
+              const meses = {
+                  "jan.": "01",
+                  "fev.": "02",
+                  "mar.": "03",
+                  "abr.": "04",
+                  "mai.": "05",
+                  "jun.": "06",
+                  "jul.": "07",
+                  "ago.": "08",
+                  "set.": "09",
+                  "out.": "10",
+                  "nov.": "11",
+                  "dez.": "12"
+              };
+
+              for (let i = 0; i < linhas.length; i++) {
+
+                  let linha = linhas[i].trim();
+
+                  if (!linha)
+                      continue;
+
+                  const l = linha.toLowerCase();
+
+                  // ignora linhas de parcela
+                  if (l.startsWith("parcela"))
+                      continue;
+
+                  // ignora pagamento
+                  if (l.includes("pagamento efetuado"))
+                      continue;
+
+                  // Ex: 31 jan.	bar e lanches amigos d adicional	R$ 15,00
+                  const partes = linha.split(/\t+/);
+
+                  if (partes.length < 3)
+                      continue;
+
+                  const dataTxt = partes[0].trim();     // 31 jan.
+                  const descricao = partes[1].trim();
+                  const valorTxt = partes[2].trim();    // R$ 15,00
+
+                  const p = dataTxt.split(" ");
+
+                  if (p.length < 2)
+                      continue;
+
+                  const dia = p[0].padStart(2, "0");
+                  const mesTxt = p[1].toLowerCase();
+
+                  const mes = meses[mesTxt];
+
+                  if (!mes)
+                      continue;
+
+                  const dataIso = `${ano}-${mes}-${dia}`;
+
+                  const valor = valorTxt
+                      .replace("R$", "")
+                      .replace(/\./g, "")
+                      .replace(",", ".")
+                      .trim();
+
+                  const ehAdicional = descricao.toLowerCase().includes("adicional");
+
+                  const linhaCsv = `${dataIso},"${descricao}",${valor}\n`;
+
+                  if (ehAdicional)
+                      csvDiego += linhaCsv;
+                  else
+                      csvCamila += linhaCsv;
+              }
+
+              document.getElementById("saidaCamila").value = csvCamila;
+              document.getElementById("saidaDiego").value = csvDiego;
+          }
     </script>
 }
