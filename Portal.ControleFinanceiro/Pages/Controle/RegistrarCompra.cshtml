@@ -127,11 +127,13 @@
                     </div>
                     <input type="hidden" name="CsvGerado" id="CsvGerado" />
                 </div>
+                
             </form>
 
         </div>
     </div>
 </div>
+
 
 @* <script src="~/js/registrarcompra.js"></script> *@
 
@@ -216,110 +218,175 @@
 
         const form = document.querySelector('#importarModal form');
 
-         form.addEventListener("submit", function () {
+        form.addEventListener("submit", async function (e) {
 
-             gerar(); // usa sua função existente
+            e.preventDefault(); // para o submit automático
 
-             const pessoa =
-                 document.querySelector('input[name="PessoaImportacao"]').value
-                     .trim()
-                     .toLowerCase();
+            await gerar(); // agora pode usar await
 
-             let csv;
+            const pessoa =
+                document.querySelector('input[name="PessoaImportacao"]').value
+                    .trim()
+                    .toLowerCase();
 
-             if (pessoa.includes("diego"))
-                 csv = document.getElementById("saidaDiego").value;
-             else
-                 csv = document.getElementById("saidaCamila").value;
+            let csv;
 
-             document.getElementById("CsvGerado").value = csv;
-         });
+            if (pessoa.includes("diego"))
+                csv = document.getElementById("saidaDiego").value;
+            else
+                csv = document.getElementById("saidaCamila").value;
 
-          function gerar() {
+            document.getElementById("CsvGerado").value = csv;
 
-              const texto = document.getElementById("entrada").value;
-              const ano = document.getElementById("ano").value;
+            // agora sim envia o form
+            form.submit();
+        });
 
-              const linhas = texto.split(/\r?\n/);
 
-              let csvCamila = "data,lançamento,valor\n";
-              let csvDiego  = "data,lançamento,valor\n";
+        async function gerar() {
 
-              const meses = {
-                  "jan.": "01",
-                  "fev.": "02",
-                  "mar.": "03",
-                  "abr.": "04",
-                  "mai.": "05",
-                  "jun.": "06",
-                  "jul.": "07",
-                  "ago.": "08",
-                  "set.": "09",
-                  "out.": "10",
-                  "nov.": "11",
-                  "dez.": "12"
-              };
+            const texto = document.getElementById("entrada").value;
 
-              for (let i = 0; i < linhas.length; i++) {
+            const mesFaturaInput = document.querySelector('[name="MesFatura"]').value;
+            // formato: yyyy-MM
+            if (!mesFaturaInput) {
+                alert("Selecione o mês da fatura.");
+                return;
+            }
 
-                  let linha = linhas[i].trim();
+            const urlApi = '@Model.UrlApi';
 
-                  if (!linha)
-                      continue;
+            const pessoa = document.querySelector('[name="PessoaImportacao"]').value;
+            const cartao = document.querySelector('[name="CartaoImportacao"]').value;
 
-                  const l = linha.toLowerCase();
+            const mesAnoTela = mesFaturaInput;
 
-                  // ignora linhas de parcela
-                  if (l.startsWith("parcela"))
-                      continue;
+            // converte para MM/yyyy (formato da sua planilha / API)
+            const [ano, mes] = mesAnoTela.split("-");
+            const mesAno = `${mes}/${ano}`;
 
-                  // ignora pagamento
-                  if (l.includes("pagamento efetuado"))
-                      continue;
+            const url =
+                `${urlApi}Compra/PeriodoFatura`
+                + `?pessoa=${encodeURIComponent(pessoa)}`
+                + `&mesAno=${encodeURIComponent(mesAno)}`
+                + `&cartao=${encodeURIComponent(cartao)}`;
 
-                  // Ex: 31 jan.	bar e lanches amigos d adicional	R$ 15,00
-                  const partes = linha.split(/\t+/);
+            const resp = await fetch(url);
 
-                  if (partes.length < 3)
-                      continue;
+            if (!resp.ok) {
+                alert("Erro ao obter período da fatura");
+                return;
+            }
 
-                  const dataTxt = partes[0].trim();     // 31 jan.
-                  const descricao = partes[1].trim();
-                  const valorTxt = partes[2].trim();    // R$ 15,00
+            const periodo = await resp.json();
 
-                  const p = dataTxt.split(" ");
+            const inicioFatura = new Date(periodo.inicio);
+            const fimFatura    = new Date(periodo.fim);
 
-                  if (p.length < 2)
-                      continue;
+            const partesFatura = mesFaturaInput.split("-");
+            const anoFatura = parseInt(partesFatura[0]);
+            const mesFatura = parseInt(partesFatura[1]);
 
-                  const dia = p[0].padStart(2, "0");
-                  const mesTxt = p[1].toLowerCase();
+            const linhas = texto.split(/\r?\n/);
 
-                  const mes = meses[mesTxt];
+            let csvCamila = "data,lançamento,valor\n";
+            let csvDiego  = "data,lançamento,valor\n";
 
-                  if (!mes)
-                      continue;
+            const meses = {
+                "jan.": "01",
+                "fev.": "02",
+                "mar.": "03",
+                "abr.": "04",
+                "mai.": "05",
+                "jun.": "06",
+                "jul.": "07",
+                "ago.": "08",
+                "set.": "09",
+                "out.": "10",
+                "nov.": "11",
+                "dez.": "12"
+            };
 
-                  const dataIso = `${ano}-${mes}-${dia}`;
+            for (let i = 0; i < linhas.length; i++) {
 
-                  const valor = valorTxt
-                      .replace("R$", "")
-                      .replace(/\./g, "")
-                      .replace(",", ".")
-                      .trim();
+                let linha = linhas[i].trim();
 
-                  const ehAdicional = descricao.toLowerCase().includes("adicional");
+                if (!linha)
+                    continue;
 
-                  const linhaCsv = `${dataIso},"${descricao}",${valor}\n`;
+                const l = linha.toLowerCase();
 
-                  if (ehAdicional)
-                      csvDiego += linhaCsv;
-                  else
-                      csvCamila += linhaCsv;
-              }
+                if (l.startsWith("parcela"))
+                    continue;
 
-              document.getElementById("saidaCamila").value = csvCamila;
-              document.getElementById("saidaDiego").value = csvDiego;
-          }
+                if (l.includes("pagamento efetuado"))
+                    continue;
+
+                const match = linha.match(
+                    /^(\d{1,2})\s+([a-zç]{3}\.)\s+(.*?)\s+R\$\s*(-?\s?\d+[.,]\d{2})$/i
+                );
+
+                // const match = linha.match(
+                //   /^(\d{4}-\d{2}-\d{2}),\s*"([^"]+)",\s*([+-]?\d+(?:\.\d+)?)$/
+                // );
+
+
+                if (!match)
+                    continue;
+
+                const diaTxt     = match[1];
+                const mesTxt     = match[2].toLowerCase();
+                const descricao  = match[3].trim();
+                const valorTxt   = match[4].trim();
+
+                const mesStr = meses[mesTxt];
+
+                if (!mesStr)
+                    continue;
+
+                const dia = diaTxt.padStart(2, "0");
+                const mes = parseInt(mesStr, 10);
+
+                // ano base ajustado
+                let anoBase = inicioFatura.getFullYear();
+
+                // se o mês da compra for MAIOR que o mês de início da fatura,
+                // começa no ano anterior
+                if (mes - 1 > inicioFatura.getMonth()) {
+                    anoBase--;
+                }
+
+                let dataTeste = new Date(
+                    anoBase,
+                    mes - 1,
+                    parseInt(dia, 10)
+                );
+
+                // empurra para frente até cair dentro da fatura
+                while (dataTeste < inicioFatura || dataTeste > fimFatura) {
+                    dataTeste.setMonth(dataTeste.getMonth() + 1);
+                }
+
+                const dataIso = dataTeste.toISOString().slice(0, 10);
+
+                const valor = valorTxt
+                    .replace(/\s/g, "")
+                    .replace(/\./g, "")
+                    .replace(",", ".");
+
+                const ehAdicional = descricao.toLowerCase().includes("adicional");
+
+                const linhaCsv = `${dataIso},"${descricao}",${valor}\n`;
+
+                if (ehAdicional)
+                    csvDiego += linhaCsv;
+                else
+                    csvCamila += linhaCsv;
+            }
+
+            document.getElementById("saidaCamila").value = csvCamila;
+            document.getElementById("saidaDiego").value  = csvDiego;
+        }
+
     </script>
 }

@@ -137,16 +137,47 @@ namespace Portal.ControleFinanceiro.Pages.Controle
                 return Page();
             }
 
-            var mesAnoDate = DateTime.ParseExact(
-                                                    MesFatura,
-                                                    "yyyy-MM",
-                                                    CultureInfo.InvariantCulture
-                                                );
-
-            var (inicioFatura, fimFatura) =
-                ObterPeriodoCartao(CartaoImportacao, mesAnoDate);
+            var mesAnoApi = DateTime.ParseExact(
+                                                     MesFatura,
+                                                     "yyyy-MM",
+                                                     CultureInfo.InvariantCulture
+                                                 ).ToString("MM/yyyy");
 
             using var httpClient = new HttpClient();
+
+            var urlPeriodo =
+                $"{urlApi}Compra/PeriodoFatura" +
+                $"?pessoa={Uri.EscapeDataString(PessoaImportacao)}" +
+                $"&mesAno={Uri.EscapeDataString(mesAnoApi)}" +
+                $"&cartao={Uri.EscapeDataString(CartaoImportacao)}";
+
+            var responsePeriodo = await httpClient.GetAsync(urlPeriodo);
+
+            if (!responsePeriodo.IsSuccessStatusCode)
+            {
+                Mensagem = "Erro ao obter período da fatura pela API.";
+                Sucesso = false;
+                return Page();
+            }
+
+            var jsonPeriodo = await responsePeriodo.Content.ReadAsStringAsync();
+
+            var periodo =
+                JsonSerializer.Deserialize<PeriodoFaturaDto>(
+                    jsonPeriodo,
+                    new JsonSerializerOptions { PropertyNameCaseInsensitive = true }
+                );
+
+            if (periodo == null)
+            {
+                Mensagem = "Retorno inválido da API de período da fatura.";
+                Sucesso = false;
+                return Page();
+            }
+
+            var inicioFatura = periodo.Inicio;
+            var fimFatura = periodo.Fim;
+
 
             // ----------------------------------------------------
             // 👉 busca as compras já existentes via API
@@ -202,10 +233,12 @@ namespace Portal.ControleFinanceiro.Pages.Controle
                     continue;
                 }
 
+                var valorTexto = colunas[2].Replace(" ", "");
+
                 if (!decimal.TryParse(
-                        colunas[2],
-                        System.Globalization.NumberStyles.Any,
-                        System.Globalization.CultureInfo.InvariantCulture,
+                        valorTexto,
+                        NumberStyles.Any,
+                        CultureInfo.InvariantCulture,
                         out var valor))
                 {
                     erros.AppendLine($"Valor inválido: {linha}");
@@ -213,37 +246,23 @@ namespace Portal.ControleFinanceiro.Pages.Controle
                 }
 
                 var descricao = colunas[1];
-                bool ehParcela = descricao.ToLower().Contains("parcela"); // ou outra lógica para identificar
-
+                bool ehParcela =
+                    System.Text.RegularExpressions.Regex.IsMatch(
+                        descricao,
+                        @"\b\d{2}/\d{2}\b");
                 // ---------------------------------------
                 // Ajusta a data da parcela para fatura
                 // ---------------------------------------
                 DateTime dataFatura = dataCsv;
 
-                if (ehParcela)
+                while (dataFatura < inicioFatura)
                 {
-                    // calcula quantos meses adicionar para cair na fatura atual
-                    int mesesAdicionar = 0;
-                    DateTime parcelaData = dataCsv;
-
-                    while (parcelaData < inicioFatura)
-                    {
-                        mesesAdicionar++;
-                        parcelaData = dataCsv.AddMonths(mesesAdicionar);
-                    }
-
-                    // se após adicionar meses ainda estiver fora do período, ignora
-                    if (parcelaData > fimFatura)
-                        continue;
-
-                    dataFatura = parcelaData; // agora é a data real dentro da fatura
+                    dataFatura = dataFatura.AddMonths(1);
                 }
-                else
-                {
-                    // para compras únicas, ignora se está fora da fatura
-                    if (dataCsv < inicioFatura || dataCsv > fimFatura)
-                        continue;
-                }
+
+                // se passou do fim da fatura, ignora
+                if (dataFatura > fimFatura)
+                    continue;
 
                 // -----------------------------
                 // chave: Pessoa + Data + Valor
@@ -268,7 +287,8 @@ namespace Portal.ControleFinanceiro.Pages.Controle
                     FormaPgto = "C",
                     TotalParcelas = 1,
                     Fonte = Input.Fonte,
-                    Cartao = CartaoImportacao
+                    Cartao = CartaoImportacao,
+                    MesAno = MesFatura
                 };
 
                 var json = JsonSerializer.Serialize(compra);
@@ -302,44 +322,13 @@ namespace Portal.ControleFinanceiro.Pages.Controle
             return Page();
         }
 
-        (DateTime inicio, DateTime fim) ObterPeriodoCartao(string cartaoBase, DateTime mesAnoDate)
+      
+        public class PeriodoFaturaDto
         {
-            cartaoBase = RemoverPalavras(cartaoBase?.ToUpper() ?? "");
+            public DateTime Inicio { get; set; }
+            public DateTime Fim { get; set; }
 
-            if (!fechamentoCartoes.ContainsKey(cartaoBase))
-                cartaoBase = "OUTROS";
-
-            int diaFechamento = fechamentoCartoes[cartaoBase];
-
-            var fechamentoTeoricoAnterior = new DateTime(
-                mesAnoDate.Year,
-                mesAnoDate.Month,
-                Math.Min(diaFechamento, DateTime.DaysInMonth(mesAnoDate.Year, mesAnoDate.Month))
-            );
-
-            var mesSeguinte = mesAnoDate.AddMonths(1);
-
-            var fechamentoTeoricoAtual = new DateTime(
-                mesSeguinte.Year,
-                mesSeguinte.Month,
-                Math.Min(diaFechamento, DateTime.DaysInMonth(mesSeguinte.Year, mesSeguinte.Month))
-            );
-
-            bool fimDeSemana =
-                fechamentoTeoricoAtual.DayOfWeek is DayOfWeek.Saturday
-                or DayOfWeek.Sunday;
-
-            var fechamentoAjustado = fimDeSemana
-                ? fechamentoTeoricoAtual.AddDays(
-                    ((int)DayOfWeek.Monday - (int)fechamentoTeoricoAtual.DayOfWeek + 7) % 7)
-                : fechamentoTeoricoAtual;
-
-            var inicio = fechamentoTeoricoAnterior.AddDays(1);
-            var fim = fimDeSemana
-                ? fechamentoAjustado.AddDays(-3)
-                : fechamentoAjustado;
-
-            return (inicio, fim);
+            public Dictionary<string, int> Fechamentos { get; set; }
         }
 
         public static string RemoverPalavras(string texto)
@@ -361,14 +350,6 @@ namespace Portal.ControleFinanceiro.Pages.Controle
             return texto.Trim();
         }
 
-        Dictionary<string, int> fechamentoCartoes = new()
-                                                {
-                                                    { "ITAU", 8 },
-                                                    { "SANTANDER", 9 },
-                                                    { "BRADESCO", 3 },
-                                                    { "C&A", 5 },
-                                                    { "RIACHUELO", 10 }
-                                                };
-
+       
     }
 }
