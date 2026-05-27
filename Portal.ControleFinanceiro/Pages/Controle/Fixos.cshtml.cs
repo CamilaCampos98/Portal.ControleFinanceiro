@@ -67,7 +67,7 @@ public class Fixos : PageModel
         if (!DateTime.TryParseExact(mesAno, "MM/yyyy", CultureInfo.InvariantCulture, DateTimeStyles.None, out var dataRef))
             throw new Exception($"Formato de data inválido: {mesAno}");
 
-        vencimento = $"{dataRef.Year}-{dataRef.Month:D2}-10";
+        vencimento = $"{dataRef.Year}-{dataRef.Month:D2}-15";
 
         var fixosGerados = new List<FixoModel>();
 

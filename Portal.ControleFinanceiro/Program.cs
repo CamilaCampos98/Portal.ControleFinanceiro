@@ -1,4 +1,4 @@
-using Microsoft.AspNetCore.Authentication.Cookies;
+Ôªøusing Microsoft.AspNetCore.Authentication.Cookies;
 using System.Globalization;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -8,7 +8,7 @@ builder.Services.AddRazorPages();
 
 builder.Services.AddSession(options =>
 {
-    options.IdleTimeout = TimeSpan.FromMinutes(30); // Tempo de expiraÁ„o da sess„o
+    options.IdleTimeout = TimeSpan.FromMinutes(30); // Tempo de expira√ß√£o da sess√£o
     options.Cookie.HttpOnly = true;
     options.Cookie.IsEssential = true; // para GDPR compliance
 });
@@ -31,17 +31,17 @@ var defaultCulture = new CultureInfo("pt-BR");
 CultureInfo.DefaultThreadCurrentCulture = defaultCulture;
 CultureInfo.DefaultThreadCurrentUICulture = defaultCulture;
 
-//// Configure the HTTP request pipeline.
-//if (!app.Environment.IsDevelopment())
-//{
-//    app.UseExceptionHandler("/Error");
-//    // The default HSTS value is 30 days. You may want to change this for production scenarios, see https://aka.ms/aspnetcore-hsts.
-//    app.UseHsts();
-//}
+var port = Environment.GetEnvironmentVariable("PORT");
+if (!string.IsNullOrWhiteSpace(port))
+{
+    app.Urls.Add($"http://*:{port}");
+}
 
-var port = Environment.GetEnvironmentVariable("PORT") ?? "5000";
-app.Urls.Add($"http://*:{port}");
-
+if (!app.Environment.IsDevelopment())
+{
+    app.UseExceptionHandler("/Error");
+    app.UseHsts();
+}
 app.UseHttpsRedirection();
 app.UseStaticFiles();
 
@@ -55,3 +55,4 @@ app.UseAuthorization();
 app.MapRazorPages();
 
 app.Run();
+

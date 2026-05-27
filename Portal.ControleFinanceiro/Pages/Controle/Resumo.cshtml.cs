@@ -95,8 +95,9 @@ public class ResumoModel : PageModel
         try
         {
             var urlApi = _configuration["UrlApi"];
-            var mesAnoParam = filtro.Periodo;
-            var url = $"{urlApi}Compra/ResumoPessoaPeriodo?pessoa={filtro.Pessoa}&mesAno={mesAnoParam}";
+            var pessoaParam = Uri.EscapeDataString(filtro.Pessoa ?? string.Empty);
+            var mesAnoParam = Uri.EscapeDataString(filtro.Periodo ?? string.Empty);
+            var url = $"{urlApi}Compra/ResumoPessoaPeriodo?pessoa={pessoaParam}&mesAno={mesAnoParam}";
 
             using var httpClient = new HttpClient();
 
@@ -204,18 +205,36 @@ public class ResumoModel : PageModel
         {
             Sucesso = true;
             Mensagem = "✔️ Lançamento excluído com sucesso.";
+            RemoverCompraDaSessao(Id);
         }
         else
         {
             Mensagem = $"❌ Erro ao excluir lançamento.";
         }
 
-        return Page();
+        return RedirectToPage("./Resumo");
     }
     public IActionResult OnPostLimparSessao()
     {
         HttpContext.Session.Remove("ResumoJson");
         return RedirectToPage(); // Redireciona para a primeira página limpa
+    }
+
+    private void RemoverCompraDaSessao(string id)
+    {
+        var resumoJson = HttpContext.Session.GetString("ResumoJson");
+        if (string.IsNullOrWhiteSpace(resumoJson))
+            return;
+
+        var resumo = JsonSerializer.Deserialize<ResultadoResumo>(resumoJson);
+        if (resumo?.Compras == null)
+            return;
+
+        resumo.Compras = resumo.Compras
+            .Where(compra => !compra.TryGetValue("IdLan", out var idLan) || idLan?.ToString() != id)
+            .ToList();
+
+        HttpContext.Session.SetString("ResumoJson", JsonSerializer.Serialize(resumo));
     }
 
 

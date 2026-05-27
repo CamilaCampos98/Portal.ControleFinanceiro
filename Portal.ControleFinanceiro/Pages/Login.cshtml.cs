@@ -1,13 +1,12 @@
-using Microsoft.AspNetCore.Authentication;
+Ôªøusing Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
-using Portal.ControleFinanceiro.Models;
 using System.ComponentModel.DataAnnotations;
 using System.Security.Claims;
+using System.Text;
 using System.Text.Json;
-using static ResumoModel;
 
 [AllowAnonymous]
 public class LoginModel : PageModel
@@ -20,73 +19,78 @@ public class LoginModel : PageModel
     }
 
     [BindProperty]
-    public LoginInput Input { get; set; }
+    public LoginInput Input { get; set; } = new();
 
-    public string MensagemErro { get; set; }
-
+    public string? MensagemErro { get; set; }
 
     public async Task<IActionResult> OnPostAsync()
     {
-        var urlApi = _configuration["UrlApi"];
-        var url = $"{urlApi}Usuarios/Login";
-
         if (!ModelState.IsValid)
             return Page();
 
+        var urlApi = _configuration["UrlApi"];
+        var url = $"{urlApi}Usuarios/Login";
+
         using var httpClient = new HttpClient();
 
-        var response = await httpClient.GetAsync(url);
+        var payload = JsonSerializer.Serialize(Input);
+        using var requestContent = new StringContent(payload, Encoding.UTF8, "application/json");
 
-        if (response.IsSuccessStatusCode)
+        var response = await httpClient.PostAsync(url, requestContent);
+        var content = await response.Content.ReadAsStringAsync();
+
+        var options = new JsonSerializerOptions
         {
-            var content = await response.Content.ReadAsStringAsync();
+            PropertyNameCaseInsensitive = true
+        };
 
-            var options = new JsonSerializerOptions
-            {
-                PropertyNameCaseInsensitive = true
-            };
+        var loginResponse = JsonSerializer.Deserialize<LoginResponse>(content, options);
 
-            // Desserializar uma lista, n„o um ˙nico objeto
-            var usuarios = JsonSerializer.Deserialize<List<UsuarioModel>>(content, options);
+        if (response.IsSuccessStatusCode && loginResponse?.Autenticado == true)
+        {
+            var usuario = string.IsNullOrWhiteSpace(loginResponse.Usuario)
+                ? Input.Usuario
+                : loginResponse.Usuario;
 
-            if (usuarios == null || usuarios.Count == 0)
-            {
-                MensagemErro = "Nenhum usu·rio encontrado.";
-                return Page();
-            }
+            var claims = new List<Claim> { new Claim(ClaimTypes.Name, usuario) };
+            var identidade = new ClaimsIdentity(claims, CookieAuthenticationDefaults.AuthenticationScheme);
 
-            // Buscar usu·rio v·lido na lista (case insensitive)
-            var usuarioValido = usuarios.FirstOrDefault(u =>
-                u.Usuario.ToUpper().Equals(Input.Usuario.ToUpper(), StringComparison.OrdinalIgnoreCase) &&
-                u.Senha == Input.Senha);
+            await HttpContext.SignInAsync(
+                CookieAuthenticationDefaults.AuthenticationScheme,
+                new ClaimsPrincipal(identidade));
 
-            if (usuarioValido != null)
-            {
-                var claims = new List<Claim> { new Claim(ClaimTypes.Name, Input.Usuario) };
-                var identidade = new ClaimsIdentity(claims, CookieAuthenticationDefaults.AuthenticationScheme);
+            return RedirectToPage("/Index");
+        }
 
-                await HttpContext.SignInAsync(CookieAuthenticationDefaults.AuthenticationScheme, new ClaimsPrincipal(identidade));
-
-                return RedirectToPage("/Index");
-            }
-
-            MensagemErro = "Login incorreto.";
+        if (response.StatusCode == System.Net.HttpStatusCode.Unauthorized)
+        {
+            MensagemErro = loginResponse?.Mensagem ?? "Login incorreto.";
             return Page();
         }
 
-        // Caso resposta n„o seja sucesso
-        MensagemErro = "Erro ao comunicar com a API.";
+        if (response.StatusCode == System.Net.HttpStatusCode.BadRequest)
+        {
+            MensagemErro = loginResponse?.Mensagem ?? "Usu√°rio e senha s√£o obrigat√≥rios.";
+            return Page();
+        }
+
+        MensagemErro = loginResponse?.Mensagem ?? "Erro ao comunicar com a API.";
         return Page();
     }
-
-
 
     public class LoginInput
     {
         [Required]
-        public string Usuario { get; set; }
+        public string Usuario { get; set; } = string.Empty;
 
         [Required]
-        public string Senha { get; set; }
+        public string Senha { get; set; } = string.Empty;
+    }
+
+    public class LoginResponse
+    {
+        public bool Autenticado { get; set; }
+        public string Usuario { get; set; } = string.Empty;
+        public string Mensagem { get; set; } = string.Empty;
     }
 }

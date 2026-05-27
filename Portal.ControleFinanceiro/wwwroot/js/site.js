@@ -1,4 +1,15 @@
-﻿// Please see documentation at https://learn.microsoft.com/aspnet/core/client-side/bundling-and-minification
-// for details on configuring this project to bundle and minify static web assets.
+﻿document.addEventListener("DOMContentLoaded", () => {
+    const overlay = document.getElementById("loadingOverlay");
+    if (!overlay) return;
 
-// Write your JavaScript code.
+    document.querySelectorAll("form").forEach((form) => {
+        form.addEventListener("submit", () => {
+            overlay.style.display = "flex";
+
+            form.querySelectorAll('button[type="submit"]').forEach((button) => {
+                button.classList.add("btn-loading");
+                button.setAttribute("aria-busy", "true");
+            });
+        });
+    });
+});

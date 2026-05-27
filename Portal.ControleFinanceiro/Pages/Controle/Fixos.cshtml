@@ -1,368 +1,511 @@
-﻿@page
+@page
+@using System.Globalization
 @model Fixos
 @{
-	ViewData["Title"] = "Gastos Fixos";
+    ViewData["Title"] = "Gastos Fixos";
+
+    var cultura = new CultureInfo("pt-BR");
+    var totalFixos = Model.FixosModel?.Sum(f => ValorFixo(f.Valor)) ?? 0;
+    var totalPago = Model.FixosModel?.Where(f => FixoPago(f.Pago)).Sum(f => ValorFixo(f.Valor)) ?? 0;
+    var totalPendente = totalFixos - totalPago;
+    var quantidadeFixos = Model.FixosModel?.Count ?? 0;
+    var quantidadePagos = Model.FixosModel?.Count(f => FixoPago(f.Pago)) ?? 0;
+    var quantidadeDivididos = Model.FixosModel?.Count(f => FixoDividido(f.Dividido)) ?? 0;
 }
-<style>
-	#gridFixos th.pago-col,
-	#gridFixos td.pago-col {
-		display: none;
-	}
-</style>
-<!-- Bootstrap CSS -->
-<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
-<!-- Bootstrap Icons -->
-<link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
 
-<div class="main-container">
-	<h2><i class="bi bi-calendar-check"></i> Gastos Fixos</h2>
-
-	@if (!string.IsNullOrEmpty(Model.Mensagem))
-        {
-            <div class="alert @(Model.Sucesso ? "alert-success" : "alert-danger") alert-dismissible fade show shadow-sm mt-3" role="alert">
-                <pre class="m-0">@Model.Mensagem</pre>
-                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-            </div>
-        }
-	<form method="post">
-		<div class="row g-3 mb-3">
-			<div class="col-md-4">
-				<label for="Pessoa" class="form-label">Pessoa</label>
-				<input asp-for="Pessoa" id="Pessoa" class="form-control" />
-
-			</div>
-			<div class="col-sm-4 col-md-4">
-                <label class="form-label">Período</label>
-                <input asp-for="Periodo" id="Periodo" placeholder="Ex.: 05/2025" class="form-control" />
-            </div>
-			<div class="col-md-4">
-				<label for="TiposSelecionados" class="form-label">Tipos de Gastos Fixos</label>
-				<select asp-for="TiposSelecionados" id="TiposSelecionados" class="form-select" multiple size="5">
-					 <option value="">Selecione...</option>
-				</select>
-			</div>
-			
-		</div>
-		<button type="submit" asp-page-handler="Gerar" class="btn btn-success">
-			<i class="bi bi-plus-circle"></i>
-			Gerar
-		</button>
-
-		<button type="submit" asp-page-handler="Listar" class="btn btn-secondary">
-			<i class="bi bi-list"></i>
-			Listar Fixos
-		</button>
-	</form>
-	<form method="post" asp-page-handler="CopiarMesAnterior">
-		<input type="hidden" name="Pessoa" value="@Model.Pessoa" />
-		<input type="hidden" name="Periodo" value="@Model.Periodo" />
-		<button type="submit" class="btn btn-warning">
-			<i class="bi bi-arrow-down-circle"></i> Copiar Mês Anterior
-		</button>
-	</form>
-
-	@if (Model.FixosModel != null && Model.FixosModel.Any())
-	{
-		<form id="formExcluir" method="post" asp-page-handler="Excluir">
-	<input type="hidden" name="Id" id="formExcluir_Id" />
-	<input type="hidden" name="MesAno" id="formExcluir_MesAno" />
-	<input type="hidden" name="Pessoa" value="@Model.Pessoa" />
-		</form>
-
-		<div class="text-end mb-2">
-			<button id="btnTogglePago"
-					type="button"
-					class="btn btn-outline-secondary btn-sm">
-				<i class="bi bi-eye-slash" id="iconTogglePago"></i> Mostrar Valor
-			</button>
-		</div>
-		<div class="card shadow-sm mb-4">
-			<form method="post" asp-page-handler="Salvar">
-				<div class="card-header card-header-custom">
-					<h4><i class="bi bi-table"></i> Gastos Fixos Gerados</h4>
-				</div>
-				
-				<div class="table-responsive">
-					<table class="table table-bordered table-hover align-middle" id="gridFixos">
-						<thead>
-							<tr>
-								<th style="display:none">ID</th>
-								<th>Tipo</th>
-								<th>Mês/Ano</th>
-								<th>Vencimento</th>
-								<th class="pago-col" style="min-width: 80px;">Valor (R$)</th>
-								<th style="min-width: 50px;">Pago</th>
-								<th style="min-width: 30px;">Dividido</th>
-								<th style="min-width: 50px;">Ações</th>
-							</tr>
-						</thead>
-						<tbody>
-							@for (int i = 0; i < Model.FixosModel.Count; i++)
-							{
-								<tr>
-									<td style="display:none">
-										@Model.FixosModel[i].Id
-										<input type="hidden" name="FixosModel[@i].Id" value="@Model.FixosModel[i].Id" />
-									</td>
-									<td>
-										@Model.FixosModel[i].Tipo
-										<input type="hidden" name="FixosModel[@i].Tipo" value="@Model.FixosModel[i].Tipo" />
-									</td>
-									<td>
-										@Model.FixosModel[i].MesAno
-										<input type="hidden" name="FixosModel[@i].MesAno" value="@Model.FixosModel[i].MesAno" />
-									</td>
-									<td>
-										@Model.FixosModel[i].Vencimento
-										<input type="hidden" name="FixosModel[@i].Vencimento" value="@Model.FixosModel[i].Vencimento" />
-									</td>
-									<td class="pago-col">
-										<input type="number" step="0.01" class="form-control"
-											   name="FixosModel[@i].Valor"
-											   value="@(Model.FixosModel[i].Valor)" />
-									</td>
-									<td>
-										<input type="checkbox"
-											   name="FixosModel[@i].Pago"
-											   value="true"
-											   @(Model.FixosModel[i].Pago == "true" ? "checked" : "") />
-										<input type="hidden" name="FixosModel[@i].Pago" value="false" />
-									</td>
-									<td>
-										<input type="checkbox"
-											   name="FixosModel[@i].Dividido"
-											   value="true"
-											   @(Model.FixosModel[i].Dividido == "Sim" ? "checked" : "") />
-										<input type="hidden" name="FixosModel[@i].Dividido" value="false" />
-									</td>
-									<td>
-										<button type="button"
-												class="btn btn-warning btn-sm btnDividir d-none"
-												data-id="@Model.FixosModel[i].Id"
-												data-tipo="@Model.FixosModel[i].Tipo"
-												data-valor="@Model.FixosModel[i].Valor">
-											<i class="bi bi-arrow-left-right"></i>
-										</button>
-
-										<!-- Formulário separado para excluir -->
-										<button type="button"
-												form="formExcluir"
-												class="btn btn-secondary btn-sm"
-												onclick="confirmarExcluir('@Model.FixosModel[i].Id', '@Model.FixosModel[i].MesAno', '@Model.FixosModel[i].Tipo');">
-											<i class="bi bi-trash"></i>
-										</button>
-									</td>
-								</tr>
-							}
-						</tbody>
-					</table>
-				</div>
-
-				<div class="mt-3 text-end">
-					<button type="submit" class="btn btn-success">
-						<i class="bi bi-save"></i> Salvar Todos
-					</button>
-				</div>
-			</form>
-		</div>
-	}
-	
-	<div class="modal fade" id="dividirModal" tabindex="-1" aria-hidden="true">
-		<div class="modal-dialog">
-			<div class="modal-content">
-				<form method="post" asp-page-handler="DividirGastoFixo">
-					<div class="modal-header">
-						<h5 class="modal-title">Dividir Gasto Fixo</h5>
-						<button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-					</div>
-					<div class="modal-body">
-						<input type="hidden" name="IdGasto" id="modalIdGasto" />
-						<div class="mb-3">
-							<label class="form-label">Dividir com:</label>
-							<input type="text" class="form-control" name="DividirCom" required />
-						</div>
-						<div class="mb-3">
-							<label class="form-label">Valor:</label>
-							<input type="text" class="form-control" name="ValorDivisao" required />
-						</div>
-					</div>
-					<div class="modal-footer">
-						<button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
-						<button type="submit" class="btn btn-primary">
-							OK
-						</button>
-					</div>
-				</form>
-			</div>
-		</div>
-	</div>
-</div>
-<div class="loading-overlay" id="loadingOverlay">
-	<div>
-		<div class="spinner-border text-primary" role="status"></div>
-	</div>
-</div>
-
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/choices.js/public/assets/styles/choices.min.css" />
-<script src="https://cdn.jsdelivr.net/npm/choices.js/public/assets/scripts/choices.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 
-<script src="https://unpkg.com/imask"></script>
-@* <script src="~/js/fixos.js"></script> *@
+<div class="main-container fixed-expenses-page">
+    <div class="page-heading">
+        <div>
+            <h2><i class="bi bi-calendar-check"></i> Gastos Fixos</h2>
+            <p>Monte, confira e acompanhe os compromissos recorrentes do mês.</p>
+        </div>
+    </div>
+
+    @if (!string.IsNullOrEmpty(Model.Mensagem))
+    {
+        <div class="alert @(Model.Sucesso ? "alert-success" : "alert-danger") alert-dismissible fade show shadow-sm mt-3" role="alert">
+            <pre class="m-0">@Model.Mensagem</pre>
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+    }
+
+    <form method="post" class="fixed-control-panel">
+        <div class="row g-3 align-items-end">
+            <div class="col-md-3">
+                <label for="Pessoa" class="form-label">Pessoa</label>
+                <input asp-for="Pessoa" id="Pessoa" class="form-control" autocomplete="name" />
+            </div>
+            <div class="col-md-3">
+                <label class="form-label" for="Periodo">Período</label>
+                <input asp-for="Periodo" id="Periodo" placeholder="Ex.: 05/2026" class="form-control" />
+            </div>
+            <div class="col-md-6">
+                <label for="TiposSelecionados" class="form-label">Tipos de gastos fixos</label>
+                <select asp-for="TiposSelecionados" id="TiposSelecionados" class="form-select" multiple size="5" data-placeholder="Carregando tipos..."></select>
+                @* <div class="form-text" id="tiposFixosStatus">Carregando lista de tipos fixos.</div> *@
+            </div>
+        </div>
+
+        <div class="fixed-actions">
+            <button type="submit" asp-page-handler="Gerar" class="btn btn-success">
+                <i class="bi bi-plus-circle"></i>
+                Gerar
+            </button>
+            <button type="submit" asp-page-handler="Listar" class="btn btn-secondary">
+                <i class="bi bi-list"></i>
+                Listar fixos
+            </button>
+        </div>
+    </form>
+
+    <form method="post" asp-page-handler="CopiarMesAnterior" class="fixed-copy-form" id="formCopiarMesAnterior">
+        <input type="hidden" name="Pessoa" id="copyPessoa" value="@Model.Pessoa" />
+        <input type="hidden" name="Periodo" id="copyPeriodo" value="@Model.Periodo" />
+        <button type="submit" class="btn btn-warning">
+            <i class="bi bi-arrow-down-circle"></i>
+            Copiar mês anterior
+        </button>
+    </form>
+
+    @if (Model.FixosModel != null && Model.FixosModel.Any())
+    {
+        <section class="fixed-summary-grid" aria-label="Resumo dos gastos fixos">
+            <div class="metric-card">
+                <span>Total do mês</span>
+                <strong>@totalFixos.ToString("C", cultura)</strong>
+                <small>@quantidadeFixos gasto(s) fixo(s)</small>
+            </div>
+            <div class="metric-card metric-good">
+                <span>Pago</span>
+                <strong>@totalPago.ToString("C", cultura)</strong>
+                <small>@quantidadePagos marcado(s)</small>
+            </div>
+            <div class="metric-card metric-warning">
+                <span>Pendente</span>
+                <strong>@totalPendente.ToString("C", cultura)</strong>
+                <small>Somente para visualização</small>
+            </div>
+            <div class="metric-card">
+                <span>Divididos</span>
+                <strong>@quantidadeDivididos</strong>
+                <small>Itens já rateados</small>
+            </div>
+        </section>
+
+        <form id="formExcluir" method="post" asp-page-handler="Excluir">
+            <input type="hidden" name="Id" id="formExcluir_Id" />
+            <input type="hidden" name="MesAno" id="formExcluir_MesAno" />
+            <input type="hidden" name="Pessoa" value="@Model.Pessoa" />
+        </form>
+
+        <div class="fixed-table-shell">
+            <form method="post" asp-page-handler="Salvar">
+                <div class="fixed-table-header">
+                    <div>
+                        <h4><i class="bi bi-table"></i> Conferência mensal</h4>
+                        <p>Valores visíveis para facilitar a leitura do mês.</p>
+                    </div>
+                    <button type="submit" class="btn btn-success">
+                        <i class="bi bi-save"></i>
+                        Salvar todos
+                    </button>
+                </div>
+
+                <div class="table-tools fixed-table-tools">
+                    <div>
+                        <label class="form-label" for="fixosBusca">Buscar</label>
+                        <input id="fixosBusca" type="search" class="form-control" placeholder="Tipo, mês ou vencimento" />
+                    </div>
+                    <div>
+                        <label class="form-label" for="fixosFiltroStatus">Status</label>
+                        <select id="fixosFiltroStatus" class="form-select">
+                            <option value="todos">Todos</option>
+                            <option value="pago">Pagos</option>
+                            <option value="pendente">Pendentes</option>
+                            <option value="dividido">Divididos</option>
+                        </select>
+                    </div>
+                    <div class="table-filter-status" id="fixosFiltroResultado"></div>
+                </div>
+
+                <div class="table-responsive">
+                    <table class="table table-bordered table-hover align-middle fixed-table" id="gridFixos">
+                        <thead>
+                            <tr>
+                                <th style="display:none">ID</th>
+                                <th>Tipo</th>
+                                <th>Mês/Ano</th>
+                                <th>Vencimento</th>
+                                <th>Valor</th>
+                                <th>Status</th>
+                                <th>Dividido</th>
+                                <th>Ações</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @for (int i = 0; i < Model.FixosModel.Count; i++)
+                            {
+                                var fixo = Model.FixosModel[i];
+                                var valor = ValorFixo(fixo.Valor);
+                                var pago = FixoPago(fixo.Pago);
+                                var dividido = FixoDividido(fixo.Dividido);
+                                var status = pago ? "pago" : "pendente";
+                                var valorInput = valor.ToString("0.##", CultureInfo.InvariantCulture);
+
+                                <tr data-status="@status" data-dividido="@(dividido ? "sim" : "nao")">
+                                    <td style="display:none">
+                                        @fixo.Id
+                                        <input type="hidden" name="FixosModel[@i].Id" value="@fixo.Id" />
+                                    </td>
+                                    <td>
+                                        <strong>@fixo.Tipo</strong>
+                                        <input type="hidden" name="FixosModel[@i].Tipo" value="@fixo.Tipo" />
+                                    </td>
+                                    <td>
+                                        @fixo.MesAno
+                                        <input type="hidden" name="FixosModel[@i].MesAno" value="@fixo.MesAno" />
+                                    </td>
+                                    <td>
+                                        @fixo.Vencimento
+                                        <input type="hidden" name="FixosModel[@i].Vencimento" value="@fixo.Vencimento" />
+                                    </td>
+                                    <td>
+                                        <input type="number" step="0.01" class="form-control fixed-value-input"
+                                               name="FixosModel[@i].Valor"
+                                               value="@valorInput" />
+                                    </td>
+                                    <td>
+                                        <label class="fixed-check">
+                                            <input type="checkbox"
+                                                   name="FixosModel[@i].Pago"
+                                                   value="true"
+                                                   @(pago ? "checked" : "") />
+                                            <input type="hidden" name="FixosModel[@i].Pago" value="false" />
+                                            <span class="status-badge @(pago ? "status-paid" : "status-open")">@(pago ? "Pago" : "Pendente")</span>
+                                        </label>
+                                    </td>
+                                    <td>
+                                        <label class="fixed-check">
+                                            <input type="checkbox"
+                                                   name="FixosModel[@i].Dividido"
+                                                   value="true"
+                                                   @(dividido ? "checked" : "") />
+                                            <input type="hidden" name="FixosModel[@i].Dividido" value="false" />
+                                            <span class="status-badge @(dividido ? "status-split" : "status-neutral")">@(dividido ? "Sim" : "Não")</span>
+                                        </label>
+                                    </td>
+                                    <td>
+                                        <div class="row-actions">
+                                            <button type="button"
+                                                    class="btn btn-warning btn-sm btnDividir"
+                                                    data-id="@fixo.Id"
+                                                    data-tipo="@fixo.Tipo">
+                                                <i class="bi bi-arrow-left-right"></i>
+                                            </button>
+                                            <button type="button"
+                                                    form="formExcluir"
+                                                    class="btn btn-secondary btn-sm"
+                                                    onclick="confirmarExcluir('@fixo.Id', '@fixo.MesAno', '@fixo.Tipo');">
+                                                <i class="bi bi-trash"></i>
+                                            </button>
+                                        </div>
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            </form>
+        </div>
+    }
+
+    <div class="modal fade" id="dividirModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <form method="post" asp-page-handler="DividirGastoFixo">
+                    <div class="modal-header">
+                        <h5 class="modal-title">Dividir gasto fixo</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    </div>
+                    <div class="modal-body">
+                        <input type="hidden" name="IdGasto" id="modalIdGasto" />
+                        <input type="hidden" name="ValorDivisao" id="modalValorDivisao" />
+                        <div class="split-preview">
+                            <span id="modalTipoGasto">Gasto fixo</span>
+                            <strong id="modalValorMetade">R$ 0,00</strong>
+                            <small>O valor será dividido por 2 automaticamente.</small>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label" for="modalDividirCom">Dividir com</label>
+                            <input type="text" class="form-control" id="modalDividirCom" name="DividirCom" required />
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                        <button type="submit" class="btn btn-primary">
+                            <i class="bi bi-check2-circle"></i>
+                            Dividir
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="loading-overlay" id="loadingOverlay">
+    <div>
+        <div class="spinner-border text-primary" role="status"></div>
+    </div>
+</div>
 
 @section Scripts {
-	<script>
-		    window.onload = function () {
-            var elemento = document.getElementById('Periodo');
-            if (elemento) {
-                IMask(elemento, {
-                    mask: '00/0000',
-                    placeholderChar: '_',
+    <script src="https://cdn.jsdelivr.net/npm/choices.js/public/assets/scripts/choices.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <script src="https://unpkg.com/imask"></script>
+
+    <script>
+        document.addEventListener("DOMContentLoaded", function () {
+            const periodo = document.getElementById("Periodo");
+            if (periodo && window.IMask) {
+                IMask(periodo, {
+                    mask: "00/0000",
+                    placeholderChar: "_"
                 });
             }
+
+            carregarTiposFixos();
+            configurarFiltrosFixos();
+            configurarDivisaoPorDois();
+            configurarBadges();
+            configurarCopiaMesAnterior();
+        });
+
+        async function carregarTiposFixos() {
+            const select = document.getElementById("TiposSelecionados");
+            const status = document.getElementById("tiposFixosStatus");
+            if (!select) return;
+
+            const urlApi = "@(Model.UrlApi ?? "")";
+            const endpoint = `${urlApi.replace(/\/?$/, "/")}Compra/GetTiposFixos`;
+            const choices = window.Choices ? new Choices(select, {
+                removeItemButton: true,
+                shouldSort: false,
+                placeholder: true,
+                placeholderValue: "Selecione um ou mais tipos"
+            }) : null;
+
+            try {
+                const response = await fetch(endpoint);
+                if (response.status === 204) {
+                    if (status) status.textContent = "Nenhum tipo fixo cadastrado.";
+                    return;
+                }
+
+                if (!response.ok) {
+                    throw new Error("Erro ao buscar tipos de fixos.");
+                }
+
+                const tipos = await response.json();
+                const opcoes = tipos.map(tipo => ({
+                    value: tipo,
+                    label: tipo,
+                    selected: false
+                }));
+
+                if (choices) {
+                    choices.clearStore();
+                    choices.setChoices(opcoes, "value", "label", true);
+                } else {
+                    select.innerHTML = "";
+                    opcoes.forEach(opcao => {
+                        const option = document.createElement("option");
+                        option.value = opcao.value;
+                        option.textContent = opcao.label;
+                        select.appendChild(option);
+                    });
+                }
+
+                // if (status) status.textContent = `${opcoes.length} tipo(s) disponível(is).`;
+            } catch (error) {
+                console.error("Erro ao carregar tipos de fixos:", error);
+                if (status) status.textContent = "Não foi possível carregar os tipos. Confira se a API está ligada.";
+            }
         }
-		 document.addEventListener("DOMContentLoaded", async function () {
-			const urlApi = '@Model.UrlApi';
-			const tiposFixos = new Choices('#TiposSelecionados', {
-				removeItemButton: true,
-				shouldSort: false
-			});
 
-			try {
-				const response = await fetch(`${urlApi}Compra/GetTiposFixos`);
+        function confirmarExcluir(id, mesAno, tipo) {
+            Swal.fire({
+                title: "Tem certeza?",
+                text: `Deseja realmente excluir o fixo '${tipo}' do mês ${mesAno}?`,
+                icon: "warning",
+                showCancelButton: true,
+                confirmButtonColor: "#d33",
+                cancelButtonColor: "#3085d6",
+                confirmButtonText: "Sim, excluir",
+                cancelButtonText: "Cancelar"
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    document.getElementById("formExcluir_Id").value = id;
+                    document.getElementById("formExcluir_MesAno").value = mesAno;
+                    document.getElementById("formExcluir").submit();
+                }
+            });
+        }
 
-				if (!response.ok) throw new Error("Erro ao buscar tipos de fixos.");
+        function configurarFiltrosFixos() {
+            const busca = document.getElementById("fixosBusca");
+            const filtroStatus = document.getElementById("fixosFiltroStatus");
+            const resultado = document.getElementById("fixosFiltroResultado");
+            const linhas = Array.from(document.querySelectorAll("#gridFixos tbody tr"));
+            if (!linhas.length) return;
 
-				const tipos = await response.json();
+            const aplicarFiltro = () => {
+                const termo = (busca?.value || "").trim().toLowerCase();
+                const status = filtroStatus?.value || "todos";
+                let visiveis = 0;
 
-				// Converte array de strings em array de objetos { value, label }
-				const choices = tipos.map(tipo => ({
-					value: tipo,
-					label: tipo,
-					selected: false
-				}));
+                linhas.forEach(linha => {
+                    const texto = linha.innerText.toLowerCase();
+                    const statusLinha = linha.dataset.status;
+                    const dividido = linha.dataset.dividido === "sim";
+                    const bateTexto = !termo || texto.includes(termo);
+                    const bateStatus = status === "todos"
+                        || status === statusLinha
+                        || (status === "dividido" && dividido);
 
-				// Adiciona as opções usando a API do Choices.js
-				tiposFixos.setChoices(choices, 'value', 'label', true);
+                    const mostrar = bateTexto && bateStatus;
+                    linha.style.display = mostrar ? "" : "none";
+                    if (mostrar) visiveis++;
+                });
 
-			} catch (error) {
-				console.error("Erro ao carregar tipos de fixos:", error);
-			}
-		});
+                if (resultado) resultado.textContent = `${visiveis} de ${linhas.length} item(ns)`;
+            };
 
-		function confirmarExcluir(id, mesAno, tipo) {
-			Swal.fire({
-				title: 'Tem certeza?',
-				text: `Deseja realmente excluir o fixo '${tipo}' do mês ${mesAno}?`,
-				icon: 'warning',
-				showCancelButton: true,
-				confirmButtonColor: '#d33',
-				cancelButtonColor: '#3085d6',
-				confirmButtonText: 'Sim, excluir',
-				cancelButtonText: 'Cancelar'
-			}).then((result) => {
-				if (result.isConfirmed) {
-					document.getElementById('formExcluir_Id').value = id;
-					document.getElementById('formExcluir_MesAno').value = mesAno;
-					document.getElementById('formExcluir').submit();
-				}
-			});
-		}
+            busca?.addEventListener("input", aplicarFiltro);
+            filtroStatus?.addEventListener("change", aplicarFiltro);
+            aplicarFiltro();
+        }
 
-		document.addEventListener('DOMContentLoaded', function () {
-			const btn = document.getElementById('btnTogglePago');
-			const icon = document.getElementById('iconTogglePago');
-			let isVisible = false;
+        function configurarDivisaoPorDois() {
+            const modalEl = document.getElementById("dividirModal");
+            const grid = document.getElementById("gridFixos");
+            if (!modalEl || !grid) return;
 
-			if(btn != null){
-				btn.addEventListener('click', function () {
-					const ths = document.querySelectorAll('#gridFixos th.pago-col');
-					const tds = document.querySelectorAll('#gridFixos td.pago-col');
+            const modal = new bootstrap.Modal(modalEl);
+            const idInput = document.getElementById("modalIdGasto");
+            const valorInput = document.getElementById("modalValorDivisao");
+            const valorMetade = document.getElementById("modalValorMetade");
+            const tipoGasto = document.getElementById("modalTipoGasto");
 
-					isVisible = !isVisible;
+            grid.addEventListener("click", function (event) {
+                const botao = event.target.closest(".btnDividir");
+                if (!botao) return;
 
-					ths.forEach(th => {
-						th.style.display = isVisible ? 'table-cell' : 'none';
-					});
+                const linha = botao.closest("tr");
+                const valorCampo = linha?.querySelector(".fixed-value-input")?.value || "0";
+                const valor = parseValor(valorCampo);
+                const metade = valor / 2;
 
-					tds.forEach(td => {
-						td.style.display = isVisible ? 'table-cell' : 'none';
-					});
+                idInput.value = botao.dataset.id || "";
+                valorInput.value = metade.toFixed(2);
+                valorMetade.textContent = metade.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+                tipoGasto.textContent = botao.dataset.tipo || "Gasto fixo";
+                modal.show();
+            });
+        }
 
-					if (isVisible) {
-						icon.classList.remove('bi-eye-slash');
-						icon.classList.add('bi-eye');
-						btn.innerHTML = '<i class="bi bi-eye" id="iconTogglePago"></i> Ocultar Valor';
-					} else {
-						icon.classList.remove('bi-eye');
-						icon.classList.add('bi-eye-slash');
-						btn.innerHTML = '<i class="bi bi-eye-slash" id="iconTogglePago"></i> Mostrar Valor';
-					}
-				});
-			}
-		});
+        function configurarBadges() {
+            document.querySelectorAll(".fixed-check input[type='checkbox']").forEach(input => {
+                input.addEventListener("change", () => {
+                    const row = input.closest("tr");
+                    const badge = input.parentElement.querySelector(".status-badge");
+                    const isPago = input.name.includes(".Pago");
+                    const checked = input.checked;
 
-		// // Inicializa o Choices no seletor
-		// const tiposFixos = new Choices('#TiposSelecionados', {
-		// 	removeItemButton: true,
-		// 	shouldSort: false,
-		// });
+                    if (isPago) {
+                        row.dataset.status = checked ? "pago" : "pendente";
+                        badge.textContent = checked ? "Pago" : "Pendente";
+                        badge.className = `status-badge ${checked ? "status-paid" : "status-open"}`;
+                    } else {
+                        row.dataset.dividido = checked ? "sim" : "nao";
+                        badge.textContent = checked ? "Sim" : "Não";
+                        badge.className = `status-badge ${checked ? "status-split" : "status-neutral"}`;
+                    }
+                });
+            });
+        }
 
-		document.addEventListener('DOMContentLoaded', function () {
-			const grid = document.getElementById('gridFixos');
-			if (!grid) return;
+        function configurarCopiaMesAnterior() {
+            const form = document.getElementById("formCopiarMesAnterior");
+            if (!form) return;
 
-			let selectedRow = null;
+            form.addEventListener("submit", () => {
+                document.getElementById("copyPessoa").value = document.getElementById("Pessoa")?.value || "";
+                document.getElementById("copyPeriodo").value = document.getElementById("Periodo")?.value || "";
+            });
+        }
 
-			grid.addEventListener('click', function (e) {
-				const row = e.target.closest('tr');
-				if (!row || !grid.contains(row)) return;
+        function parseValor(valor) {
+            let normalizado = String(valor || "0")
+                .replace("R$", "")
+                .trim();
 
-				// Clique no botão dividir
-				if (e.target.classList.contains('btnDividir')) {
-					const id = e.target.dataset.id;
-					document.getElementById('modalIdGasto').value = id;
+            if (normalizado.includes(",")) {
+                normalizado = normalizado.replace(/\./g, "").replace(",", ".");
+            }
 
-					const modal = new bootstrap.Modal(document.getElementById('dividirModal'));
-					modal.show();
-					return;
-				}
+            const numero = Number(normalizado);
+            return Number.isFinite(numero) ? numero : 0;
+        }
+    </script>
+}
 
-				// Seleção da linha
-				if (selectedRow) {
-					selectedRow.classList.remove('table-primary');
-					const btnAnterior = selectedRow.querySelector('.btnDividir');
-					if (btnAnterior) btnAnterior.classList.add('d-none');
-				}
+@functions {
+    private static decimal ValorFixo(string? valor)
+    {
+        if (string.IsNullOrWhiteSpace(valor))
+        {
+            return 0;
+        }
 
-				selectedRow = row;
-				row.classList.add('table-primary');
+        var normalizado = valor
+            .Replace("R$", "", StringComparison.OrdinalIgnoreCase)
+            .Replace(" ", "")
+            .Trim();
 
-				const btnAtual = row.querySelector('.btnDividir');
-				if (btnAtual) btnAtual.classList.remove('d-none');
-			});
-		});
+        var commaCount = normalizado.Count(c => c == ',');
+        var dotCount = normalizado.Count(c => c == '.');
 
+        if (commaCount > 0 && dotCount > 0)
+        {
+            normalizado = normalizado.LastIndexOf(",", StringComparison.Ordinal) > normalizado.LastIndexOf(".", StringComparison.Ordinal)
+                ? normalizado.Replace(".", "").Replace(",", ".")
+                : normalizado.Replace(",", "");
+        }
+        else if (commaCount > 0)
+        {
+            normalizado = normalizado.Replace(".", "").Replace(",", ".");
+        }
 
-		document.addEventListener('DOMContentLoaded', function () {
-			const overlay = document.getElementById('loadingOverlay');
+        if (decimal.TryParse(normalizado, NumberStyles.Any, CultureInfo.InvariantCulture, out var valorInvariant))
+        {
+            return valorInvariant;
+        }
 
-			const forms = document.querySelectorAll('form');
-			const buttons = document.querySelectorAll('form button[type="submit"]');
+        return 0;
+    }
 
-			forms.forEach(form => {
-				form.addEventListener('submit', function () {
-					// Ativa overlay
-					overlay.style.display = 'flex';
+    private static bool FixoPago(string? pago)
+    {
+        return string.Equals(pago, "true", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(pago, "Sim", StringComparison.OrdinalIgnoreCase);
+    }
 
-					// Ativa loading nos botões do formulário
-					const btns = form.querySelectorAll('button[type="submit"]');
-					btns.forEach(btn => {
-						btn.classList.add('btn-loading');
-					});
-				});
-			});
-		});
-	</script>
+    private static bool FixoDividido(string? dividido)
+    {
+        return string.Equals(dividido, "true", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(dividido, "Sim", StringComparison.OrdinalIgnoreCase);
+    }
 }

@@ -13,7 +13,7 @@
     if (Model.Resumo != null && Model.Resumo.ResumoPorCartaoTipo.Count > 0)
     {
          totaisPorCartao = Model.Resumo.ResumoPorCartaoTipo
-            .GroupBy(x => x.Cartao)
+            .GroupBy(x => string.IsNullOrWhiteSpace(x.Cartao) ? "Sem cartão" : x.Cartao)
             .ToDictionary(g => g.Key, g => g.Sum(x => x.Valor));
     }
 
@@ -83,6 +83,33 @@
             }
         }
     }
+
+    decimal receitaTotal = 0m;
+    decimal totalComprometido = 0m;
+    decimal percentualComprometido = 0m;
+    decimal gastoPorDiaDisponivel = 0m;
+    int diasRestantes = 1;
+    KeyValuePair<string, decimal>? maiorCartao = null;
+
+    if (Model.Resumo != null)
+    {
+        receitaTotal = Model.Resumo.Salario + Model.Resumo.Extras;
+        totalComprometido = Model.Resumo.TotalGasto + Model.Resumo.GastosFixos;
+        percentualComprometido = receitaTotal > 0 ? (totalComprometido / receitaTotal) * 100 : 0;
+
+        if (DateTime.TryParseExact(Model.Resumo.Periodo, "MM/yyyy", cultura, DateTimeStyles.None, out var periodoResumo))
+        {
+            var fimPeriodo = new DateTime(periodoResumo.Year, periodoResumo.Month, DateTime.DaysInMonth(periodoResumo.Year, periodoResumo.Month));
+            diasRestantes = Math.Max(1, (fimPeriodo.Date - hoje.Date).Days + 1);
+        }
+
+        gastoPorDiaDisponivel = Model.Resumo.SaldoRestante / diasRestantes;
+
+        if (Model.Resumo.ResumoPorCartao != null && Model.Resumo.ResumoPorCartao.Any())
+        {
+            maiorCartao = Model.Resumo.ResumoPorCartao.OrderByDescending(x => x.Value).First();
+        }
+    }
 }
 
 <style>
@@ -135,6 +162,77 @@
 
     @if (Model.Resumo != null)
     {
+        <section class="summary-intelligence mb-4">
+            <div class="metric-grid">
+                <div class="metric-card">
+                    <span class="metric-label">Receita total</span>
+                    <strong class="valor-sigiloso" onclick="toggleTodos()">@receitaTotal.ToString("C", cultura)</strong>
+                    <small>Salário + extras</small>
+                </div>
+                <div class="metric-card">
+                    <span class="metric-label">Comprometido</span>
+                    <strong class="valor-sigiloso" onclick="toggleTodos()">@totalComprometido.ToString("C", cultura)</strong>
+                    <small>@percentualComprometido.ToString("N1")% da receita</small>
+                </div>
+                <div class="metric-card @(Model.Resumo.SaldoRestante < 0 ? "metric-danger" : Model.Resumo.SaldoCritico ? "metric-warning" : "metric-good")">
+                    <span class="metric-label">Saldo previsto</span>
+                    <strong class="valor-sigiloso" onclick="toggleTodos()">@Model.Resumo.SaldoRestante.ToString("C", cultura)</strong>
+                    <small>@(Model.Resumo.SaldoRestante < 0 ? "Fechamento negativo" : "Após fixos e compras")</small>
+                </div>
+                <div class="metric-card @(gastoPorDiaDisponivel < 0 ? "metric-danger" : gastoPorDiaDisponivel < 25 ? "metric-warning" : "")">
+                    <span class="metric-label">Pode gastar por dia</span>
+                    <strong class="valor-sigiloso" onclick="toggleTodos()">@gastoPorDiaDisponivel.ToString("C", cultura)</strong>
+                    <small>Por @diasRestantes dia(s)</small>
+                </div>
+            </div>
+
+            <div class="insight-list mt-3">
+                @if (Model.Resumo.SaldoRestante < 0)
+                {
+                    <div class="insight insight-danger">
+                        <i class="bi bi-exclamation-triangle"></i>
+                        <span>O período está projetado para fechar negativo. Revise compras recentes e fixos pendentes.</span>
+                    </div>
+                }
+                else if (Model.Resumo.SaldoCritico || percentualComprometido >= 80)
+                {
+                    <div class="insight insight-warning">
+                        <i class="bi bi-activity"></i>
+                        <span>@percentualComprometido.ToString("N1")% da receita já está comprometida. Vale reduzir compras variáveis até o fechamento.</span>
+                    </div>
+                }
+                else
+                {
+                    <div class="insight insight-good">
+                        <i class="bi bi-check2-circle"></i>
+                        <span>O mês ainda está saudável. Mantenha o gasto diário abaixo de @gastoPorDiaDisponivel.ToString("C", cultura) para preservar o saldo.</span>
+                    </div>
+                }
+
+                @if (maiorCartao.HasValue && Model.Resumo.TotalGasto > 0)
+                {
+                    var pesoCartao = (maiorCartao.Value.Value / Model.Resumo.TotalGasto) * 100;
+                    <div class="insight">
+                        <i class="bi bi-credit-card-2-front"></i>
+                        <span>Maior concentração: @maiorCartao.Value.Key com @maiorCartao.Value.Value.ToString("C", cultura) (@pesoCartao.ToString("N1")% dos gastos variáveis).</span>
+                    </div>
+                }
+            </div>
+
+            @if (Model.Resumo.ResumoPorCartao != null && Model.Resumo.ResumoPorCartao.Any())
+            {
+                <div class="card-summary-strip mt-3">
+                    @foreach (var item in Model.Resumo.ResumoPorCartao.OrderByDescending(x => x.Value))
+                    {
+                        <div class="card-summary-item">
+                            <span>@item.Key</span>
+                            <strong class="valor-sigiloso" onclick="toggleTodos()">@item.Value.ToString("C", cultura)</strong>
+                        </div>
+                    }
+                </div>
+            }
+        </section>
+
         <div class="card shadow-sm mb-4">
             <div class="card-header card-header-custom">
                 <h5 class="mb-0">
@@ -201,6 +299,47 @@
                     	<input type="hidden" name="Id" id="formExcluir_Id" />
 	                    <input type="hidden" name="MesAno" id="formExcluir_MesAno" />
                     </form>
+
+                    <div class="table-tools mb-3">
+                        <div>
+                            <label class="form-label" for="filtroTabelaTexto">Buscar</label>
+                            <input id="filtroTabelaTexto" type="search" class="form-control" placeholder="Compra, cartão, forma..." />
+                        </div>
+                        <div>
+                            <label class="form-label" for="filtroTabelaCartao">Cartão</label>
+                            <select id="filtroTabelaCartao" class="form-select">
+                                <option value="">Todos</option>
+                                @foreach (var cartao in Model.Resumo.Compras
+                                    .Select(c => c.TryGetValue("Cartao", out var v) ? v?.ToString() : "")
+                                    .Where(c => !string.IsNullOrWhiteSpace(c))
+                                    .Distinct(StringComparer.OrdinalIgnoreCase)
+                                    .OrderBy(c => c))
+                                {
+                                    <option value="@cartao">@cartao</option>
+                                }
+                            </select>
+                        </div>
+                        <div>
+                            <label class="form-label" for="filtroTabelaPagamento">Pagamento</label>
+                            <select id="filtroTabelaPagamento" class="form-select">
+                                <option value="">Todos</option>
+                                @foreach (var forma in Model.Resumo.Compras
+                                    .Select(c => c.TryGetValue("FormaPgto", out var v) ? v?.ToString() : "")
+                                    .Where(c => !string.IsNullOrWhiteSpace(c))
+                                    .Distinct(StringComparer.OrdinalIgnoreCase)
+                                    .OrderBy(c => c))
+                                {
+                                    <option value="@forma">@forma</option>
+                                }
+                            </select>
+                        </div>
+                        <div>
+                            <label class="form-label" for="filtroTabelaValorMinimo">Valor mínimo</label>
+                            <input id="filtroTabelaValorMinimo" type="number" min="0" step="0.01" class="form-control" placeholder="0,00" />
+                        </div>
+                    </div>
+
+                    <div class="table-filter-status mb-2" id="tableFilterStatus"></div>
 
                     <div class="table-responsive">
                         <table class="table table-bordered table-hover align-middle" id="gridResumo">
@@ -383,62 +522,73 @@
                                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
                                 </div>
 
-                                <div class="modal-body">
-                                    <div class="row">
-                                        <!-- Grid 1 - Resumo por Cartão -->
-                                        <div class="col-md-4">
-                                            <div class="table-responsive">
-                                                <table class="table table-bordered table-hover align-middle">
-                                                    <thead class="table-primary">
-                                                        <tr class="text-center">
-                                                            <th>Cartão</th>
-                                                            <th>Total (R$)</th>
-                                                        </tr>
-                                                    </thead>
-                                                    <tbody>
-                                                        @foreach (var item in Model.Resumo.ResumoPorCartao)
-                                                        {
-                                                            <tr class="text-center">
-                                                                <td class="text-start">@item.Key</td>
-                                                                <td>R$ @item.Value.ToString("N2")</td>
-                                                            </tr>
-                                                        }
-                                                    </tbody>
-                                                </table>
-                                            </div>
-                                        </div>
+                                <div class="modal-body card-reconcile-modal">
+                                    @{
+                                        var gruposCartao = Model.Resumo.ResumoPorCartaoTipo
+                                            .GroupBy(x => string.IsNullOrWhiteSpace(x.Cartao) ? "Sem cartão" : x.Cartao)
+                                            .Select(g => new
+                                            {
+                                                Cartao = g.Key,
+                                                Total = g.Sum(x => x.Valor),
+                                                Tipos = g.OrderBy(x => x.Tipo).ToList()
+                                            })
+                                            .OrderByDescending(x => x.Total)
+                                            .ToList();
 
-                                        <!-- Grid 2 - Detalhe por Tipo (Titular / Adicional) -->
-                                        <div class="col-md-8">
-                                            <div class="table-responsive">
-                                                <table class="table table-bordered table-hover align-middle">
-                                                    <thead class="table-success">
-                                                        <tr class="text-center">
-                                                            <th>Cartão</th>
-                                                            <th>Tipo</th>
-                                                            <th>Total (R$)</th>
-                                                        </tr>
-                                                    </thead>
-                                                    <tbody>
-                                                        @foreach (var item in Model.Resumo.ResumoPorCartaoTipo)
-                                                        {
-                                                            <tr class="text-center">
-                                                                <td class="text-start">@item.Cartao</td>
-                                                                <td>@item.Tipo</td>
-                                                                <td>R$ @item.Valor.ToString("N2")</td>
-                                                            </tr>
-                                                        }
-                                                         @foreach (var cartao in totaisPorCartao)
-                                                        {
-                                                            <tr class="fw-bold text-center table-light">
-                                                                <td class="text-end" colspan="2">Total @cartao.Key:</td>
-                                                                <td>R$ @cartao.Value.ToString("N2")</td>
-                                                            </tr>
-                                                        }
-                                                    </tbody>
-                                                </table>
-                                            </div>
+                                        var totalGeralCartoes = gruposCartao.Sum(x => x.Total);
+                                    }
+
+                                    <div class="reconcile-summary">
+                                        <div>
+                                            <span>Cartões na conferência</span>
+                                            <strong>@gruposCartao.Count</strong>
                                         </div>
+                                        <div>
+                                            <span>Total geral</span>
+                                            <strong>@totalGeralCartoes.ToString("C", cultura)</strong>
+                                        </div>
+                                    </div>
+
+                                    <div class="reconcile-grid">
+                                        @foreach (var grupo in gruposCartao)
+                                        {
+                                            <section class="reconcile-card">
+                                                <div class="reconcile-card__header">
+                                                    <div>
+                                                        <span>Cartão</span>
+                                                        <strong>@grupo.Cartao</strong>
+                                                    </div>
+                                                    <div class="text-end">
+                                                        <span>Total da fatura</span>
+                                                        <strong>@grupo.Total.ToString("C", cultura)</strong>
+                                                    </div>
+                                                </div>
+
+                                                <div class="reconcile-lines">
+                                                    @foreach (var item in grupo.Tipos)
+                                                    {
+                                                        var percentual = grupo.Total > 0 ? (item.Valor / grupo.Total) * 100 : 0;
+                                                        var largura = percentual.ToString("0.##", CultureInfo.InvariantCulture);
+                                                        var tipo = string.IsNullOrWhiteSpace(item.Tipo) ? "Sem tipo" : item.Tipo;
+
+                                                        <div class="reconcile-line">
+                                                            <div class="reconcile-line__meta">
+                                                                <span>@tipo</span>
+                                                                <strong>@item.Valor.ToString("C", cultura)</strong>
+                                                            </div>
+                                                            <div class="reconcile-bar" aria-label="@tipo representa @percentual.ToString("N1", cultura)% do cartão">
+                                                                <span style="width: @largura%"></span>
+                                                            </div>
+                                                        </div>
+                                                    }
+                                                </div>
+
+                                                <div class="reconcile-total">
+                                                    <span>Total para conferir na fatura</span>
+                                                    <strong>@grupo.Total.ToString("C", cultura)</strong>
+                                                </div>
+                                            </section>
+                                        }
                                     </div>
                                 </div>
 
@@ -478,7 +628,6 @@
 	</div>
 </div>
 
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/choices.js/public/assets/styles/choices.min.css" />
 <script src="https://cdn.jsdelivr.net/npm/choices.js/public/assets/scripts/choices.min.js"></script>
 <script src="https://unpkg.com/imask"></script>
@@ -549,6 +698,8 @@
             const icon = document.getElementById('iconTogglePago');
             let isVisible = false;
 
+            if (!btn) return;
+
             btn.addEventListener('click', function () {
                 const ths = document.querySelectorAll('#gridResumo th.pago-col');
                 const tds = document.querySelectorAll('#gridResumo td.pago-col');
@@ -575,6 +726,66 @@
             });
         });
 
+        document.addEventListener('DOMContentLoaded', function () {
+            const table = document.getElementById('gridResumo');
+            if (!table) return;
+
+            const search = document.getElementById('filtroTabelaTexto');
+            const cartao = document.getElementById('filtroTabelaCartao');
+            const pagamento = document.getElementById('filtroTabelaPagamento');
+            const valorMinimo = document.getElementById('filtroTabelaValorMinimo');
+            const status = document.getElementById('tableFilterStatus');
+            const rows = Array.from(table.querySelectorAll('tbody tr'));
+
+            function parseMoney(text) {
+                return Number((text || '')
+                    .replace('R$', '')
+                    .replace(/\s/g, '')
+                    .replace(/\./g, '')
+                    .replace(',', '.')) || 0;
+            }
+
+            function applyFilters() {
+                const query = (search?.value || '').trim().toLowerCase();
+                const selectedCartao = (cartao?.value || '').trim().toLowerCase();
+                const selectedPagamento = (pagamento?.value || '').trim().toLowerCase();
+                const minimum = Number((valorMinimo?.value || '').replace(',', '.')) || 0;
+                let visible = 0;
+
+                rows.forEach(row => {
+                    const cells = row.children;
+                    const descricao = cells[2]?.textContent?.trim().toLowerCase() || '';
+                    const valor = parseMoney(cells[3]?.textContent || '');
+                    const forma = cells[4]?.textContent?.trim().toLowerCase() || '';
+                    const cartaoLinha = cells[5]?.textContent?.trim().toLowerCase() || '';
+                    const fonte = cells[8]?.textContent?.trim().toLowerCase() || '';
+                    const searchable = `${descricao} ${forma} ${cartaoLinha} ${fonte}`;
+
+                    const matches =
+                        (!query || searchable.includes(query)) &&
+                        (!selectedCartao || cartaoLinha === selectedCartao) &&
+                        (!selectedPagamento || forma === selectedPagamento) &&
+                        (!minimum || valor >= minimum);
+
+                    row.style.display = matches ? '' : 'none';
+                    if (matches) visible++;
+                });
+
+                if (status) {
+                    status.textContent = visible === rows.length
+                        ? `${visible} compra(s) nesta página`
+                        : `${visible} de ${rows.length} compra(s) nesta página`;
+                }
+            }
+
+            [search, cartao, pagamento, valorMinimo].forEach(input => {
+                input?.addEventListener('input', applyFilters);
+                input?.addEventListener('change', applyFilters);
+            });
+
+            applyFilters();
+        });
+
         function toggleTodos() {
             const valores = document.querySelectorAll('.valor-sigiloso');
             const algumRevelado = Array.from(valores).some(v => v.classList.contains('revelado'));
@@ -598,12 +809,12 @@
                 const dadosCompra = {
                     idLan: idLan,
                     pessoa: pessoa,
-                    compra: row.children[2].innerText,
-                    valor: parseFloat(row.children[3].innerText.replace('R$', '').trim().replace('.', '').replace(',', '.')),
-                    formaPgto: row.children[4].innerText,
-                    cartao: row.children[5].innerText,
-                    parcela: row.children[6].innerText,
-                    data: row.children[1].innerText // data está na coluna 1, talvez precise converter
+                    compra: row.children[2].textContent,
+                    valor: parseFloat(row.children[3].textContent.replace('R$', '').trim().replace('.', '').replace(',', '.')),
+                    formaPgto: row.children[4].textContent,
+                    cartao: row.children[5].textContent,
+                    parcela: row.children[6].textContent,
+                    data: row.children[1].textContent
                 };
 
                 abrirModalEditarCompra(dadosCompra);
