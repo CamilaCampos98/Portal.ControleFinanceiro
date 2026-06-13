@@ -115,6 +115,7 @@ namespace Portal.ControleFinanceiro.Pages.Controle
         public async Task<IActionResult> OnPostImportarFaturaAsync()
         {
             var urlApi = _configuration["UrlApi"];
+            UrlApi = urlApi;
 
             if (CsvGerado == null || CsvGerado.Length == 0)
             {
@@ -202,6 +203,7 @@ namespace Portal.ControleFinanceiro.Pages.Controle
 
             int totalImportadas = 0;
             int totalIgnoradas = 0;
+            int totalDuplicidadeParcelada = 0;
 
             var erros = new StringBuilder();
 
@@ -219,7 +221,7 @@ namespace Portal.ControleFinanceiro.Pages.Controle
                 if (string.IsNullOrWhiteSpace(linha))
                     continue;
 
-                var colunas = linha.Split(',');
+                var colunas = ParseCsvLine(linha);
 
                 if (colunas.Length < 3)
                 {
@@ -245,11 +247,24 @@ namespace Portal.ControleFinanceiro.Pages.Controle
                     continue;
                 }
 
-                var descricao = colunas[1];
-                bool ehParcela =
-                    System.Text.RegularExpressions.Regex.IsMatch(
-                        descricao,
-                        @"\b\d{2}/\d{2}\b");
+                var descricao = colunas[1].Trim();
+                var parcelaAtual = ParseIntColumn(colunas, 3, 1);
+                var totalParcelas = ParseIntColumn(colunas, 4, 1);
+
+                if (totalParcelas < 1)
+                    totalParcelas = 1;
+
+                if (parcelaAtual < 1)
+                    parcelaAtual = 1;
+
+                if (parcelaAtual > totalParcelas)
+                    parcelaAtual = totalParcelas;
+
+                var quantidadeParcelasParaInserir = totalParcelas - parcelaAtual + 1;
+                var valorTotalParaApi = totalParcelas > 1
+                    ? valor * quantidadeParcelasParaInserir
+                    : valor;
+
                 // ---------------------------------------
                 // Ajusta a data da parcela para fatura
                 // ---------------------------------------
@@ -264,17 +279,16 @@ namespace Portal.ControleFinanceiro.Pages.Controle
                 if (dataFatura > fimFatura)
                     continue;
 
-                // -----------------------------
-                // chave: Pessoa + Data + Valor
-                // -----------------------------
-                var chave =
-                    $"{PessoaImportacao.Trim().ToUpperInvariant()}|" +
-                    $"{dataFatura:yyyy-MM-dd}|" +
-                    $"{valor.ToString(System.Globalization.CultureInfo.InvariantCulture)}";
+                var chavesParcelas = Enumerable
+                    .Range(0, quantidadeParcelasParaInserir)
+                    .Select(i => BuildCompraKey(PessoaImportacao, dataFatura.AddMonths(i), valor))
+                    .ToList();
 
-                if (comprasExistentes.Contains(chave))
+                if (chavesParcelas.Any(comprasExistentes.Contains))
                 {
                     totalIgnoradas++;
+                    if (totalParcelas > 1)
+                        totalDuplicidadeParcelada++;
                     continue;
                 }
 
@@ -282,10 +296,11 @@ namespace Portal.ControleFinanceiro.Pages.Controle
                 {
                     Pessoa = PessoaImportacao,
                     Descricao = descricao,
-                    ValorTotal = valor,
+                    ValorTotal = valorTotalParaApi,
                     Data = dataFatura,
                     FormaPgto = "C",
-                    TotalParcelas = 1,
+                    TotalParcelas = totalParcelas,
+                    ParcelaInicial = parcelaAtual,
                     Fonte = Input.Fonte,
                     Cartao = CartaoImportacao,
                     MesAno = MesFatura
@@ -299,7 +314,10 @@ namespace Portal.ControleFinanceiro.Pages.Controle
                 if (response.IsSuccessStatusCode)
                 {
                     totalImportadas++;
-                    comprasExistentes.Add(chave);
+                    foreach (var chaveParcela in chavesParcelas)
+                    {
+                        comprasExistentes.Add(chaveParcela);
+                    }
                 }
                 else
                 {
@@ -316,13 +334,71 @@ namespace Portal.ControleFinanceiro.Pages.Controle
                 $"Importadas: {totalImportadas}\n" +
                 $"Ignoradas (já existentes): {totalIgnoradas}";
 
+            if (totalDuplicidadeParcelada > 0)
+                Mensagem += $"\nParceladas protegidas contra duplicidade: {totalDuplicidadeParcelada}";
+
             if (erros.Length > 0)
                 Mensagem += "\n\nErros:\n" + erros.ToString();
 
             return Page();
         }
 
-      
+        private static string BuildCompraKey(string pessoa, DateTime data, decimal valor)
+        {
+            return $"{pessoa.Trim().ToUpperInvariant()}|" +
+                   $"{data:yyyy-MM-dd}|" +
+                   $"{valor.ToString(CultureInfo.InvariantCulture)}";
+        }
+
+        private static string[] ParseCsvLine(string line)
+        {
+            var values = new List<string>();
+            var current = new StringBuilder();
+            var insideQuotes = false;
+
+            for (var i = 0; i < line.Length; i++)
+            {
+                var c = line[i];
+
+                if (c == '"')
+                {
+                    if (insideQuotes && i + 1 < line.Length && line[i + 1] == '"')
+                    {
+                        current.Append('"');
+                        i++;
+                    }
+                    else
+                    {
+                        insideQuotes = !insideQuotes;
+                    }
+
+                    continue;
+                }
+
+                if (c == ',' && !insideQuotes)
+                {
+                    values.Add(current.ToString());
+                    current.Clear();
+                    continue;
+                }
+
+                current.Append(c);
+            }
+
+            values.Add(current.ToString());
+            return values.ToArray();
+        }
+
+        private static int ParseIntColumn(string[] colunas, int index, int fallback)
+        {
+            if (colunas.Length <= index)
+                return fallback;
+
+            return int.TryParse(colunas[index], NumberStyles.Integer, CultureInfo.InvariantCulture, out var value)
+                ? value
+                : fallback;
+        }
+
         public class PeriodoFaturaDto
         {
             public DateTime Inicio { get; set; }

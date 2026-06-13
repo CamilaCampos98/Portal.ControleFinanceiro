@@ -2,6 +2,7 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 using System.ComponentModel.DataAnnotations;
+using System.Globalization;
 using System.Net.Http.Json;
 
 [Authorize]
@@ -10,9 +11,10 @@ public class CalculadoraHorasUteisModel : PageModel
     private static readonly HttpClient _http = new();
 
     [BindProperty]
-    public PeriodoInput Input { get; set; }
+    public PeriodoInput Input { get; set; } = new();
 
-    public ResultadoCalculo Resultado { get; set; }
+    public ResultadoCalculo? Resultado { get; set; }
+    public string? AvisoFeriados { get; set; }
 
     public void OnGet()
     {
@@ -26,20 +28,15 @@ public class CalculadoraHorasUteisModel : PageModel
 
     public async Task<IActionResult> OnPostAsync()
     {
-        if (!ModelState.IsValid || string.IsNullOrWhiteSpace(Input.MesReferencia))
+        if (!ModelState.IsValid ||
+            !DateTime.TryParseExact(Input.MesReferencia, "yyyy-MM", CultureInfo.InvariantCulture, DateTimeStyles.None, out var mesReferencia))
         {
             ModelState.AddModelError("", "Mês de referência inválido.");
             return Page();
         }
 
-        // 🎯 Define início e fim forçados com base no mês de referência
-        var mesRefParts = Input.MesReferencia.Split('-');
-        int ano = int.Parse(mesRefParts[0]);
-        int mes = int.Parse(mesRefParts[1]);
-
-        var dataInicio = new DateTime(ano, mes, 1).AddMonths(-1).AddDays(25); // 26 do mês anterior
-        var dataFim = new DateTime(ano, mes, 25);                             // 25 do mês atual
-
+        var dataInicio = new DateTime(mesReferencia.Year, mesReferencia.Month, 26);
+        var dataFim = new DateTime(mesReferencia.Year, mesReferencia.Month, 25).AddMonths(1);
         var feriados = await ObterFeriadosAsync(dataInicio, dataFim);
 
         var diasTotais = (dataFim - dataInicio).Days + 1;
@@ -58,6 +55,7 @@ public class CalculadoraHorasUteisModel : PageModel
             DiasUteis = diasUteis.Count,
             HorasPorDia = Input.HorasPorDia,
             TotalHorasUteis = diasUteis.Count * Input.HorasPorDia,
+            DiasNaoUteis = diasTotais - diasUteis.Count,
             Feriados = feriados
                         .Where(d => d.Data >= dataInicio && d.Data <= dataFim)
                         .OrderBy(d => d.Data)
@@ -74,37 +72,46 @@ public class CalculadoraHorasUteisModel : PageModel
 
         foreach (var ano in anos)
         {
-            var lista = await _http.GetFromJsonAsync<List<BrasilFeriado>>(
-                $"https://brasilapi.com.br/api/feriados/v1/{ano}");
-
-            if (lista != null)
+            try
             {
-                foreach (var item in lista)
+                var lista = await _http.GetFromJsonAsync<List<BrasilFeriado>>(
+                    $"https://brasilapi.com.br/api/feriados/v1/{ano}");
+
+                if (lista != null)
                 {
-                    if (DateTime.TryParse(item.date, out var data))
+                    foreach (var item in lista)
                     {
-                        var dataDate = data.Date;
-                        if (dataDate >= inicio && dataDate <= fim)
-                            feriados.Add(new FeriadoInfo { Data = dataDate, Nome = item.name ?? "Feriado Nacional" });
-
-                        // Se for Carnaval (terça), inclui a segunda-feira também
-                        if (!string.IsNullOrWhiteSpace(item.name) &&
-                            item.name.Contains("Carnaval", StringComparison.OrdinalIgnoreCase))
+                        if (DateTime.TryParse(item.date, out var data))
                         {
-                            var segundaCarnaval = dataDate.AddDays(-1);
+                            var dataDate = data.Date;
+                            if (dataDate >= inicio && dataDate <= fim)
+                                feriados.Add(new FeriadoInfo { Data = dataDate, Nome = item.name ?? "Feriado Nacional" });
 
-                            if (segundaCarnaval >= inicio && segundaCarnaval <= fim)
+                            if (!string.IsNullOrWhiteSpace(item.name) &&
+                                item.name.Contains("Carnaval", StringComparison.OrdinalIgnoreCase))
                             {
-                                feriados.Add(new FeriadoInfo
+                                var segundaCarnaval = dataDate.AddDays(-1);
+
+                                if (segundaCarnaval >= inicio && segundaCarnaval <= fim)
                                 {
-                                    Data = segundaCarnaval,
-                                    Nome = "Carnaval (segunda-feira)"
-                                });
+                                    feriados.Add(new FeriadoInfo
+                                    {
+                                        Data = segundaCarnaval,
+                                        Nome = "Carnaval (segunda-feira)"
+                                    });
+                                }
                             }
                         }
                     }
-
                 }
+            }
+            catch (HttpRequestException)
+            {
+                AvisoFeriados = "Não foi possível consultar a BrasilAPI. O cálculo continuou com feriados locais e móveis cadastrados no sistema.";
+            }
+            catch (TaskCanceledException)
+            {
+                AvisoFeriados = "A consulta de feriados demorou demais. O cálculo continuou com feriados locais e móveis cadastrados no sistema.";
             }
 
             // Feriado estadual de SP – 09 de julho
@@ -158,14 +165,14 @@ public class CalculadoraHorasUteisModel : PageModel
 
     public class BrasilFeriado
     {
-        public string date { get; set; }
-        public string name { get; set; }
+        public string? date { get; set; }
+        public string? name { get; set; }
     }
 
     public class PeriodoInput
     {
         [Required]
-        public string MesReferencia { get; set; }
+        public string MesReferencia { get; set; } = string.Empty;
 
         [Required]
         [Range(1, 24)]
@@ -174,9 +181,10 @@ public class CalculadoraHorasUteisModel : PageModel
 
     public class ResultadoCalculo
     {
-        public string Periodo { get; set; }
+        public string Periodo { get; set; } = string.Empty;
         public int DiasTotais { get; set; }
         public int DiasUteis { get; set; }
+        public int DiasNaoUteis { get; set; }
         public int HorasPorDia { get; set; }
         public int TotalHorasUteis { get; set; }
         public List<FeriadoInfo> Feriados { get; set; } = new();
@@ -185,6 +193,6 @@ public class CalculadoraHorasUteisModel : PageModel
     public class FeriadoInfo
     {
         public DateTime Data { get; set; }
-        public string Nome { get; set; }
+        public string Nome { get; set; } = string.Empty;
     }
 }

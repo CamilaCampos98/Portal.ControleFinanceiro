@@ -4,71 +4,112 @@
     ViewData["Title"] = "Calculadora de Horas Úteis";
 }
 
-<div class="main-container">
-    <h2>
-        <i class="bi bi-calculator"></i>
-        Calculadora de Horas Úteis – Barueri
-    </h2>
+<div class="main-container workdays-page">
+    <div class="page-heading">
+        <div>
+            <h2>
+                <i class="bi bi-calculator"></i>
+                Calculadora de Horas Úteis
+            </h2>
+            <p>Calcula o período de folha de 26 do mês informado até 25 do mês seguinte.</p>
+        </div>
+        <span class="status-badge status-open">Barueri/SP</span>
+    </div>
 
-    <form method="post">
-        <div>
-            <label class="form-label">Mês de Referência:</label>
-            <input asp-for="Input.MesReferencia" class="form-control" type="date" required />
+    <form method="post" class="fixed-control-panel workdays-form">
+        <div class="workdays-form-grid">
+            <div>
+                <label class="form-label" asp-for="Input.MesReferencia">Mês de referência</label>
+                <input asp-for="Input.MesReferencia" class="form-control" type="month" required />
+                <span asp-validation-for="Input.MesReferencia" class="text-danger small"></span>
+            </div>
+            <div>
+                <label class="form-label" asp-for="Input.HorasPorDia">Horas por dia</label>
+                <input asp-for="Input.HorasPorDia" class="form-control" type="number" min="1" max="24" step="1" required />
+                <span asp-validation-for="Input.HorasPorDia" class="text-danger small"></span>
+            </div>
+            <div class="workdays-actions">
+                <button type="submit" class="btn btn-success responsive-button">
+                    <i class="bi bi-check2-circle"></i>
+                    Calcular
+                </button>
+            </div>
         </div>
-        <div>
-            <label class="form-label">Horas por dia:</label>
-            <input asp-for="Input.HorasPorDia" class="form-control" type="number" min="1" max="24" required />
-        </div>
-        <div class="mt-2">
-            <button type="submit" class="btn btn-success mt-3 responsive-button">Calcular</button>
-        </div>
+        <div asp-validation-summary="ModelOnly" class="text-danger mt-3"></div>
     </form>
 
     @if (Model.Resultado is not null)
     {
-        <div class="card mt-4 shadow-sm p-4" style="border-left: 5px solid #0d6efd; background-color: #f8f9fa;">
-            <h4 class="mb-3 text-primary">
-                <i class="bi bi-calendar-check"></i>
-                Resumo do Período
-            </h4>
+        <section class="workdays-result-shell">
+            @if (!string.IsNullOrWhiteSpace(Model.AvisoFeriados))
+            {
+                <div class="import-preview mb-3">
+                    <strong>Atenção:</strong> @Model.AvisoFeriados
+                </div>
+            }
 
-            <dl class="row">
-                <dt class="col-sm-4">📅 Período:</dt>
-                <dd class="col-sm-8">@Model.Resultado.Periodo</dd>
+            <div class="workdays-period">
+                <span class="metric-label">Período calculado</span>
+                <strong>@Model.Resultado.Periodo</strong>
+            </div>
 
-                <dt class="col-sm-4">📆 Dias totais:</dt>
-                <dd class="col-sm-8">@Model.Resultado.DiasTotais</dd>
+            <div class="workdays-summary-grid">
+                <div class="metric-card metric-good">
+                    <small>Dias úteis</small>
+                    <strong>@Model.Resultado.DiasUteis</strong>
+                    <span>@Model.Resultado.HorasPorDia h por dia</span>
+                </div>
+                <div class="metric-card">
+                    <small>Total de horas</small>
+                    <strong>@Model.Resultado.TotalHorasUteis h</strong>
+                    <span>Base para conferência mensal</span>
+                </div>
+                <div class="metric-card">
+                    <small>Dias corridos</small>
+                    <strong>@Model.Resultado.DiasTotais</strong>
+                    <span>@Model.Resultado.DiasNaoUteis dias não úteis</span>
+                </div>
+                <div class="metric-card metric-warn">
+                    <small>Feriados</small>
+                    <strong>@Model.Resultado.Feriados.Count</strong>
+                    <span>No período considerado</span>
+                </div>
+            </div>
 
-                <dt class="col-sm-4">🗓️ Dias úteis:</dt>
-                <dd class="col-sm-8">@Model.Resultado.DiasUteis</dd>
+            <div class="workdays-holidays">
+                <div class="fixed-table-header">
+                    <div>
+                        <h4>
+                            <i class="bi bi-calendar-event"></i>
+                            Feriados considerados
+                        </h4>
+                        <p>Nacionais, SP, Barueri e principais feriados móveis.</p>
+                    </div>
+                </div>
 
-                <dt class="col-sm-4">⏱️ Horas por dia:</dt>
-                <dd class="col-sm-8">@Model.Resultado.HorasPorDia</dd>
-
-                <dt class="col-sm-4">💼 Total de horas úteis:</dt>
-                <dd class="col-sm-8 fw-bold">@Model.Resultado.TotalHorasUteis</dd>
-            </dl>
-
-            <h5 class="text-secondary mt-4">
-                <i class="bi bi-exclamation-triangle-fill"></i>
-                Feriados no Período
-            </h5>
-
-            <ul class="list-group list-group-flush">
                 @if (Model.Resultado.Feriados.Count == 0)
                 {
-                    <li class="list-group-item">Nenhum feriado no período.</li>
+                    <div class="holiday-empty">Nenhum feriado no período.</div>
                 }
                 else
                 {
-                    @foreach (var feriado in Model.Resultado.Feriados)
-                    {
-                        <li class="list-group-item">
-                            📌 <strong>@feriado.Data.ToString("dddd, dd/MM/yyyy")</strong> – @feriado.Nome
-                        </li>
-                    }
+                    <div class="holiday-list">
+                        @foreach (var feriado in Model.Resultado.Feriados)
+                        {
+                            <div class="holiday-item">
+                                <div class="holiday-date">
+                                    <strong>@feriado.Data.ToString("dd")</strong>
+                                    <span>@feriado.Data.ToString("MMM")</span>
+                                </div>
+                                <div>
+                                    <strong>@feriado.Nome</strong>
+                                    <span>@feriado.Data.ToString("dddd, dd/MM/yyyy")</span>
+                                </div>
+                            </div>
+                        }
+                    </div>
                 }
-            </ul>
-        </div>
+            </div>
+        </section>
     }
 </div>

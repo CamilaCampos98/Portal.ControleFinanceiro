@@ -112,17 +112,26 @@
                                class="form-control"
                                required />
                     </div>
-                    <h6>Cole aqui os lançamentos do Itaú</h6>
-                    <textarea id="entrada" class="form-control" rows="6"></textarea>
+                    <div class="mb-3">
+                        <label class="form-label" for="entrada">Lançamentos copiados da fatura</label>
+                        <textarea id="entrada" class="form-control" rows="8" placeholder="Cole aqui os lançamentos do cartão"></textarea>
+                    </div>
 
-                    <input type="number" id="ano" class="form-control mt-2" value="2026">
+                    <div class="import-preview" id="importPreview">
+                        <span>Período e parcelas serão conferidos antes do envio.</span>
+                    </div>
 
                     <textarea id="saidaCamila" hidden></textarea>
                     <textarea id="saidaDiego" hidden></textarea>
 
                     <div class="modal-footer">
-                        <button type="submit" class="btn btn-primary">
-                            Importar
+                        <button type="button" class="btn btn-outline-primary" id="btnConferirImportacao">
+                            <i class="bi bi-search"></i>
+                            Conferir fatura
+                        </button>
+                        <button type="submit" class="btn btn-primary" id="btnImportarAgora" disabled>
+                            <i class="bi bi-upload"></i>
+                            Importar agora
                         </button>
                     </div>
                     <input type="hidden" name="CsvGerado" id="CsvGerado" />
@@ -166,7 +175,11 @@
              const buttons = document.querySelectorAll('form button[type="submit"]');
 
              forms.forEach(form => {
-                 form.addEventListener('submit', function () {
+                 form.addEventListener('submit', function (event) {
+                     if (event.defaultPrevented || (form.id === 'formImportarFatura' && form.dataset.ready !== 'true')) {
+                         return;
+                     }
+
                      // Ativa overlay
                      overlay.style.display = 'flex';
 
@@ -217,12 +230,29 @@
          });
 
         const form = document.querySelector('#importarModal form');
+        form.id = 'formImportarFatura';
+        const btnConferirImportacao = document.getElementById("btnConferirImportacao");
+        const btnImportarAgora = document.getElementById("btnImportarAgora");
 
-        form.addEventListener("submit", async function (e) {
+        form.addEventListener("submit", function (e) {
+            if (form.dataset.ready !== "true") {
+                e.preventDefault();
+                prepararImportacao();
+            }
+        });
 
-            e.preventDefault(); // para o submit automático
+        btnConferirImportacao.addEventListener("click", prepararImportacao);
 
-            await gerar(); // agora pode usar await
+        form.querySelectorAll("input, select, textarea").forEach(campo => {
+            campo.addEventListener("input", invalidarConferencia);
+            campo.addEventListener("change", invalidarConferencia);
+        });
+
+        async function prepararImportacao() {
+            const gerouCsv = await gerar(); // agora pode usar await
+
+            if (!gerouCsv)
+                return;
 
             const pessoa =
                 document.querySelector('input[name="PessoaImportacao"]').value
@@ -237,10 +267,17 @@
                 csv = document.getElementById("saidaCamila").value;
 
             document.getElementById("CsvGerado").value = csv;
+            form.dataset.ready = "true";
+            btnImportarAgora.disabled = false;
+            btnConferirImportacao.innerHTML = '<i class="bi bi-check2-circle"></i> Conferido';
+        }
 
-            // agora sim envia o form
-            form.submit();
-        });
+        function invalidarConferencia() {
+            form.dataset.ready = "false";
+            btnImportarAgora.disabled = true;
+            btnConferirImportacao.innerHTML = '<i class="bi bi-search"></i> Conferir fatura';
+            document.getElementById("CsvGerado").value = "";
+        }
 
 
         async function gerar() {
@@ -251,13 +288,18 @@
             // formato: yyyy-MM
             if (!mesFaturaInput) {
                 alert("Selecione o mês da fatura.");
-                return;
+                return false;
             }
 
             const urlApi = '@Model.UrlApi';
 
             const pessoa = document.querySelector('[name="PessoaImportacao"]').value;
             const cartao = document.querySelector('[name="CartaoImportacao"]').value;
+
+            if (!pessoa || !cartao || !texto.trim()) {
+                alert("Informe pessoa, cartão e os lançamentos da fatura.");
+                return false;
+            }
 
             const mesAnoTela = mesFaturaInput;
 
@@ -275,7 +317,7 @@
 
             if (!resp.ok) {
                 alert("Erro ao obter período da fatura");
-                return;
+                return false;
             }
 
             const periodo = await resp.json();
@@ -283,14 +325,11 @@
             const inicioFatura = new Date(periodo.inicio);
             const fimFatura    = new Date(periodo.fim);
 
-            const partesFatura = mesFaturaInput.split("-");
-            const anoFatura = parseInt(partesFatura[0]);
-            const mesFatura = parseInt(partesFatura[1]);
-
             const linhas = texto.split(/\r?\n/);
 
-            let csvCamila = "data,lançamento,valor\n";
-            let csvDiego  = "data,lançamento,valor\n";
+            const itensCamila = [];
+            const itensDiego = [];
+            let ultimoItem = null;
 
             const meses = {
                 "jan.": "01",
@@ -316,20 +355,21 @@
 
                 const l = linha.toLowerCase();
 
-                if (l.startsWith("parcela"))
+                const parcelaLinha = extrairParcela(linha);
+                if (l.startsWith("parcela") || (parcelaLinha && !l.includes("r$"))) {
+                    if (ultimoItem && parcelaLinha) {
+                        ultimoItem.parcelaAtual = parcelaLinha.atual;
+                        ultimoItem.totalParcelas = parcelaLinha.total;
+                    }
                     continue;
+                }
 
                 if (l.includes("pagamento efetuado"))
                     continue;
 
                 const match = linha.match(
-                    /^(\d{1,2})\s+([a-zç]{3}\.)\s+(.*?)\s+R\$\s*(-?\s?\d+[.,]\d{2})$/i
+                    /^(\d{1,2})\s+([a-zç]{3}\.)\s+(.*?)\s+R\$\s*(-?\s?\d{1,3}(?:\.\d{3})*,\d{2}|-?\s?\d+[.,]\d{2})$/i
                 );
-
-                // const match = linha.match(
-                //   /^(\d{4}-\d{2}-\d{2}),\s*"([^"]+)",\s*([+-]?\d+(?:\.\d+)?)$/
-                // );
-
 
                 if (!match)
                     continue;
@@ -375,17 +415,82 @@
                     .replace(",", ".");
 
                 const ehAdicional = descricao.toLowerCase().includes("adicional");
+                const parcelaDescricao = extrairParcela(descricao);
+                const item = {
+                    dataIso,
+                    descricao,
+                    valor,
+                    parcelaAtual: parcelaDescricao?.atual || 1,
+                    totalParcelas: parcelaDescricao?.total || 1
+                };
 
-                const linhaCsv = `${dataIso},"${descricao}",${valor}\n`;
+                if (ehAdicional) {
+                    itensDiego.push(item);
+                } else {
+                    itensCamila.push(item);
+                }
 
-                if (ehAdicional)
-                    csvDiego += linhaCsv;
-                else
-                    csvCamila += linhaCsv;
+                ultimoItem = item;
             }
+
+            const csvCamila = montarCsv(itensCamila);
+            const csvDiego = montarCsv(itensDiego);
 
             document.getElementById("saidaCamila").value = csvCamila;
             document.getElementById("saidaDiego").value  = csvDiego;
+
+            const totalParcelados = [...itensCamila, ...itensDiego]
+                .filter(item => item.totalParcelas > 1)
+                .length;
+
+            document.getElementById("importPreview").innerHTML =
+                `<strong>Período:</strong> ${formatarData(inicioFatura)} até ${formatarData(fimFatura)}<br>` +
+                `<strong>Camila:</strong> ${itensCamila.length} lançamento(s) · ` +
+                `<strong>Diego:</strong> ${itensDiego.length} lançamento(s) · ` +
+                `<strong>Parcelados:</strong> ${totalParcelados}`;
+
+            return true;
+        }
+
+        function montarCsv(itens) {
+            let csv = "data,lançamento,valor,parcelaAtual,totalParcelas\n";
+
+            itens.forEach(item => {
+                csv += `${item.dataIso},"${escaparCsv(item.descricao)}",${item.valor},${item.parcelaAtual},${item.totalParcelas}\n`;
+            });
+
+            return csv;
+        }
+
+        function escaparCsv(valor) {
+            return String(valor || "").replace(/"/g, '""');
+        }
+
+        function extrairParcela(texto) {
+            const normalizado = String(texto || "").toLowerCase();
+            let match = normalizado.match(/(?:parcela\s*)?(\d{1,2})\s*\/\s*(\d{1,2})/);
+
+            if (!match) {
+                match = normalizado.match(/(?:parcela\s*)?(\d{1,2})\s+de\s+(\d{1,2})/);
+            }
+
+            if (!match)
+                return null;
+
+            const atual = parseInt(match[1], 10);
+            const total = parseInt(match[2], 10);
+
+            if (!Number.isFinite(atual) || !Number.isFinite(total) || total <= 1)
+                return null;
+
+            return {
+                atual: Math.max(1, Math.min(atual, total)),
+                total
+            };
+        }
+
+        function formatarData(data) {
+            return data.toLocaleDateString("pt-BR", { timeZone: "UTC" });
         }
 
     </script>
