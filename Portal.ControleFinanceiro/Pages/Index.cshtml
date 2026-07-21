@@ -137,6 +137,10 @@ else if (pessoas != null && pessoas.Any())
                     <span>@Model.UltimaCompraGlobal.Pessoa</span>
                     <span>@Model.UltimaCompraGlobal.Data.ToString("dd/MM/yyyy")</span>
                     <span>@Model.UltimaCompraGlobal.Cartao</span>
+                    @if (!string.IsNullOrWhiteSpace(Model.UltimaCompraGlobal.Parcela))
+                    {
+                        <span>Parcela @Model.UltimaCompraGlobal.Parcela</span>
+                    }
                     <span>R$ @Model.UltimaCompraGlobal.Valor.ToString("N2")</span>
                 </div>
             }

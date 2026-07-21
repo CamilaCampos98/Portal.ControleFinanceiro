@@ -114,6 +114,7 @@ namespace Portal.ControleFinanceiro.Pages
 
                     TryGetString(compra, "Compra", out var descricao);
                     TryGetString(compra, "Cartao", out var cartao);
+                    TryGetString(compra, "Parcela", out var parcela);
                     TryGetString(compra, "IdLan", out var idLanTexto);
                     TryGetDecimal(compra, "Valor", out var valor);
                     long.TryParse(idLanTexto, out var idLan);
@@ -123,6 +124,7 @@ namespace Portal.ControleFinanceiro.Pages
                         Pessoa = pessoa,
                         Descricao = descricao ?? "-",
                         Cartao = cartao ?? "-",
+                        Parcela = parcela,
                         Data = data,
                         Valor = valor,
                         IdLan = idLan
@@ -224,6 +226,7 @@ namespace Portal.ControleFinanceiro.Pages
             public string Pessoa { get; set; } = string.Empty;
             public string Descricao { get; set; } = string.Empty;
             public string Cartao { get; set; } = string.Empty;
+            public string? Parcela { get; set; }
             public DateTime Data { get; set; }
             public decimal Valor { get; set; }
             public long IdLan { get; set; }
