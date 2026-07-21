@@ -650,6 +650,105 @@ body {
     font-weight: 800;
 }
 
+.fixed-tabs {
+    margin-top: 1rem;
+    border-bottom-color: var(--line);
+}
+
+.fixed-tabs .nav-link {
+    color: var(--muted);
+    font-weight: 800;
+}
+
+.fixed-tabs .nav-link.active {
+    color: var(--brand-strong);
+    border-color: var(--line) var(--line) var(--surface);
+}
+
+.fixed-tab-content {
+    padding-top: 1rem;
+}
+
+.fixed-empty-state {
+    padding: 1rem;
+    border: 1px dashed var(--line);
+    border-radius: 8px;
+    background: var(--surface-muted);
+    color: var(--muted);
+    font-weight: 700;
+}
+
+.finance-calculator-shell {
+    display: grid;
+    gap: 1rem;
+    padding: 1rem;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    background: var(--surface);
+    box-shadow: var(--shadow);
+}
+
+.finance-leftover {
+    min-width: 240px;
+}
+
+.finance-table-wrap {
+    overflow-x: auto;
+}
+
+.finance-table {
+    min-width: 980px;
+}
+
+.finance-table td:first-child {
+    min-width: 180px;
+}
+
+.finance-table td:first-child,
+.finance-result {
+    display: grid;
+    gap: 0.15rem;
+}
+
+.finance-table td:first-child span,
+.finance-result span,
+.finance-result small {
+    color: var(--muted);
+    font-weight: 700;
+}
+
+.finance-month-options {
+    display: inline-flex;
+    gap: 0.35rem;
+}
+
+.finance-month-options .btn {
+    min-width: 44px;
+    font-weight: 800;
+}
+
+.finance-result strong {
+    color: var(--brand-strong);
+}
+
+.finance-status {
+    display: inline-flex;
+    width: fit-content;
+    padding: 0.25rem 0.5rem;
+    border-radius: 999px;
+    background: var(--surface-muted);
+}
+
+.finance-ok {
+    color: #146c43 !important;
+    background: #e9f7ef;
+}
+
+.finance-alert {
+    color: #9a3412 !important;
+    background: #fff3e6;
+}
+
 .fixed-check {
     display: inline-flex;
     align-items: center;

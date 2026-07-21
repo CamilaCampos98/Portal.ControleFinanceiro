@@ -1,5 +1,6 @@
-@page
+﻿@page
 @using System.Globalization
+@using Portal.ControleFinanceiro.Models
 @model Fixos
 @{
     ViewData["Title"] = "Gastos Fixos";
@@ -11,6 +12,7 @@
     var quantidadeFixos = Model.FixosModel?.Count ?? 0;
     var quantidadePagos = Model.FixosModel?.Count(f => FixoPago(f.Pago)) ?? 0;
     var quantidadeDivididos = Model.FixosModel?.Count(f => FixoDividido(f.Dividido)) ?? 0;
+    var financiamentos = Model.FixosModel?.Where(EhFinanciamento).ToList() ?? new();
 }
 
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/choices.js/public/assets/styles/choices.min.css" />
@@ -69,6 +71,21 @@
         </button>
     </form>
 
+    <ul class="nav nav-tabs fixed-tabs" id="fixosTabs" role="tablist">
+        <li class="nav-item" role="presentation">
+            <button class="nav-link active" id="fixos-mes-tab" data-bs-toggle="tab" data-bs-target="#fixos-mes" type="button" role="tab" aria-controls="fixos-mes" aria-selected="true">
+                Fixos do mês
+            </button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" id="financiamentos-tab" data-bs-toggle="tab" data-bs-target="#financiamentos" type="button" role="tab" aria-controls="financiamentos" aria-selected="false">
+                Financiamentos
+            </button>
+        </li>
+    </ul>
+
+    <div class="tab-content fixed-tab-content" id="fixosTabsContent">
+        <div class="tab-pane fade show active" id="fixos-mes" role="tabpanel" aria-labelledby="fixos-mes-tab">
     @if (Model.FixosModel != null && Model.FixosModel.Any())
     {
         <section class="fixed-summary-grid" aria-label="Resumo dos gastos fixos">
@@ -220,6 +237,100 @@
             </form>
         </div>
     }
+            else
+            {
+                <div class="fixed-empty-state">
+                    Liste ou gere os fixos do mês para visualizar os compromissos.
+                </div>
+            }
+        </div>
+
+        <div class="tab-pane fade" id="financiamentos" role="tabpanel" aria-labelledby="financiamentos-tab">
+            <section class="finance-calculator-shell">
+                <div class="fixed-table-header">
+                    <div>
+                        <h4><i class="bi bi-bank"></i> Calculadora de financiamentos</h4>
+                        <p>Simule taxa, saldo devedor e amortização usando os financiamentos listados nos fixos.</p>
+                    </div>
+                    <div class="finance-leftover">
+                        <label class="form-label" for="sobraMensal">Disponível pelo resumo</label>
+                        <input id="sobraMensal"
+                               type="number"
+                               step="0.01"
+                               min="0"
+                               class="form-control"
+                               value="@(Model.SaldoDisponivelResumo?.ToString("0.##", CultureInfo.InvariantCulture) ?? "")"
+                               data-disponivel="@Model.SaldoDisponivelResumo.HasValue.ToString().ToLowerInvariant()"
+                               placeholder="Liste os fixos para buscar o resumo"
+                               readonly />
+                        <small>@(Model.SaldoDisponivelResumo.HasValue ? "Saldo restante após contas" : "Saldo do resumo não encontrado para pessoa/período")</small>
+                    </div>
+                </div>
+
+                @if (financiamentos.Any())
+                {
+                    <div class="table-responsive finance-table-wrap">
+                        <table class="table table-bordered align-middle finance-table" id="gridFinanciamentos">
+                            <thead>
+                                <tr>
+                                    <th>Financiamento</th>
+                                    <th>Parcela atual</th>
+                                    <th>Taxa a.m.</th>
+                                    <th>Valor que falta pagar</th>
+                                    <th>Quitar em</th>
+                                    <th>Resultado</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var financiamento in financiamentos)
+                                {
+                                    var parcelaAtual = ValorFixo(financiamento.Valor);
+                                    <tr class="finance-row" data-parcela-atual="@parcelaAtual.ToString("0.##", CultureInfo.InvariantCulture)">
+                                        <td>
+                                            <strong>@financiamento.Tipo</strong>
+                                            <span>@financiamento.MesAno</span>
+                                        </td>
+                                        <td>
+                                            <strong>@parcelaAtual.ToString("C", cultura)</strong>
+                                        </td>
+                                        <td>
+                                            <div class="input-group">
+                                                <input type="number" step="0.01" min="0" class="form-control finance-rate" placeholder="1,90" />
+                                                <span class="input-group-text">%</span>
+                                            </div>
+                                        </td>
+                                        <td>
+                                            <input type="number" step="0.01" min="0" class="form-control finance-balance" placeholder="Ex.: 30000" />
+                                        </td>
+                                        <td>
+                                            <div class="finance-month-options" role="group" aria-label="Meses para quitação">
+                                                <button type="button" class="btn btn-sm btn-outline-secondary active" data-months="12">12</button>
+                                                <button type="button" class="btn btn-sm btn-outline-secondary" data-months="15">15</button>
+                                                <button type="button" class="btn btn-sm btn-outline-secondary" data-months="18">18</button>
+                                            </div>
+                                        </td>
+                                        <td>
+                                            <div class="finance-result">
+                                                <span class="finance-installment">Informe os dados</span>
+                                                <strong class="finance-extra">Amortização: R$ 0,00</strong>
+                                                <small class="finance-status">Sem simulação</small>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                }
+                else
+                {
+                    <div class="fixed-empty-state">
+                        Nenhum financiamento encontrado nos fixos carregados. A tela considera tipos contendo empréstimo, emprestimo, imóvel, imovel, financiamento, veículo ou veiculo.
+                    </div>
+                }
+            </section>
+        </div>
+    </div>
 
     <div class="modal fade" id="dividirModal" tabindex="-1" aria-hidden="true">
         <div class="modal-dialog">
@@ -281,6 +392,7 @@
             configurarDivisaoPorDois();
             configurarBadges();
             configurarCopiaMesAnterior();
+            configurarFinanciamentos();
         });
 
         async function carregarTiposFixos() {
@@ -447,6 +559,78 @@
             });
         }
 
+        function configurarFinanciamentos() {
+            const grid = document.getElementById("gridFinanciamentos");
+            const sobraMensal = document.getElementById("sobraMensal");
+            if (!grid) return;
+
+            const linhas = Array.from(grid.querySelectorAll(".finance-row"));
+
+            linhas.forEach(linha => {
+                linha.querySelectorAll("input").forEach(input => {
+                    input.addEventListener("input", () => calcularFinanciamento(linha));
+                });
+
+                linha.querySelectorAll("[data-months]").forEach(botao => {
+                    botao.addEventListener("click", () => {
+                        linha.querySelectorAll("[data-months]").forEach(item => item.classList.remove("active"));
+                        botao.classList.add("active");
+                        calcularFinanciamento(linha);
+                    });
+                });
+
+                calcularFinanciamento(linha);
+            });
+
+            sobraMensal?.addEventListener("input", () => {
+                linhas.forEach(calcularFinanciamento);
+            });
+        }
+
+        function calcularFinanciamento(linha) {
+            const parcelaAtual = Number(linha.dataset.parcelaAtual || "0");
+            const taxaMensal = parseValor(linha.querySelector(".finance-rate")?.value) / 100;
+            const saldoDevedor = parseValor(linha.querySelector(".finance-balance")?.value);
+            const meses = Number(linha.querySelector("[data-months].active")?.dataset.months || "12");
+            const sobraMensalEl = document.getElementById("sobraMensal");
+            const sobraMensal = parseValor(sobraMensalEl?.value);
+            const saldoDisponivel = sobraMensalEl?.dataset.disponivel === "true";
+
+            const parcelaEl = linha.querySelector(".finance-installment");
+            const extraEl = linha.querySelector(".finance-extra");
+            const statusEl = linha.querySelector(".finance-status");
+
+            if (!saldoDevedor || saldoDevedor <= 0 || meses <= 0 || taxaMensal < 0) {
+                parcelaEl.textContent = "Informe os dados";
+                extraEl.textContent = "Amortização: R$ 0,00";
+                statusEl.textContent = "Sem simulação";
+                statusEl.className = "finance-status";
+                return;
+            }
+
+            const parcelaNecessaria = taxaMensal === 0
+                ? saldoDevedor / meses
+                : saldoDevedor * (taxaMensal / (1 - Math.pow(1 + taxaMensal, -meses)));
+
+            const amortizacaoExtra = Math.max(parcelaNecessaria - parcelaAtual, 0);
+            const totalComAmortizacao = parcelaAtual + amortizacaoExtra;
+
+            parcelaEl.textContent = `Parcela para quitar: ${formatarMoeda(parcelaNecessaria)}`;
+            extraEl.textContent = `Amortização: ${formatarMoeda(amortizacaoExtra)}`;
+
+            if (saldoDisponivel) {
+                const saldoLivre = sobraMensal - amortizacaoExtra;
+                const cabeNoMes = saldoLivre >= 0;
+                statusEl.textContent = cabeNoMes
+                    ? `Cabe na sobra. Restaria ${formatarMoeda(saldoLivre)}`
+                    : `Faltariam ${formatarMoeda(Math.abs(saldoLivre))} da sobra`;
+                statusEl.className = `finance-status ${cabeNoMes ? "finance-ok" : "finance-alert"}`;
+            } else {
+                statusEl.textContent = `Total mensal estimado: ${formatarMoeda(totalComAmortizacao)}`;
+                statusEl.className = "finance-status";
+            }
+        }
+
         function parseValor(valor) {
             let normalizado = String(valor || "0")
                 .replace("R$", "")
@@ -458,6 +642,10 @@
 
             const numero = Number(normalizado);
             return Number.isFinite(numero) ? numero : 0;
+        }
+
+        function formatarMoeda(valor) {
+            return valor.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
         }
     </script>
 }
@@ -508,4 +696,18 @@
         return string.Equals(dividido, "true", StringComparison.OrdinalIgnoreCase)
             || string.Equals(dividido, "Sim", StringComparison.OrdinalIgnoreCase);
     }
+
+    private static bool EhFinanciamento(FixoModel? fixo)
+    {
+        var tipo = fixo?.Tipo ?? string.Empty;
+
+        return tipo.Contains("imóvel", StringComparison.OrdinalIgnoreCase)
+            || tipo.Contains("imovel", StringComparison.OrdinalIgnoreCase)
+            || tipo.Contains("empréstimo", StringComparison.OrdinalIgnoreCase)
+            || tipo.Contains("emprestimo", StringComparison.OrdinalIgnoreCase)
+            || tipo.Contains("financiamento", StringComparison.OrdinalIgnoreCase)
+            || tipo.Contains("veículo", StringComparison.OrdinalIgnoreCase)
+            || tipo.Contains("veiculo", StringComparison.OrdinalIgnoreCase);
+    }
 }
+

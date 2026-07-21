@@ -95,6 +95,21 @@
         border: 1px solid #f5c2c7;
     }
 
+    .latest-purchase {
+        border: 1px solid #dce8e6;
+        border-left: 5px solid var(--accent-color);
+        border-radius: 8px;
+        padding: 18px 20px;
+        background: #f7fbfa;
+    }
+
+    .latest-purchase-details {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px 24px;
+        color: #5d6766;
+    }
+
    
   
 </style>
@@ -110,6 +125,26 @@ else if (pessoas != null && pessoas.Any())
 {
     <div class="main-container">
         <h1>Resumo Financeiro</h1>
+
+        <p class="lead">Período atual do cartão principal Itaú: <strong>@(Model.PeriodoAtual ?? "não identificado")</strong></p>
+
+        <section class="latest-purchase" aria-label="Última compra do período atual até hoje">
+            <h5>Última compra do período até hoje</h5>
+            @if (Model.UltimaCompraGlobal != null)
+            {
+                <div><strong>@Model.UltimaCompraGlobal.Descricao</strong></div>
+                <div class="latest-purchase-details">
+                    <span>@Model.UltimaCompraGlobal.Pessoa</span>
+                    <span>@Model.UltimaCompraGlobal.Data.ToString("dd/MM/yyyy")</span>
+                    <span>@Model.UltimaCompraGlobal.Cartao</span>
+                    <span>R$ @Model.UltimaCompraGlobal.Valor.ToString("N2")</span>
+                </div>
+            }
+            else
+            {
+                <span class="text-muted">Nenhuma compra encontrada para o período atual até hoje.</span>
+            }
+        </section>
 
         <p class="lead">Veja abaixo o saldo atual:</p>
         <div class="table-responsive">

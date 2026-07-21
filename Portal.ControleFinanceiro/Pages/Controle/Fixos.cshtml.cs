@@ -42,6 +42,7 @@ public class Fixos : PageModel
 
     public bool Sucesso { get; set; }
     public string? Erro { get; set; }
+    public decimal? SaldoDisponivelResumo { get; set; }
 
     [BindProperty]
     public List<FixoModel> FixosModel { get; set; } = new List<FixoModel>();
@@ -60,6 +61,8 @@ public class Fixos : PageModel
             Mensagem = "Informe a Pessoa!";
             return Page();
         }
+
+        await CarregarSaldoDisponivelResumoAsync();
 
         var vencimento = string.Empty;
         var mesAno = await GetMesAnoRefAsync(Periodo);
@@ -266,6 +269,8 @@ public class Fixos : PageModel
             return Page();
         }
 
+        await CarregarSaldoDisponivelResumoAsync();
+
         try
         {
             using var httpClient = new HttpClient();
@@ -458,6 +463,43 @@ public class Fixos : PageModel
     }
 
 
+    private async Task CarregarSaldoDisponivelResumoAsync()
+    {
+        SaldoDisponivelResumo = null;
+
+        if (string.IsNullOrWhiteSpace(Pessoa) || string.IsNullOrWhiteSpace(Periodo))
+            return;
+
+        try
+        {
+            using var httpClient = new HttpClient();
+            var pessoaParam = Uri.EscapeDataString(Pessoa);
+            var periodoParam = Uri.EscapeDataString(Periodo);
+            var url = $"{UrlApi}Compra/ResumoPessoaPeriodo?pessoa={pessoaParam}&mesAno={periodoParam}";
+
+            var response = await httpClient.GetAsync(url);
+            if (!response.IsSuccessStatusCode)
+                return;
+
+            var json = await response.Content.ReadAsStringAsync();
+            var resumo = JsonSerializer.Deserialize<ResumoSaldoResponse>(json, new JsonSerializerOptions
+            {
+                PropertyNameCaseInsensitive = true
+            });
+
+            SaldoDisponivelResumo = resumo?.SaldoRestante;
+        }
+        catch
+        {
+            SaldoDisponivelResumo = null;
+        }
+    }
+
+    private sealed class ResumoSaldoResponse
+    {
+        public decimal? SaldoRestante { get; set; }
+    }
+
     public decimal ParseDecimal(string? input)
     {
         if (string.IsNullOrWhiteSpace(input))
@@ -584,3 +626,4 @@ public class Fixos : PageModel
     }
 
 }
+
