@@ -128,21 +128,23 @@ else if (pessoas != null && pessoas.Any())
 
         <p class="lead">Período atual do cartão principal Itaú: <strong>@(Model.PeriodoAtual ?? "não identificado")</strong></p>
 
-        <section class="latest-purchase" aria-label="Última compra do período atual até hoje">
-            <h5>Última compra do período até hoje</h5>
-            @if (Model.UltimaCompraGlobal != null)
+        <section class="latest-purchase" aria-label="Últimas compras por pessoa no período atual até hoje">
+            <h5>Última compra de cada pessoa no período até hoje</h5>
+            @if (Model.UltimasComprasPorPessoa.Any())
             {
-                <div><strong>@Model.UltimaCompraGlobal.Descricao</strong></div>
-                <div class="latest-purchase-details">
-                    <span>@Model.UltimaCompraGlobal.Pessoa</span>
-                    <span>@Model.UltimaCompraGlobal.Data.ToString("dd/MM/yyyy")</span>
-                    <span>@Model.UltimaCompraGlobal.Cartao</span>
-                    @if (!string.IsNullOrWhiteSpace(Model.UltimaCompraGlobal.Parcela))
-                    {
-                        <span>Parcela @Model.UltimaCompraGlobal.Parcela</span>
-                    }
-                    <span>R$ @Model.UltimaCompraGlobal.Valor.ToString("N2")</span>
-                </div>
+                @foreach (var compra in Model.UltimasComprasPorPessoa)
+                {
+                    <div class="mt-3"><strong>@compra.Pessoa — @compra.Descricao</strong></div>
+                    <div class="latest-purchase-details">
+                        <span>@compra.Data.ToString("dd/MM/yyyy")</span>
+                        <span>@compra.Cartao</span>
+                        @if (!string.IsNullOrWhiteSpace(compra.Parcela))
+                        {
+                            <span>Parcela @compra.Parcela</span>
+                        }
+                        <span>R$ @compra.Valor.ToString("N2")</span>
+                    </div>
+                }
             }
             else
             {

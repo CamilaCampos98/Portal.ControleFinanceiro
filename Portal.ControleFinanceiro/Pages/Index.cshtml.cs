@@ -27,7 +27,7 @@ namespace Portal.ControleFinanceiro.Pages
 
         public List<ResumoPessoaMesDTO>? ResumoGeral { get; set; }
         public string? PeriodoAtual { get; set; }
-        public UltimaCompraDTO? UltimaCompraGlobal { get; set; }
+        public List<UltimaCompraDTO> UltimasComprasPorPessoa { get; set; } = new();
 
         public async Task OnGetAsync()
         {
@@ -132,10 +132,14 @@ namespace Portal.ControleFinanceiro.Pages
                 }
             }
 
-            UltimaCompraGlobal = compras
-                .OrderByDescending(x => x.Data)
-                .ThenByDescending(x => x.IdLan)
-                .FirstOrDefault();
+            UltimasComprasPorPessoa = compras
+                .GroupBy(x => x.Pessoa, StringComparer.OrdinalIgnoreCase)
+                .Select(grupo => grupo
+                    .OrderByDescending(x => x.Data)
+                    .ThenByDescending(x => x.IdLan)
+                    .First())
+                .OrderBy(x => x.Pessoa)
+                .ToList();
         }
 
         private static async Task<string?> ObterPeriodoAtualItauAsync(
