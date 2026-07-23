@@ -49,7 +49,7 @@ namespace Portal.ControleFinanceiro.Pages.Controle
             UrlApi = _configuration["UrlApi"];
         }
 
-        public async Task<IActionResult> OnPostAsync()
+        public async Task<IActionResult> OnPostRegistrarAsync()
         {
             try
             {
