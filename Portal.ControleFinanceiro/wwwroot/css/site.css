@@ -722,6 +722,24 @@ body {
     gap: 0.35rem;
 }
 
+.finance-rate-options {
+    display: flex;
+    gap: 0.35rem;
+    margin-bottom: 0.5rem;
+}
+
+.finance-rate-options .btn {
+    flex: 1;
+    font-weight: 800;
+}
+
+.finance-rate-equivalent {
+    display: block;
+    margin-top: 0.35rem;
+    color: var(--muted);
+    font-weight: 700;
+}
+
 .finance-month-options .btn {
     min-width: 44px;
     font-weight: 800;

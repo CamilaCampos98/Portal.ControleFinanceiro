@@ -299,9 +299,10 @@
                                                 <button type="button" class="btn btn-sm btn-outline-secondary" data-rate-period="annual">a.a.</button>
                                             </div>
                                             <div class="input-group">
-                                                <input type="number" step="0.01" min="0" class="form-control finance-rate" placeholder="1,90" />
+                                                <input type="text" inputmode="decimal" class="form-control finance-rate" placeholder="1,90" />
                                                 <span class="input-group-text finance-rate-suffix">% a.m.</span>
                                             </div>
+                                            <small class="finance-rate-equivalent">Taxa usada: 0,0000% a.m.</small>
                                         </td>
                                         <td>
                                             <input type="number" step="0.01" min="0" class="form-control finance-balance" placeholder="Ex.: 30000" />
@@ -612,7 +613,7 @@
             const taxaInformada = parseValor(linha.querySelector(".finance-rate")?.value) / 100;
             const periodoTaxa = linha.querySelector("[data-rate-period].active")?.dataset.ratePeriod || "monthly";
             const taxaMensal = periodoTaxa === "annual"
-                ? Math.pow(1 + taxaInformada, 1 / 12) - 1
+                ? converterTaxaAnualParaMensal(taxaInformada)
                 : taxaInformada;
             const saldoDevedor = parseValor(linha.querySelector(".finance-balance")?.value);
             const meses = Number(linha.querySelector("[data-months].active")?.dataset.months || "12");
@@ -623,8 +624,13 @@
             const parcelaEl = linha.querySelector(".finance-installment");
             const extraEl = linha.querySelector(".finance-extra");
             const statusEl = linha.querySelector(".finance-status");
+            const taxaEquivalenteEl = linha.querySelector(".finance-rate-equivalent");
 
-            if (!saldoDevedor || saldoDevedor <= 0 || meses <= 0 || taxaMensal < 0) {
+            if (taxaEquivalenteEl) {
+                taxaEquivalenteEl.textContent = `Taxa usada: ${formatarPercentual(taxaMensal * 100)}% a.m.`;
+            }
+
+            if (!saldoDevedor || saldoDevedor <= 0 || meses <= 0 || !Number.isFinite(taxaMensal) || taxaMensal < 0) {
                 parcelaEl.textContent = "Informe os dados";
                 extraEl.textContent = "Amortização: R$ 0,00";
                 statusEl.textContent = "Sem simulação";
@@ -666,6 +672,18 @@
 
             const numero = Number(normalizado);
             return Number.isFinite(numero) ? numero : 0;
+        }
+
+        function converterTaxaAnualParaMensal(taxaAnual) {
+            if (!Number.isFinite(taxaAnual) || taxaAnual < 0) return NaN;
+            return Math.expm1(Math.log1p(taxaAnual) / 12);
+        }
+
+        function formatarPercentual(valor) {
+            return valor.toLocaleString("pt-BR", {
+                minimumFractionDigits: 4,
+                maximumFractionDigits: 4
+            });
         }
 
         function formatarMoeda(valor) {
