@@ -284,6 +284,9 @@
                     <button type="button" class="btn btn-primary mb-3" data-bs-toggle="modal" data-bs-target="#modalResumoPorCartao">
                         <i class="bi bi-credit-card-2-front"></i> Resumo por Cartão
                     </button>
+                    <button type="button" class="btn btn-success mb-3" data-bs-toggle="modal" data-bs-target="#modalRegistrarCompraResumo">
+                        <i class="bi bi-cart-plus"></i> Registrar compra
+                    </button>
                     <div class="text-end mb-2">
 			            <button id="btnTogglePago"
 					            type="button"
@@ -512,6 +515,68 @@
                       </div>
                     </div>
 
+                    <div class="modal fade" id="modalRegistrarCompraResumo" tabindex="-1" aria-labelledby="modalRegistrarCompraResumoLabel" aria-hidden="true">
+                        <div class="modal-dialog modal-lg modal-dialog-centered">
+                            <div class="modal-content">
+                                <form method="post" asp-page-handler="RegistrarCompra">
+                                    <div class="modal-header">
+                                        <h5 class="modal-title" id="modalRegistrarCompraResumoLabel">
+                                            <i class="bi bi-cart-plus"></i> Registrar compra
+                                        </h5>
+                                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+                                    </div>
+                                    <div class="modal-body">
+                                        <div class="row g-3">
+                                            <div class="col-md-6">
+                                                <label class="form-label">Pessoa</label>
+                                                <input class="form-control" value="@Model.Resumo.Pessoa" readonly />
+                                            </div>
+                                            <div class="col-md-6">
+                                                <label class="form-label">Descrição</label>
+                                                <input asp-for="NovaCompra.Descricao" class="form-control" required />
+                                            </div>
+                                            <div class="col-md-4">
+                                                <label class="form-label">Valor (R$)</label>
+                                                <input asp-for="NovaCompra.ValorTotal" type="number" min="0.01" step="0.01" class="form-control" required />
+                                            </div>
+                                            <div class="col-md-4">
+                                                <label class="form-label">Data da compra</label>
+                                                <input asp-for="NovaCompra.Data" type="date" class="form-control" required />
+                                            </div>
+                                            <div class="col-md-4">
+                                                <label class="form-label">Forma de pagamento</label>
+                                                <select asp-for="NovaCompra.FormaPgto" id="novaCompraFormaPgto" class="form-select" required>
+                                                    <option value="C">Crédito</option>
+                                                    <option value="D">Débito</option>
+                                                </select>
+                                            </div>
+                                            <div class="col-md-4" id="novaCompraCartaoContainer">
+                                                <label class="form-label">Cartão</label>
+                                                <select asp-for="NovaCompra.Cartao" id="novaCompraCartao" class="form-select">
+                                                    <option value="">Selecione...</option>
+                                                </select>
+                                            </div>
+                                            <div class="col-md-4">
+                                                <label class="form-label">Parcelas</label>
+                                                <input asp-for="NovaCompra.TotalParcelas" type="number" min="1" class="form-control" required />
+                                            </div>
+                                            <div class="col-md-4">
+                                                <label class="form-label">Fonte</label>
+                                                <input asp-for="NovaCompra.Fonte" class="form-control" required />
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="modal-footer">
+                                        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button>
+                                        <button type="submit" class="btn btn-success">
+                                            <i class="bi bi-check-circle"></i> Registrar
+                                        </button>
+                                    </div>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+
                     <div class="modal fade" id="modalResumoPorCartao" tabindex="-1" aria-labelledby="modalResumoPorCartaoLabel" aria-hidden="true">
                         <div class="modal-dialog modal-xl modal-dialog-centered">
                             <div class="modal-content">
@@ -636,6 +701,41 @@
 
 @section Scripts {
     <script>
+        document.addEventListener('DOMContentLoaded', async function () {
+            const formaPgto = document.getElementById('novaCompraFormaPgto');
+            const cartaoContainer = document.getElementById('novaCompraCartaoContainer');
+            const cartaoSelect = document.getElementById('novaCompraCartao');
+
+            if (!formaPgto || !cartaoContainer || !cartaoSelect) return;
+
+            function atualizarObrigatoriedadeCartao() {
+                const usaCredito = formaPgto.value === 'C';
+                cartaoContainer.style.display = usaCredito ? '' : 'none';
+                cartaoSelect.required = usaCredito;
+                if (!usaCredito) cartaoSelect.value = '';
+            }
+
+            formaPgto.addEventListener('change', atualizarObrigatoriedadeCartao);
+            atualizarObrigatoriedadeCartao();
+
+            try {
+                const response = await fetch('@Model.UrlApi' + 'Compra/GetCartoes');
+                if (!response.ok) throw new Error('Erro ao buscar cartões.');
+
+                const cartaoSelecionado = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(Model.NovaCompra.Cartao));
+                const cartoes = await response.json();
+
+                cartoes.forEach(cartao => {
+                    const option = document.createElement('option');
+                    option.value = cartao;
+                    option.textContent = cartao;
+                    option.selected = cartao === cartaoSelecionado;
+                    cartaoSelect.appendChild(option);
+                });
+            } catch (error) {
+                console.error('Erro ao carregar cartões:', error);
+            }
+        });
       
         async function confirmarExcluir(id, mesAno) {
             const resultado = await Swal.fire({

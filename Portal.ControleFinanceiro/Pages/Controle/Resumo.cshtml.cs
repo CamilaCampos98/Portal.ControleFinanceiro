@@ -1,6 +1,7 @@
 ﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
+using Portal.ControleFinanceiro.Models;
 using System.Net.Http;
 using System.Reflection;
 using System.Text;
@@ -20,6 +21,7 @@ public class ResumoModel : PageModel
     }
     public bool Sucesso { get; set; }
     public string? Mensagem { get; set; }
+    public string? UrlApi => _configuration["UrlApi"];
 
     public int PaginaAtual { get; set; } = 1;
     public int TotalPaginas { get; set; }
@@ -31,6 +33,8 @@ public class ResumoModel : PageModel
     public ResultadoResumo Resumo { get; set; }
     [BindProperty]
     public EditarCompraRequest Compra { get; set; } = new();
+    [BindProperty]
+    public CompraInputModel NovaCompra { get; set; } = new();
 
     public IActionResult OnGet(int pagina = 1)
     {
@@ -213,6 +217,78 @@ public class ResumoModel : PageModel
         }
 
         return RedirectToPage("./Resumo");
+    }
+
+    public async Task<IActionResult> OnPostRegistrarCompraAsync()
+    {
+        var resumoJson = HttpContext.Session.GetString("ResumoJson");
+        var resumoAtual = string.IsNullOrWhiteSpace(resumoJson)
+            ? null
+            : JsonSerializer.Deserialize<ResultadoResumo>(resumoJson);
+
+        if (resumoAtual == null || string.IsNullOrWhiteSpace(resumoAtual.Pessoa) || string.IsNullOrWhiteSpace(resumoAtual.Periodo))
+        {
+            Mensagem = "Pesquise um resumo antes de registrar uma compra.";
+            return Page();
+        }
+
+        NovaCompra.Pessoa = resumoAtual.Pessoa;
+        Filtro = new FiltroResumo { Pessoa = resumoAtual.Pessoa, Periodo = resumoAtual.Periodo };
+
+        var camposInvalidos = string.IsNullOrWhiteSpace(NovaCompra.Descricao)
+            || !NovaCompra.ValorTotal.HasValue
+            || NovaCompra.ValorTotal <= 0
+            || NovaCompra.Data == default
+            || string.IsNullOrWhiteSpace(NovaCompra.FormaPgto)
+            || NovaCompra.TotalParcelas < 1
+            || string.IsNullOrWhiteSpace(NovaCompra.Fonte)
+            || (NovaCompra.FormaPgto == "C" && string.IsNullOrWhiteSpace(NovaCompra.Cartao));
+
+        if (camposInvalidos)
+        {
+            Resumo = resumoAtual;
+            Mensagem = "Preencha todos os campos obrigatórios da compra.";
+            return Page();
+        }
+
+        try
+        {
+            using var httpClient = new HttpClient();
+            var payload = new CompraModel
+            {
+                Pessoa = resumoAtual.Pessoa,
+                Descricao = NovaCompra.Descricao,
+                ValorTotal = NovaCompra.ValorTotal.Value,
+                Data = NovaCompra.Data,
+                FormaPgto = NovaCompra.FormaPgto,
+                TotalParcelas = NovaCompra.TotalParcelas,
+                Fonte = NovaCompra.Fonte,
+                Cartao = NovaCompra.FormaPgto == "C" ? NovaCompra.Cartao : string.Empty
+            };
+
+            var json = JsonSerializer.Serialize(payload);
+            var content = new StringContent(json, Encoding.UTF8, "application/json");
+            var response = await httpClient.PostAsync($"{UrlApi}Compra/RegistrarCompra", content);
+
+            if (!response.IsSuccessStatusCode)
+            {
+                Resumo = resumoAtual;
+                Mensagem = await response.Content.ReadAsStringAsync();
+                return Page();
+            }
+
+            Resumo = await ObterResumoAsync(Filtro);
+            Sucesso = true;
+            Mensagem = "Compra registrada com sucesso.";
+            NovaCompra = new CompraInputModel();
+            return Page();
+        }
+        catch (Exception ex)
+        {
+            Resumo = resumoAtual;
+            Mensagem = $"Erro ao registrar compra: {ex.Message}";
+            return Page();
+        }
     }
     public IActionResult OnPostLimparSessao()
     {
