@@ -49,9 +49,17 @@ namespace Portal.ControleFinanceiro.Pages
                     };
 
                     ResumoGeral = JsonSerializer.Deserialize<List<ResumoPessoaMesDTO>>(content, options) ?? new();
-
-                    await CarregarPeriodoEUltimaCompraAsync(httpClient, urlApi, options);
                     Sucesso = true;
+
+                    try
+                    {
+                        await CarregarPeriodoEUltimaCompraAsync(httpClient, urlApi, options);
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogWarning(ex, "Não foi possível carregar o período Itaú ou a última compra da tela inicial.");
+                        UltimasComprasPorPessoa = new List<UltimaCompraDTO>();
+                    }
                 }
                 else
                 {
