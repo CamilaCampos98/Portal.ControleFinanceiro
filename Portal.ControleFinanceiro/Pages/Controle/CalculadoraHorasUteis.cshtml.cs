@@ -35,6 +35,29 @@ public class CalculadoraHorasUteisModel : PageModel
             return Page();
         }
 
+        Resultado = await CalcularPeriodoAsync(mesReferencia, Input.HorasPorDia);
+
+        return Page();
+    }
+
+    public async Task<IActionResult> OnGetCalcularPeriodoAsync(string mesAno)
+    {
+        if (!DateTime.TryParseExact(mesAno, "MM/yyyy", CultureInfo.InvariantCulture, DateTimeStyles.None, out var mesReferencia))
+            return new BadRequestObjectResult(new { mensagem = "Período inválido. Use MM/yyyy." });
+
+        var resultado = await CalcularPeriodoAsync(mesReferencia, 8);
+        return new JsonResult(new
+        {
+            resultado.Periodo,
+            resultado.DiasUteis,
+            resultado.TotalHorasUteis,
+            resultado.HorasPorDia,
+            AvisoFeriados
+        });
+    }
+
+    private async Task<ResultadoCalculo> CalcularPeriodoAsync(DateTime mesReferencia, int horasPorDia)
+    {
         var dataInicio = new DateTime(mesReferencia.Year, mesReferencia.Month, 26);
         var dataFim = new DateTime(mesReferencia.Year, mesReferencia.Month, 25).AddMonths(1);
         var feriados = await ObterFeriadosAsync(dataInicio, dataFim);
@@ -51,13 +74,13 @@ public class CalculadoraHorasUteisModel : PageModel
                 !feriados.Any(f => f.Data == d.Date))
             .ToList();
 
-        Resultado = new ResultadoCalculo
+        return new ResultadoCalculo
         {
             Periodo = $"{dataInicio:dd/MM/yyyy} a {dataFim:dd/MM/yyyy}",
             DiasTotais = diasTotais,
             DiasUteis = diasUteis.Count,
-            HorasPorDia = Input.HorasPorDia,
-            TotalHorasUteis = diasUteis.Count * Input.HorasPorDia,
+            HorasPorDia = horasPorDia,
+            TotalHorasUteis = diasUteis.Count * horasPorDia,
             DiasNaoUteis = diasTotais - diasUteis.Count,
             DiasFimSemana = diasDoPeriodo.Count(d => d.DayOfWeek is DayOfWeek.Saturday or DayOfWeek.Sunday),
             FeriadosEmDiasUteis = feriados.Count(f =>
@@ -69,7 +92,6 @@ public class CalculadoraHorasUteisModel : PageModel
                         .ToList()
         };
 
-        return Page();
     }
 
     private async Task<List<FeriadoInfo>> ObterFeriadosAsync(DateTime inicio, DateTime fim)

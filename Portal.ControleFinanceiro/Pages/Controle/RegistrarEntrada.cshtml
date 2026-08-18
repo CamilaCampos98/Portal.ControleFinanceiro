@@ -36,6 +36,7 @@
         <div class="col-md-4">
             <label class="form-label">Horas úteis no mês <span class="required-mark salary-required">*</span></label>
             <input asp-for="Input.HorasUteisMes" class="form-control" type="number" />
+            <small id="horasUteisStatus" class="form-text" aria-live="polite">Preenchido automaticamente conforme o período.</small>
         </div>
         <div class="col-md-4">
             <label class="form-label">Horas extras <span class="required-mark extra-required d-none">*</span></label>
@@ -112,12 +113,47 @@
                 extraRequired.forEach(item => item.classList.add('d-none'));
             }
             atualizarPreviaEntrada();
+            if (tipo !== 'Extra') carregarHorasUteis();
+        }
+
+        let consultaHorasUteisId = 0;
+
+        async function carregarHorasUteis() {
+            const tipo = document.getElementById('Input_TipoEntrada')?.value;
+            const periodo = document.getElementById('filtroPeriodo')?.value;
+            const campoHoras = document.getElementById('Input_HorasUteisMes');
+            const status = document.getElementById('horasUteisStatus');
+            if (tipo !== 'Salario' || !/^\d{2}\/\d{4}$/.test(periodo || '')) return;
+
+            const consultaAtual = ++consultaHorasUteisId;
+            campoHoras.readOnly = true;
+            status.textContent = 'Consultando dias úteis e feriados do período…';
+
+            try {
+                const url = `@Url.Page("/Controle/CalculadoraHorasUteis")?handler=CalcularPeriodo&mesAno=${encodeURIComponent(periodo)}`;
+                const response = await fetch(url);
+                if (!response.ok) throw new Error('Falha na consulta.');
+                const resultado = await response.json();
+                if (consultaAtual !== consultaHorasUteisId) return;
+
+                campoHoras.value = resultado.totalHorasUteis;
+                status.textContent = `${resultado.diasUteis} dias úteis · ${resultado.periodo} · base de ${resultado.horasPorDia} h/dia.`;
+                atualizarPreviaEntrada();
+            } catch (error) {
+                if (consultaAtual !== consultaHorasUteisId) return;
+                status.textContent = 'Não foi possível calcular automaticamente. Informe as horas manualmente.';
+            } finally {
+                if (consultaAtual === consultaHorasUteisId) campoHoras.readOnly = false;
+            }
         }
 
         document.querySelectorAll('#formEntrada input, #formEntrada select').forEach(campo => {
             campo.addEventListener('input', atualizarPreviaEntrada);
             campo.addEventListener('change', atualizarPreviaEntrada);
         });
+
+        document.getElementById('filtroPeriodo')?.addEventListener('change', carregarHorasUteis);
+        document.getElementById('filtroPeriodo')?.addEventListener('blur', carregarHorasUteis);
 
         function atualizarPreviaEntrada() {
             const tipo = document.getElementById('Input_TipoEntrada')?.value;
