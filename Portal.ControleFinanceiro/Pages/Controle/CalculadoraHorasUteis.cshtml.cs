@@ -40,6 +40,9 @@ public class CalculadoraHorasUteisModel : PageModel
         var feriados = await ObterFeriadosAsync(dataInicio, dataFim);
 
         var diasTotais = (dataFim - dataInicio).Days + 1;
+        var diasDoPeriodo = Enumerable.Range(0, diasTotais)
+            .Select(i => dataInicio.AddDays(i))
+            .ToList();
         var diasUteis = Enumerable.Range(0, diasTotais)
             .Select(i => dataInicio.AddDays(i))
             .Where(d =>
@@ -56,6 +59,10 @@ public class CalculadoraHorasUteisModel : PageModel
             HorasPorDia = Input.HorasPorDia,
             TotalHorasUteis = diasUteis.Count * Input.HorasPorDia,
             DiasNaoUteis = diasTotais - diasUteis.Count,
+            DiasFimSemana = diasDoPeriodo.Count(d => d.DayOfWeek is DayOfWeek.Saturday or DayOfWeek.Sunday),
+            FeriadosEmDiasUteis = feriados.Count(f =>
+                f.Data >= dataInicio && f.Data <= dataFim &&
+                f.Data.DayOfWeek is not DayOfWeek.Saturday and not DayOfWeek.Sunday),
             Feriados = feriados
                         .Where(d => d.Data >= dataInicio && d.Data <= dataFim)
                         .OrderBy(d => d.Data)
@@ -185,6 +192,8 @@ public class CalculadoraHorasUteisModel : PageModel
         public int DiasTotais { get; set; }
         public int DiasUteis { get; set; }
         public int DiasNaoUteis { get; set; }
+        public int DiasFimSemana { get; set; }
+        public int FeriadosEmDiasUteis { get; set; }
         public int HorasPorDia { get; set; }
         public int TotalHorasUteis { get; set; }
         public List<FeriadoInfo> Feriados { get; set; } = new();

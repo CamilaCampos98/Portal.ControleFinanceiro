@@ -47,6 +47,7 @@ namespace Portal.ControleFinanceiro.Pages.Controle
         public void OnGet()
         {
             UrlApi = _configuration["UrlApi"];
+            Input.Pessoa = User.Identity?.Name ?? string.Empty;
         }
 
         public async Task<IActionResult> OnPostRegistrarAsync()
@@ -55,11 +56,18 @@ namespace Portal.ControleFinanceiro.Pages.Controle
             {
                 UrlApi = _configuration["UrlApi"];
 
-                if (string.IsNullOrWhiteSpace(Input.Pessoa) ||
-                    string.IsNullOrWhiteSpace(Input.Descricao) ||
-                    Input.ValorTotal == null)
+                ModelState.Clear();
+                if (string.IsNullOrWhiteSpace(Input.Pessoa)) ModelState.AddModelError("Input.Pessoa", "Informe a pessoa.");
+                if (string.IsNullOrWhiteSpace(Input.Descricao)) ModelState.AddModelError("Input.Descricao", "Informe a descrição.");
+                if (!Input.ValorTotal.HasValue || Input.ValorTotal <= 0) ModelState.AddModelError("Input.ValorTotal", "Informe um valor maior que zero.");
+                if (Input.Data == default) ModelState.AddModelError("Input.Data", "Informe a data.");
+                if (string.IsNullOrWhiteSpace(Input.Fonte)) ModelState.AddModelError("Input.Fonte", "Informe a fonte.");
+                if (Input.TotalParcelas < 1) ModelState.AddModelError("Input.TotalParcelas", "Informe pelo menos uma parcela.");
+                if (Input.FormaPgto == "C" && string.IsNullOrWhiteSpace(Input.Cartao)) ModelState.AddModelError("Input.Cartao", "Selecione o cartão.");
+
+                if (!ModelState.IsValid)
                 {
-                    Mensagem = "Pelo menos Pessoa, Descricao e Valor Total devem ser preenchidos!";
+                    Mensagem = "Revise os campos destacados antes de continuar.";
                     return Page();
                 }
 
@@ -93,8 +101,8 @@ namespace Portal.ControleFinanceiro.Pages.Controle
                         ResultadoId = JsonSerializer.Deserialize<CompraResponseModel>(retorno).id;
 
                         Sucesso = true;
-                        Mensagem = "Compra Registrar Com Sucesso!";
-                        Input = new CompraInputModel();
+                        Mensagem = "Compra registrada com sucesso!";
+                        Input = new CompraInputModel { Pessoa = User.Identity?.Name ?? string.Empty };
                     }
                     else
                     {

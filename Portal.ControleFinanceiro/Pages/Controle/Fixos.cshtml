@@ -46,18 +46,21 @@
             <div class="col-md-6">
                 <label for="TiposSelecionados" class="form-label">Tipos de gastos fixos</label>
                 <select asp-for="TiposSelecionados" id="TiposSelecionados" class="form-select" multiple size="5" data-placeholder="Carregando tipos..."></select>
-                @* <div class="form-text" id="tiposFixosStatus">Carregando lista de tipos fixos.</div> *@
+                <div class="fixed-selection-tools">
+                    <span class="form-text" id="tiposFixosStatus" aria-live="polite">Carregando tipos de gastos...</span>
+                    <div><button type="button" class="btn btn-link btn-sm" id="selecionarTodosTipos">Selecionar todos</button><button type="button" class="btn btn-link btn-sm" id="limparTipos">Limpar</button></div>
+                </div>
             </div>
         </div>
 
         <div class="fixed-actions">
-            <button type="submit" asp-page-handler="Gerar" class="btn btn-success">
-                <i class="bi bi-plus-circle"></i>
-                Gerar
-            </button>
-            <button type="submit" asp-page-handler="Listar" class="btn btn-secondary">
+            <button type="submit" asp-page-handler="Listar" class="btn btn-success">
                 <i class="bi bi-list"></i>
                 Listar fixos
+            </button>
+            <button type="submit" asp-page-handler="Gerar" class="btn btn-outline-success">
+                <i class="bi bi-plus-circle"></i>
+                Gerar novos
             </button>
         </div>
     </form>
@@ -65,7 +68,7 @@
     <form method="post" asp-page-handler="CopiarMesAnterior" class="fixed-copy-form" id="formCopiarMesAnterior">
         <input type="hidden" name="Pessoa" id="copyPessoa" value="@Model.Pessoa" />
         <input type="hidden" name="Periodo" id="copyPeriodo" value="@Model.Periodo" />
-        <button type="submit" class="btn btn-warning">
+        <button type="submit" class="btn btn-outline-warning" title="Copia os fixos do mês anterior para o período informado">
             <i class="bi bi-arrow-down-circle"></i>
             Copiar mês anterior
         </button>
@@ -124,10 +127,10 @@
                         <h4><i class="bi bi-table"></i> Conferência mensal</h4>
                         <p>Valores visíveis para facilitar a leitura do mês.</p>
                     </div>
-                    <button type="submit" class="btn btn-success">
+                    <div class="fixed-save-actions"><span id="fixosDirtyStatus" class="form-text" aria-live="polite">Nenhuma alteração pendente</span><button type="submit" class="btn btn-success" id="btnSalvarFixos">
                         <i class="bi bi-save"></i>
                         Salvar todos
-                    </button>
+                    </button></div>
                 </div>
 
                 <div class="table-tools fixed-table-tools">
@@ -217,6 +220,8 @@
                                         <div class="row-actions">
                                             <button type="button"
                                                     class="btn btn-warning btn-sm btnDividir"
+                                                    aria-label="Dividir @fixo.Tipo"
+                                                    title="Dividir gasto"
                                                     data-id="@fixo.Id"
                                                     data-tipo="@fixo.Tipo">
                                                 <i class="bi bi-arrow-left-right"></i>
@@ -224,6 +229,8 @@
                                             <button type="button"
                                                     form="formExcluir"
                                                     class="btn btn-secondary btn-sm"
+                                                    aria-label="Excluir @fixo.Tipo"
+                                                    title="Excluir gasto"
                                                     onclick="confirmarExcluir('@fixo.Id', '@fixo.MesAno', '@fixo.Tipo');">
                                                 <i class="bi bi-trash"></i>
                                             </button>
@@ -318,6 +325,7 @@
                                             <div class="finance-result">
                                                 <span class="finance-installment">Informe os dados</span>
                                                 <strong class="finance-extra">Amortização: R$ 0,00</strong>
+                                                <small class="finance-interest">Juros estimados: R$ 0,00</small>
                                                 <small class="finance-status">Sem simulação</small>
                                             </div>
                                         </td>
@@ -383,6 +391,8 @@
     <script src="https://unpkg.com/imask"></script>
 
     <script>
+        let tiposFixosChoices = null;
+
         document.addEventListener("DOMContentLoaded", function () {
             const periodo = document.getElementById("Periodo");
             if (periodo && window.IMask) {
@@ -398,6 +408,7 @@
             configurarBadges();
             configurarCopiaMesAnterior();
             configurarFinanciamentos();
+            configurarAlteracoesFixos();
         });
 
         async function carregarTiposFixos() {
@@ -413,6 +424,19 @@
                 placeholder: true,
                 placeholderValue: "Selecione um ou mais tipos"
             }) : null;
+            tiposFixosChoices = choices;
+
+            document.getElementById("selecionarTodosTipos")?.addEventListener("click", () => {
+                if (tiposFixosChoices) tiposFixosChoices.setChoiceByValue(Array.from(select.options).map(option => option.value));
+                else Array.from(select.options).forEach(option => option.selected = true);
+                atualizarQuantidadeTipos();
+            });
+            document.getElementById("limparTipos")?.addEventListener("click", () => {
+                if (tiposFixosChoices) tiposFixosChoices.removeActiveItems();
+                else Array.from(select.options).forEach(option => option.selected = false);
+                atualizarQuantidadeTipos();
+            });
+            select.addEventListener("change", atualizarQuantidadeTipos);
 
             try {
                 const response = await fetch(endpoint);
@@ -445,10 +469,16 @@
                     });
                 }
 
-                // if (status) status.textContent = `${opcoes.length} tipo(s) disponível(is).`;
+                if (status) status.textContent = `${opcoes.length} tipo(s) disponível(is) · nenhum selecionado`;
             } catch (error) {
                 console.error("Erro ao carregar tipos de fixos:", error);
                 if (status) status.textContent = "Não foi possível carregar os tipos. Confira se a API está ligada.";
+            }
+
+            function atualizarQuantidadeTipos() {
+                const quantidade = Array.from(select.selectedOptions).length;
+                const total = select.options.length;
+                if (status) status.textContent = `${total} tipo(s) disponível(is) · ${quantidade} selecionado(s)`;
             }
         }
 
@@ -558,9 +588,39 @@
             const form = document.getElementById("formCopiarMesAnterior");
             if (!form) return;
 
-            form.addEventListener("submit", () => {
+            form.addEventListener("submit", async event => {
+                event.preventDefault();
                 document.getElementById("copyPessoa").value = document.getElementById("Pessoa")?.value || "";
                 document.getElementById("copyPeriodo").value = document.getElementById("Periodo")?.value || "";
+                const resultado = await Swal.fire({ title: "Copiar mês anterior?", text: "Os fixos existentes não serão duplicados.", icon: "question", showCancelButton: true, confirmButtonText: "Sim, copiar", cancelButtonText: "Cancelar" });
+                if (resultado.isConfirmed) form.submit();
+            });
+        }
+
+        function configurarAlteracoesFixos() {
+            const form = document.getElementById("btnSalvarFixos")?.closest("form");
+            const status = document.getElementById("fixosDirtyStatus");
+            if (!form || !status) return;
+            let alterado = false;
+
+            form.querySelectorAll(".fixed-value-input, .fixed-check input[type='checkbox']").forEach(campo => {
+                campo.addEventListener("change", () => {
+                    alterado = true;
+                    status.textContent = "Alterações ainda não salvas";
+                    status.classList.add("text-warning");
+                });
+                campo.addEventListener("input", () => {
+                    alterado = true;
+                    status.textContent = "Alterações ainda não salvas";
+                    status.classList.add("text-warning");
+                });
+            });
+
+            form.addEventListener("submit", () => { alterado = false; });
+            window.addEventListener("beforeunload", event => {
+                if (!alterado) return;
+                event.preventDefault();
+                event.returnValue = "";
             });
         }
 
@@ -625,6 +685,7 @@
             const extraEl = linha.querySelector(".finance-extra");
             const statusEl = linha.querySelector(".finance-status");
             const taxaEquivalenteEl = linha.querySelector(".finance-rate-equivalent");
+            const jurosEl = linha.querySelector(".finance-interest");
 
             if (taxaEquivalenteEl) {
                 taxaEquivalenteEl.textContent = `Taxa usada: ${formatarPercentual(taxaMensal * 100)}% a.m.`;
@@ -635,6 +696,7 @@
                 extraEl.textContent = "Amortização: R$ 0,00";
                 statusEl.textContent = "Sem simulação";
                 statusEl.className = "finance-status";
+                if (jurosEl) jurosEl.textContent = "Juros estimados: R$ 0,00";
                 return;
             }
 
@@ -647,6 +709,7 @@
 
             parcelaEl.textContent = `Parcela para quitar: ${formatarMoeda(parcelaNecessaria)}`;
             extraEl.textContent = `Amortização: ${formatarMoeda(amortizacaoExtra)}`;
+            if (jurosEl) jurosEl.textContent = `Juros estimados: ${formatarMoeda(Math.max(parcelaNecessaria * meses - saldoDevedor, 0))}`;
 
             if (saldoDisponivel) {
                 const saldoLivre = sobraMensal - amortizacaoExtra;

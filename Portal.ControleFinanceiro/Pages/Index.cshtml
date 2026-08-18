@@ -1,197 +1,142 @@
-﻿@page
+@page
 @model IndexModel
+@using System.Globalization
 @{
-    ViewData["Title"] = "Home page";
-
-    // 📅 Captura todos os meses únicos ordenados
-    var meses = Model.ResumoGeral?
-        .Select(x => x.MesAno)
-        .Distinct()
-        .OrderBy(m => DateTime.ParseExact(m, "MM/yyyy", null))
-        .ToList() ?? new List<string>();
-
-    // 👤 Agrupar por pessoa
-    var pessoas = Model.ResumoGeral?
-        .GroupBy(x => x.Pessoa)
-        .OrderBy(g => g.Key)
-        .ToList();
+    ViewData["Title"] = "Resumo financeiro";
+    var cultura = new CultureInfo("pt-BR");
+    var meses = Model.ResumoGeral?.Select(x => x.MesAno).Where(m => !string.IsNullOrWhiteSpace(m)).Distinct()
+        .OrderByDescending(m => DateTime.TryParseExact(m, "MM/yyyy", cultura, DateTimeStyles.None, out var data) ? data : DateTime.MinValue).ToList() ?? new List<string>();
+    var pessoas = Model.ResumoGeral?.Where(x => !string.IsNullOrWhiteSpace(x.Pessoa)).GroupBy(x => x.Pessoa).OrderBy(g => g.Key).ToList();
 }
 
-<style>
-    :root {
-        --main-color: #264653;
-        --accent-color: #2a9d8f;
-        --bg-color: #f8f9fa;
-        --text-color: #343a40;
-        --button-bg: #2a9d8f;
-        --button-hover: #1f6f68;
+<main class="home-dashboard" aria-labelledby="homeTitle">
+    @if (!string.IsNullOrEmpty(Model.Mensagem))
+    {
+        <section class="home-state home-state--error" role="alert">
+            <i class="bi bi-exclamation-triangle" aria-hidden="true"></i>
+            <div>
+                <h1 id="homeTitle">Não foi possível carregar o resumo</h1>
+                <p>Verifique a conexão com o serviço e tente novamente em alguns instantes.</p>
+                <a class="btn btn-outline-danger" asp-page="/Index"><i class="bi bi-arrow-clockwise" aria-hidden="true"></i> Tentar novamente</a>
+            </div>
+        </section>
     }
+    else if (pessoas != null && pessoas.Any())
+    {
+        <header class="home-heading">
+            <div>
+                <span class="eyebrow">Visão geral</span>
+                <h1 id="homeTitle">Resumo financeiro</h1>
+                <p>Acompanhe o saldo disponível e as movimentações mais recentes.</p>
+            </div>
+            <div class="current-period" aria-label="Período atual da fatura do cartão principal Itaú">
+                <i class="bi bi-calendar3" aria-hidden="true"></i>
+                <span>Fatura Itaú atual</span>
+                <strong>@(Model.PeriodoAtual ?? "Não identificada")</strong>
+            </div>
+        </header>
 
-    body {
-        background-color: var(--bg-color);
-        color: var(--text-color);
-        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-        min-height: 100vh;
-    }
+        <nav class="home-shortcuts" aria-label="Atalhos financeiros">
+            <a class="home-shortcut home-shortcut--primary" asp-page="/Controle/RegistrarCompra"><i class="bi bi-cart-plus" aria-hidden="true"></i><span><strong>Nova compra</strong><small>Registrar uma movimentação</small></span></a>
+            <a class="home-shortcut" asp-page="/Controle/Resumo"><i class="bi bi-bar-chart-line" aria-hidden="true"></i><span><strong>Resumo detalhado</strong><small>Consultar pessoa e período</small></span></a>
+            <a class="home-shortcut" asp-page="/Controle/Fixos"><i class="bi bi-calendar-check" aria-hidden="true"></i><span><strong>Fixos</strong><small>Contas e financiamentos</small></span></a>
+            <a class="home-shortcut" asp-page="/Controle/RegistrarEntrada"><i class="bi bi-wallet2" aria-hidden="true"></i><span><strong>Nova entrada</strong><small>Registrar receita</small></span></a>
+        </nav>
 
-    .main-container {
-        max-width: 900px;
-        margin: 60px auto 80px auto;
-        background: white;
-        border-radius: 12px;
-        box-shadow: 0 8px 25px rgba(38, 70, 83, 0.15);
-        padding: 40px 50px;
-        display: flex;
-        flex-direction: column;
-        gap: 20px;
-    }
+        <section class="home-section" aria-labelledby="saldoAtualTitulo">
+            <div class="home-section-heading">
+                <div><span class="eyebrow">Disponibilidade</span><h2 id="saldoAtualTitulo">Saldo atual por pessoa</h2></div>
+                <span class="home-section-caption">Referência: @(Model.PeriodoAtual ?? "período não identificado")</span>
+            </div>
+            <div class="current-balance-grid">
+                @foreach (var grupo in pessoas)
+                {
+                    var resumoAtual = string.IsNullOrWhiteSpace(Model.PeriodoAtual) ? null : grupo.FirstOrDefault(x => x.MesAno == Model.PeriodoAtual);
+                    var periodoConsulta = Model.PeriodoAtual ?? grupo
+                        .Select(x => x.MesAno)
+                        .OrderByDescending(m => DateTime.TryParseExact(m, "MM/yyyy", cultura, DateTimeStyles.None, out var data) ? data : DateTime.MinValue)
+                        .FirstOrDefault();
+                    var saldoClass = resumoAtual == null ? "balance-card--empty" : resumoAtual.SaldoRestante < 0 ? "balance-card--negative" : "balance-card--positive";
+                    <article class="balance-card @saldoClass">
+                        <div class="balance-card__header">
+                            <span class="balance-person"><i class="bi bi-person-circle" aria-hidden="true"></i> @grupo.Key</span>
+                            @if (resumoAtual == null) { <span class="balance-status">Sem dados</span> }
+                            else if (resumoAtual.SaldoRestante < 0) { <span class="balance-status"><i class="bi bi-exclamation-circle" aria-hidden="true"></i> Negativo</span> }
+                            else { <span class="balance-status"><i class="bi bi-check-circle" aria-hidden="true"></i> Disponível</span> }
+                        </div>
+                        <span class="balance-label">Saldo</span>
+                        <strong class="balance-value">@(resumoAtual == null ? "—" : resumoAtual.SaldoRestante.ToString("C", cultura))</strong>
+                        <div class="balance-saved"><span>Valor guardado</span><strong>@(resumoAtual == null ? "—" : resumoAtual.ValorGuardado.ToString("C", cultura))</strong></div>
+                        <a asp-page="/Controle/Resumo"
+                           asp-route-pessoa="@grupo.Key"
+                           asp-route-periodo="@periodoConsulta"
+                           aria-label="Ver resumo detalhado de @grupo.Key no período @periodoConsulta">Ver resumo <i class="bi bi-arrow-right" aria-hidden="true"></i></a>
+                    </article>
+                }
+            </div>
+        </section>
 
-    h1 {
-        font-weight: 700;
-        font-size: 3rem;
-        /* color: var(--main-color); */
-        margin-bottom: 10px;
-        letter-spacing: 1.5px;
-    }
-
-    p.lead {
-        font-size: 1.25rem;
-        color: var(--accent-color);
-        line-height: 1.5;
-        max-width: 700px;
-        margin-bottom: 30px;
-    }
-
-    a.btn-primary {
-        display: inline-block;
-        background-color: var(--button-bg);
-        color: white;
-        padding: 14px 36px;
-        font-weight: 600;
-        font-size: 1.1rem;
-        border-radius: 8px;
-        text-decoration: none;
-        transition: background-color 0.3s ease;
-        width: fit-content;
-        box-shadow: 0 4px 10px rgba(42, 157, 143, 0.4);
-        cursor: pointer;
-    }
-
-    a.btn-primary:hover {
-        background-color: var(--button-hover);
-        box-shadow: 0 6px 15px rgba(31, 111, 104, 0.7);
-        color: white;
-    }
-
-    .alert-danger {
-        max-width: 900px;
-        margin: 30px auto;
-        border-radius: 8px;
-        padding: 15px 25px;
-        font-weight: 600;
-        box-shadow: 0 4px 12px rgba(231, 111, 81, 0.3);
-        background-color: #f8d7da;
-        color: #842029;
-        border: 1px solid #f5c2c7;
-    }
-
-    .latest-purchase {
-        border: 1px solid #dce8e6;
-        border-left: 5px solid var(--accent-color);
-        border-radius: 8px;
-        padding: 18px 20px;
-        background: #f7fbfa;
-    }
-
-    .latest-purchase-details {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 8px 24px;
-        color: #5d6766;
-    }
-
-   
-  
-</style>
-
-@if (!string.IsNullOrEmpty(Model.Mensagem))
-{
-    <div class="alert @(Model.Sucesso ? "alert-success" : "alert-danger") alert-dismissible fade show shadow-sm mt-3" role="alert">
-        <pre class="m-0">@Model.Mensagem</pre>
-        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-    </div>
-}
-else if (pessoas != null && pessoas.Any())
-{
-    <div class="main-container">
-        <h1>Resumo Financeiro</h1>
-
-        <p class="lead">Período atual do cartão principal Itaú: <strong>@(Model.PeriodoAtual ?? "não identificado")</strong></p>
-
-        <section class="latest-purchase" aria-label="Últimas compras por pessoa no período atual até hoje">
-            <h5>Última compra de cada pessoa no período até hoje</h5>
+        <section class="home-section" aria-labelledby="ultimasComprasTitulo">
+            <div class="home-section-heading">
+                <div><span class="eyebrow">Movimentações</span><h2 id="ultimasComprasTitulo">Sua última compra</h2></div>
+                <span class="home-section-caption">Compras registradas até hoje</span>
+            </div>
             @if (Model.UltimasComprasPorPessoa.Any())
             {
-                @foreach (var compra in Model.UltimasComprasPorPessoa)
-                {
-                    <div class="mt-3"><strong>@compra.Pessoa — @compra.Descricao</strong></div>
-                    <div class="latest-purchase-details">
-                        <span>@compra.Data.ToString("dd/MM/yyyy")</span>
-                        <span>@compra.Cartao</span>
-                        @if (!string.IsNullOrWhiteSpace(compra.Parcela))
-                        {
-                            <span>Parcela @compra.Parcela</span>
-                        }
-                        <span>R$ @compra.Valor.ToString("N2")</span>
-                    </div>
-                }
+                <div class="latest-purchase-grid">
+                    @foreach (var compra in Model.UltimasComprasPorPessoa)
+                    {
+                        <article class="latest-purchase-card">
+                            <div class="latest-purchase-card__top"><span class="purchase-person"><i class="bi bi-person" aria-hidden="true"></i> @compra.Pessoa</span><strong>@compra.Valor.ToString("C", cultura)</strong></div>
+                            <h3>@compra.Descricao</h3>
+                            <div class="purchase-meta">
+                                <time datetime="@compra.Data.ToString("yyyy-MM-dd")"><i class="bi bi-calendar-event" aria-hidden="true"></i> @compra.Data.ToString("dd/MM/yyyy")</time>
+                                <span><i class="bi bi-credit-card" aria-hidden="true"></i> @compra.Cartao</span>
+                                @if (!string.IsNullOrWhiteSpace(compra.Parcela)) { <span class="purchase-installment">Parcela @compra.Parcela</span> }
+                            </div>
+                        </article>
+                    }
+                </div>
             }
             else
             {
-                <span class="text-muted">Nenhuma compra encontrada para o período atual até hoje.</span>
+                <div class="home-inline-empty"><i class="bi bi-cart-x" aria-hidden="true"></i><span>Nenhuma compra encontrada no período atual até hoje.</span></div>
             }
         </section>
 
-        <p class="lead">Veja abaixo o saldo atual:</p>
-        <div class="table-responsive">
-            <table class="table table-bordered table-striped text-center">
-                <thead class="thead-dark">
-                    <tr>
-                        <th style="text-align:left;">Pessoa</th>
-                        @foreach (var mes in meses)
+        <section class="home-section" aria-labelledby="historicoTitulo">
+            <div class="home-section-heading">
+                <div><span class="eyebrow">Evolução mensal</span><h2 id="historicoTitulo">Histórico de saldos</h2></div>
+                <span class="home-section-caption">Períodos mais recentes primeiro</span>
+            </div>
+            <div class="table-responsive history-table-shell" tabindex="0" aria-label="Histórico mensal de saldos por pessoa">
+                <table class="table history-table mb-0">
+                    <thead><tr><th scope="col">Pessoa</th>@foreach (var mes in meses) { <th scope="col">@mes</th> }</tr></thead>
+                    <tbody>
+                        @foreach (var grupo in pessoas)
                         {
-                            <th>@mes</th>
+                            <tr>
+                                <th scope="row">@grupo.Key</th>
+                                @foreach (var mes in meses)
+                                {
+                                    var resumoMes = grupo.FirstOrDefault(x => x.MesAno == mes);
+                                    <td class="@(resumoMes != null && resumoMes.SaldoRestante < 0 ? "history-value--negative" : "")">
+                                        @if (resumoMes == null) { <span class="history-empty" aria-label="Sem dados">—</span> }
+                                        else { <strong>@resumoMes.SaldoRestante.ToString("C", cultura)</strong><small>Guardado: @resumoMes.ValorGuardado.ToString("C", cultura)</small> }
+                                    </td>
+                                }
+                            </tr>
                         }
-                    </tr>
-                </thead>
-                <tbody>
-                    @foreach (var grupo in pessoas)
-                    {
-                        <tr>
-                            <td style="text-align:left;">@grupo.Key</td>
-                            @foreach (var mes in meses)
-                            {
-                                var resumoMes = grupo.FirstOrDefault(x => x.MesAno == mes);
-                                decimal saldoRestante = resumoMes?.SaldoRestante ?? 0;
-                                decimal valorGuardado = resumoMes?.ValorGuardado ?? 0;
-
-                                <td style="vertical-align: top; text-align: right;">
-                                    <div><strong>Saldo:</strong> R$ @saldoRestante.ToString("N2")</div>
-                                    <div style="color: gray; font-size: smaller;">
-                                        Guardado: R$ @valorGuardado.ToString("N2")
-                                    </div>
-                                </td>
-                            }
-                        </tr>
-                    }
-                </tbody>
-            </table>
-        </div>
-    </div>
-}
-else
-{
-    <p class="text-center">Nenhum dado encontrado.</p>
-}
-
-
+                    </tbody>
+                </table>
+            </div>
+        </section>
+    }
+    else
+    {
+        <section class="home-state" aria-labelledby="homeTitle">
+            <i class="bi bi-bar-chart" aria-hidden="true"></i>
+            <div><h1 id="homeTitle">Seu resumo financeiro aparecerá aqui</h1><p>Ainda não encontramos dados para apresentar. Registre uma entrada ou uma compra para começar.</p><div class="d-flex flex-wrap gap-2"><a class="btn btn-success" asp-page="/Controle/RegistrarEntrada">Registrar entrada</a><a class="btn btn-outline-success" asp-page="/Controle/RegistrarCompra">Registrar compra</a></div></div>
+        </section>
+    }
+</main>

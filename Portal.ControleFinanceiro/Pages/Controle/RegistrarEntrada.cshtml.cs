@@ -30,7 +30,8 @@ namespace Portal.ControleFinanceiro.Pages.Controle
 
         public void OnGet()
         {
-            // Inicialização
+            Input.Pessoa = User.Identity?.Name ?? string.Empty;
+            Input.MesAno = DateTime.Today.ToString("MM/yyyy");
         }
 
         public async Task<IActionResult> OnPostAsync()
@@ -39,7 +40,7 @@ namespace Portal.ControleFinanceiro.Pages.Controle
             {
                 if (string.IsNullOrWhiteSpace(Input.Pessoa) || string.IsNullOrWhiteSpace(Input.MesAno))
                 {
-                    Mensagem = "Pessoa e Mês/Ano são obrigatórios.";
+                    Mensagem = "Pessoa e MÃªs/Ano sÃ£o obrigatÃ³rios.";
                     return Page();
                 }
 
@@ -60,7 +61,7 @@ namespace Portal.ControleFinanceiro.Pages.Controle
                     }
                     if (Input.HorasUteisMes <= 0)
                     {
-                        Mensagem = "Informe as Horas Úteis no Mês corretamente.";
+                        Mensagem = "Informe as Horas Ãšteis no MÃªs corretamente.";
                         return Page();
                     }
                 }
@@ -118,8 +119,12 @@ namespace Portal.ControleFinanceiro.Pages.Controle
 
                         Sucesso = true;
                         Mensagem = ResultadoTexto;
-                        // Limpa os campos após submit
-                        Input = new EntradaInput();
+                        // Limpa os campos apÃ³s submit
+                        Input = new EntradaInput
+                        {
+                            Pessoa = User.Identity?.Name ?? string.Empty,
+                            MesAno = DateTime.Today.ToString("MM/yyyy")
+                        };
                     }
                     else
                     {

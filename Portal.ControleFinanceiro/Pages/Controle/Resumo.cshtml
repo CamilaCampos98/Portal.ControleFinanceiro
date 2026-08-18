@@ -234,10 +234,13 @@
         </section>
 
         <div class="card shadow-sm mb-4">
-            <div class="card-header card-header-custom">
+            <div class="card-header card-header-custom purchase-card-header">
                 <h5 class="mb-0">
                     <i class="bi bi-cart-check"></i> Compras de <strong>@Model.Resumo.Pessoa</strong>
                 </h5>
+                <button type="button" class="btn btn-light btn-sm" data-bs-toggle="modal" data-bs-target="#modalRegistrarCompraResumo">
+                    <i class="bi bi-cart-plus"></i> Nova compra
+                </button>
             </div>
 
             <div class="card-body">
@@ -283,9 +286,6 @@
                 
                     <button type="button" class="btn btn-primary mb-3" data-bs-toggle="modal" data-bs-target="#modalResumoPorCartao">
                         <i class="bi bi-credit-card-2-front"></i> Resumo por Cartão
-                    </button>
-                    <button type="button" class="btn btn-success mb-3" data-bs-toggle="modal" data-bs-target="#modalRegistrarCompraResumo">
-                        <i class="bi bi-cart-plus"></i> Registrar compra
                     </button>
                     <div class="text-end mb-2">
 			            <button id="btnTogglePago"
@@ -516,60 +516,111 @@
                     </div>
 
                     <div class="modal fade" id="modalRegistrarCompraResumo" tabindex="-1" aria-labelledby="modalRegistrarCompraResumoLabel" aria-hidden="true">
-                        <div class="modal-dialog modal-lg modal-dialog-centered">
+                        <div class="modal-dialog modal-lg modal-dialog-centered modal-fullscreen-sm-down">
                             <div class="modal-content">
-                                <form method="post" asp-page-handler="RegistrarCompra">
+                                <form method="post" asp-page-handler="RegistrarCompra" id="formNovaCompraResumo" novalidate>
                                     <div class="modal-header">
-                                        <h5 class="modal-title" id="modalRegistrarCompraResumoLabel">
-                                            <i class="bi bi-cart-plus"></i> Registrar compra
-                                        </h5>
+                                        <div>
+                                            <h5 class="modal-title" id="modalRegistrarCompraResumoLabel">
+                                                <i class="bi bi-cart-plus"></i> Registrar compra
+                                            </h5>
+                                            <small class="text-muted">@Model.Resumo.Pessoa · Resumo pesquisado: @Model.Resumo.Periodo</small>
+                                        </div>
                                         <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
                                     </div>
                                     <div class="modal-body">
-                                        <div class="row g-3">
+                                        @if (!string.IsNullOrWhiteSpace(Model.ErroNovaCompra))
+                                        {
+                                            <div class="alert alert-danger d-flex align-items-start gap-2" role="alert">
+                                                <i class="bi bi-exclamation-triangle-fill" aria-hidden="true"></i>
+                                                <span>@Model.ErroNovaCompra</span>
+                                            </div>
+                                        }
+
+                                        <div id="novaCompraCampos" class="row g-3">
                                             <div class="col-md-6">
-                                                <label class="form-label">Pessoa</label>
-                                                <input class="form-control" value="@Model.Resumo.Pessoa" readonly />
+                                                <label class="form-label" for="novaCompraPessoa">Pessoa</label>
+                                                <input id="novaCompraPessoa" class="form-control" value="@Model.Resumo.Pessoa" readonly aria-readonly="true" />
                                             </div>
                                             <div class="col-md-6">
-                                                <label class="form-label">Descrição</label>
-                                                <input asp-for="NovaCompra.Descricao" class="form-control" required />
+                                                <label class="form-label" asp-for="NovaCompra.Descricao">Descrição <span class="required-mark">*</span></label>
+                                                <input asp-for="NovaCompra.Descricao" class="form-control" required autofocus />
+                                                <span asp-validation-for="NovaCompra.Descricao" class="invalid-feedback d-block"></span>
                                             </div>
                                             <div class="col-md-4">
-                                                <label class="form-label">Valor (R$)</label>
+                                                <label class="form-label" asp-for="NovaCompra.ValorTotal">Valor (R$) <span class="required-mark">*</span></label>
                                                 <input asp-for="NovaCompra.ValorTotal" type="number" min="0.01" step="0.01" class="form-control" required />
+                                                <small id="novaCompraValorFormatado" class="form-text">R$ 0,00</small>
+                                                <span asp-validation-for="NovaCompra.ValorTotal" class="invalid-feedback d-block"></span>
                                             </div>
                                             <div class="col-md-4">
-                                                <label class="form-label">Data da compra</label>
+                                                <label class="form-label" asp-for="NovaCompra.Data">Data da compra <span class="required-mark">*</span></label>
                                                 <input asp-for="NovaCompra.Data" type="date" class="form-control" required />
+                                                <span asp-validation-for="NovaCompra.Data" class="invalid-feedback d-block"></span>
                                             </div>
                                             <div class="col-md-4">
-                                                <label class="form-label">Forma de pagamento</label>
+                                                <label class="form-label" asp-for="NovaCompra.FormaPgto">Forma de pagamento <span class="required-mark">*</span></label>
                                                 <select asp-for="NovaCompra.FormaPgto" id="novaCompraFormaPgto" class="form-select" required>
                                                     <option value="C">Crédito</option>
                                                     <option value="D">Débito</option>
                                                 </select>
+                                                <span asp-validation-for="NovaCompra.FormaPgto" class="invalid-feedback d-block"></span>
                                             </div>
                                             <div class="col-md-4" id="novaCompraCartaoContainer">
-                                                <label class="form-label">Cartão</label>
+                                                <label class="form-label" asp-for="NovaCompra.Cartao">Cartão <span class="required-mark">*</span></label>
                                                 <select asp-for="NovaCompra.Cartao" id="novaCompraCartao" class="form-select">
                                                     <option value="">Selecione...</option>
                                                 </select>
+                                                <span asp-validation-for="NovaCompra.Cartao" class="invalid-feedback d-block"></span>
+                                                <small id="novaCompraCartaoErro" class="text-danger d-none" role="alert"></small>
                                             </div>
                                             <div class="col-md-4">
-                                                <label class="form-label">Parcelas</label>
+                                                <label class="form-label" asp-for="NovaCompra.TotalParcelas">Parcelas <span class="required-mark">*</span></label>
                                                 <input asp-for="NovaCompra.TotalParcelas" type="number" min="1" class="form-control" required />
+                                                <small class="form-text">Use 1 para compra à vista.</small>
+                                                <span asp-validation-for="NovaCompra.TotalParcelas" class="invalid-feedback d-block"></span>
                                             </div>
                                             <div class="col-md-4">
-                                                <label class="form-label">Fonte</label>
-                                                <input asp-for="NovaCompra.Fonte" class="form-control" required />
+                                                <label class="form-label" asp-for="NovaCompra.Fonte">Fonte <span class="required-mark">*</span></label>
+                                                <input asp-for="NovaCompra.Fonte" class="form-control" list="fontesNovaCompra" autocomplete="off" required />
+                                                <datalist id="fontesNovaCompra">
+                                                    @foreach (var fonte in Model.Resumo.Compras
+                                                        .Select(c => c.TryGetValue("Fonte", out var valorFonte) ? valorFonte?.ToString() : null)
+                                                        .Where(f => !string.IsNullOrWhiteSpace(f))
+                                                        .Distinct(StringComparer.OrdinalIgnoreCase)
+                                                        .OrderBy(f => f))
+                                                    {
+                                                        <option value="@fonte"></option>
+                                                    }
+                                                </datalist>
+                                                <span asp-validation-for="NovaCompra.Fonte" class="invalid-feedback d-block"></span>
+                                            </div>
+
+                                            <div class="col-12">
+                                                <div id="novaCompraPeriodoStatus" class="period-preview" role="status" aria-live="polite">
+                                                    <i class="bi bi-calendar-event" aria-hidden="true"></i>
+                                                    <span>Preencha data e cartão para conferir o período de contabilização.</span>
+                                                </div>
                                             </div>
                                         </div>
+
+                                        <section id="novaCompraRevisao" class="purchase-review d-none" aria-labelledby="novaCompraRevisaoTitulo">
+                                            <h6 id="novaCompraRevisaoTitulo">Confira antes de registrar</h6>
+                                            <div id="novaCompraRevisaoConteudo"></div>
+                                        </section>
                                     </div>
                                     <div class="modal-footer">
                                         <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button>
-                                        <button type="submit" class="btn btn-success">
-                                            <i class="bi bi-check-circle"></i> Registrar
+                                        <button type="button" class="btn btn-outline-secondary d-none" id="btnVoltarNovaCompra">
+                                            <i class="bi bi-arrow-left"></i> Voltar
+                                        </button>
+                                        <button type="button" class="btn btn-primary" id="btnRevisarNovaCompra">
+                                            <i class="bi bi-eye"></i> Revisar compra
+                                        </button>
+                                        <button type="submit" class="btn btn-success d-none" id="btnConfirmarNovaCompra">
+                                            <span class="spinner-border spinner-border-sm d-none" aria-hidden="true"></span>
+                                            <i class="bi bi-check-circle"></i>
+                                            <span class="submit-label">Confirmar registro</span>
                                         </button>
                                     </div>
                                 </form>
@@ -702,24 +753,56 @@
 @section Scripts {
     <script>
         document.addEventListener('DOMContentLoaded', async function () {
+            const modalElement = document.getElementById('modalRegistrarCompraResumo');
+            const form = document.getElementById('formNovaCompraResumo');
             const formaPgto = document.getElementById('novaCompraFormaPgto');
             const cartaoContainer = document.getElementById('novaCompraCartaoContainer');
             const cartaoSelect = document.getElementById('novaCompraCartao');
+            const cartaoErro = document.getElementById('novaCompraCartaoErro');
+            const parcelas = document.getElementById('NovaCompra_TotalParcelas');
+            const valor = document.getElementById('NovaCompra_ValorTotal');
+            const dataCompra = document.getElementById('NovaCompra_Data');
+            const periodoStatus = document.getElementById('novaCompraPeriodoStatus');
+            const campos = document.getElementById('novaCompraCampos');
+            const revisao = document.getElementById('novaCompraRevisao');
+            const revisaoConteudo = document.getElementById('novaCompraRevisaoConteudo');
+            const btnRevisar = document.getElementById('btnRevisarNovaCompra');
+            const btnVoltar = document.getElementById('btnVoltarNovaCompra');
+            const btnConfirmar = document.getElementById('btnConfirmarNovaCompra');
+            const urlApiResumo = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(Model.UrlApi));
+            const pessoaResumo = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(Model.Resumo?.Pessoa ?? string.Empty));
+            const periodoResumo = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(Model.Resumo?.Periodo ?? string.Empty));
+            const abrirModalNovaCompra = @Html.Raw(Model.AbrirModalNovaCompra ? "true" : "false");
+            let periodoCalculado = '';
+            let carregandoCartoes = true;
 
-            if (!formaPgto || !cartaoContainer || !cartaoSelect) return;
+            if (!modalElement || !form || !formaPgto || !cartaoContainer || !cartaoSelect) return;
 
             function atualizarObrigatoriedadeCartao() {
                 const usaCredito = formaPgto.value === 'C';
                 cartaoContainer.style.display = usaCredito ? '' : 'none';
                 cartaoSelect.required = usaCredito;
-                if (!usaCredito) cartaoSelect.value = '';
+                parcelas.readOnly = !usaCredito;
+                if (!usaCredito) {
+                    cartaoSelect.value = '';
+                    parcelas.value = '1';
+                }
+                conferirPeriodo();
             }
 
             formaPgto.addEventListener('change', atualizarObrigatoriedadeCartao);
-            atualizarObrigatoriedadeCartao();
+            dataCompra?.addEventListener('change', conferirPeriodo);
+            cartaoSelect.addEventListener('change', conferirPeriodo);
+            valor?.addEventListener('input', function () {
+                const numero = Number(valor.value || 0);
+                document.getElementById('novaCompraValorFormatado').textContent = numero.toLocaleString('pt-BR', {
+                    style: 'currency',
+                    currency: 'BRL'
+                });
+            });
 
             try {
-                const response = await fetch('@Model.UrlApi' + 'Compra/GetCartoes');
+                const response = await fetch(urlApiResumo + 'Compra/GetCartoes');
                 if (!response.ok) throw new Error('Erro ao buscar cartões.');
 
                 const cartaoSelecionado = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(Model.NovaCompra.Cartao));
@@ -733,7 +816,148 @@
                     cartaoSelect.appendChild(option);
                 });
             } catch (error) {
-                console.error('Erro ao carregar cartões:', error);
+                cartaoErro.textContent = 'Não foi possível carregar os cartões. Feche o modal e tente novamente.';
+                cartaoErro.classList.remove('d-none');
+                cartaoSelect.disabled = true;
+                btnRevisar.disabled = true;
+            } finally {
+                carregandoCartoes = false;
+                atualizarObrigatoriedadeCartao();
+            }
+
+            async function conferirPeriodo() {
+                periodoCalculado = '';
+
+                if (!dataCompra?.value) {
+                    atualizarPeriodoStatus('Preencha a data para conferir o período de contabilização.', false);
+                    return;
+                }
+
+                if (formaPgto.value !== 'C') {
+                    const [ano, mes] = dataCompra.value.split('-');
+                    periodoCalculado = `${mes}/${ano}`;
+                    atualizarPeriodoStatus(`Compra no débito. Referência da data: ${periodoCalculado}.`, false);
+                    return;
+                }
+
+                if (!cartaoSelect.value || carregandoCartoes) {
+                    atualizarPeriodoStatus('Selecione o cartão para conferir o período de contabilização.', false);
+                    return;
+                }
+
+                atualizarPeriodoStatus('Conferindo o período da compra…', false);
+                const data = new Date(`${dataCompra.value}T12:00:00`);
+                const candidatos = [0, -1, 1];
+
+                try {
+                    for (const deslocamento of candidatos) {
+                        const referencia = new Date(data.getFullYear(), data.getMonth() + deslocamento, 1);
+                        const mesAno = `${String(referencia.getMonth() + 1).padStart(2, '0')}/${referencia.getFullYear()}`;
+                        const url = urlApiResumo + 'Compra/PeriodoFatura'
+                            + `?pessoa=${encodeURIComponent(pessoaResumo)}`
+                            + `&mesAno=${encodeURIComponent(mesAno)}`
+                            + `&cartao=${encodeURIComponent(cartaoSelect.value)}`;
+                        const response = await fetch(url);
+                        if (!response.ok) continue;
+
+                        const periodo = await response.json();
+                        const inicio = new Date(periodo.inicio);
+                        const fim = new Date(periodo.fim);
+                        if (data >= inicio && data <= fim) {
+                            periodoCalculado = mesAno;
+                            const diverge = mesAno !== periodoResumo;
+                            atualizarPeriodoStatus(
+                                diverge
+                                    ? `Atenção: esta compra será contabilizada em ${mesAno}, fora do resumo pesquisado.`
+                                    : `Esta compra será contabilizada em ${mesAno}.`,
+                                diverge);
+                            return;
+                        }
+                    }
+
+                    atualizarPeriodoStatus('Não foi possível identificar o período. Revise data e cartão.', true);
+                } catch (error) {
+                    atualizarPeriodoStatus('Não foi possível conferir o período agora.', true);
+                }
+            }
+
+            function atualizarPeriodoStatus(texto, alerta) {
+                periodoStatus.querySelector('span').textContent = texto;
+                periodoStatus.classList.toggle('period-preview--warning', alerta);
+            }
+
+            function exibirCampos() {
+                campos.classList.remove('d-none');
+                revisao.classList.add('d-none');
+                btnRevisar.classList.remove('d-none');
+                btnVoltar.classList.add('d-none');
+                btnConfirmar.classList.add('d-none');
+            }
+
+            async function prepararRevisao() {
+                form.classList.add('was-validated');
+                if (!form.checkValidity()) {
+                    form.querySelector(':invalid')?.focus();
+                    return;
+                }
+
+                await conferirPeriodo();
+                const descricao = document.getElementById('NovaCompra_Descricao').value;
+                const fonte = document.getElementById('NovaCompra_Fonte').value;
+                const valorFormatado = Number(valor.value).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+                const pagamento = formaPgto.value === 'C' ? 'Crédito' : 'Débito';
+                const detalheCartao = formaPgto.value === 'C' ? ` · ${cartaoSelect.value}` : '';
+                const detalheParcelas = formaPgto.value === 'C' ? ` · ${parcelas.value} parcela(s)` : '';
+
+                revisaoConteudo.innerHTML = `
+                    <strong>${escaparHtml(descricao)}</strong>
+                    <span>${valorFormatado}</span>
+                    <span>${formatarDataCompra(dataCompra.value)}</span>
+                    <span>${pagamento}${escaparHtml(detalheCartao)}${detalheParcelas}</span>
+                    <span>Fonte: ${escaparHtml(fonte)}</span>
+                    <span>Período: ${periodoCalculado || 'a confirmar no registro'}</span>`;
+
+                campos.classList.add('d-none');
+                revisao.classList.remove('d-none');
+                btnRevisar.classList.add('d-none');
+                btnVoltar.classList.remove('d-none');
+                btnConfirmar.classList.remove('d-none');
+                btnConfirmar.focus();
+            }
+
+            btnRevisar.addEventListener('click', prepararRevisao);
+            btnVoltar.addEventListener('click', exibirCampos);
+            form.addEventListener('submit', function (event) {
+                if (revisao.classList.contains('d-none')) {
+                    event.preventDefault();
+                    prepararRevisao();
+                    return;
+                }
+
+                btnConfirmar.disabled = true;
+                btnConfirmar.querySelector('.spinner-border').classList.remove('d-none');
+                btnConfirmar.querySelector('.bi').classList.add('d-none');
+                btnConfirmar.querySelector('.submit-label').textContent = 'Registrando…';
+            });
+
+            modalElement.addEventListener('shown.bs.modal', function () {
+                modalElement.querySelector('[autofocus]')?.focus();
+            });
+
+            if (abrirModalNovaCompra) {
+                bootstrap.Modal.getOrCreateInstance(modalElement).show();
+            }
+
+            function escaparHtml(valor) {
+                const elemento = document.createElement('div');
+                elemento.textContent = valor || '';
+                return elemento.innerHTML;
+            }
+
+            function formatarDataCompra(valor) {
+                if (!valor) return '';
+                const [ano, mes, dia] = valor.split('-');
+                return `${dia}/${mes}/${ano}`;
             }
         });
       
@@ -777,10 +1001,10 @@
             const overlay = document.getElementById('loadingOverlay');
 
             const forms = document.querySelectorAll('form');
-            const buttons = document.querySelectorAll('form button[type="submit"]');
-
             forms.forEach(form => {
-                form.addEventListener('submit', function () {
+                form.addEventListener('submit', function (event) {
+                    if (event.defaultPrevented) return;
+
                     // Ativa overlay
                     overlay.style.display = 'flex';
 

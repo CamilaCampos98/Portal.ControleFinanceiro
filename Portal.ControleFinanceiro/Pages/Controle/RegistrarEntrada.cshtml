@@ -5,51 +5,55 @@
 }
 
 <div class="main-container">
-<h2><i class="bi bi-wallet2"></i> Registrar Entrada</h2>
+<div class="page-heading"><div><h2><i class="bi bi-wallet2"></i> Registrar entrada</h2><p>Cadastre o salário mensal ou acrescente horas extras ao período.</p></div></div>
 
 @if (!string.IsNullOrEmpty(Model.Mensagem))
 {
     <div class="alert @(Model.Sucesso ? "alert-success" : "alert-danger") alert-dismissible fade show shadow-sm mt-3" role="alert">
-        <pre class="m-0">@Model.Mensagem</pre>
+        <span class="message-preserve-lines">@Model.Mensagem</span>
         <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
     </div>
 }
 
-<form method="post">
+<section class="data-entry-card">
+<form method="post" id="formEntrada" novalidate>
     <div class="row g-3">
         <div class="col-md-4">
-            <label class="form-label">Tipo de Entrada</label>
+            <label class="form-label">Tipo de entrada <span class="required-mark">*</span></label>
             <select asp-for="Input.TipoEntrada" class="form-select" onchange="atualizarCamposEntrada()">
                 <option value="Salario">Salário</option>
                 <option value="Extra">Extra</option>
             </select>
         </div>
         <div class="col-md-4">
-            <label class="form-label">Pessoa</label>
-            <input asp-for="Input.Pessoa" class="form-control" />
+            <label class="form-label">Pessoa <span class="required-mark">*</span></label>
+            <input asp-for="Input.Pessoa" class="form-control" required />
         </div>
         <div class="col-md-4">
-            <label class="form-label">Valor Hora (R$)</label>
+            <label class="form-label">Valor da hora (R$) <span class="required-mark salary-required">*</span></label>
                 <input asp-for="Input.ValorHora" class="form-control" type="text" inputmode="decimal" step="0.01" />
         </div>
         <div class="col-md-4">
-            <label class="form-label">Horas Úteis no Mês</label>
+            <label class="form-label">Horas úteis no mês <span class="required-mark salary-required">*</span></label>
             <input asp-for="Input.HorasUteisMes" class="form-control" type="number" />
         </div>
         <div class="col-md-4">
-            <label class="form-label">Horas Extras</label>
+            <label class="form-label">Horas extras <span class="required-mark extra-required d-none">*</span></label>
                 <input asp-for="Input.HorasExtras" class="form-control" type="text" inputmode="decimal" />
         </div>
         <div class="col-md-4">
-            <label class="form-label">Mês/Ano (MM/yyyy)</label>
-                <input asp-for="Input.MesAno" id="filtroPeriodo" class="form-control" placeholder="Ex.: 05/2025" />
+            <label class="form-label">Mês/Ano <span class="required-mark">*</span></label>
+                <input asp-for="Input.MesAno" id="filtroPeriodo" class="form-control" placeholder="Ex.: 05/2025" required />
         </div>
     </div>
+
+    <div class="entry-preview mt-3" id="entradaPreview" role="status" aria-live="polite"><span>Preencha os dados para visualizar o cálculo.</span></div>
 
     <button class="btn btn-success mt-3" type="submit">
         <i class="bi bi-check-circle"></i> Registrar Entrada
     </button>
 </form>
+</section>
 </div>
 <div class="loading-overlay" id="loadingOverlay">
     <div>
@@ -82,19 +86,63 @@
             const horasExtras = document.getElementById('Input_HorasExtras');
             const horasUteis = document.getElementById('Input_HorasUteisMes');
             const valorHora = document.getElementById('Input_ValorHora');
+            const salaryRequired = document.querySelectorAll('.salary-required');
+            const extraRequired = document.querySelectorAll('.extra-required');
 
             if (tipo === 'Extra') {
                 horasExtras.disabled = false;
+                horasExtras.required = true;
                 horasUteis.disabled = true;
                 valorHora.disabled = true;
+                horasUteis.required = false;
+                valorHora.required = false;
                 horasUteis.value = '';
                 valorHora.value = '';
+                salaryRequired.forEach(item => item.classList.add('d-none'));
+                extraRequired.forEach(item => item.classList.remove('d-none'));
             } else {
                 horasExtras.disabled = true;
+                horasExtras.required = false;
                 horasExtras.value = '';
                 horasUteis.disabled = false;
                 valorHora.disabled = false;
+                horasUteis.required = true;
+                valorHora.required = true;
+                salaryRequired.forEach(item => item.classList.remove('d-none'));
+                extraRequired.forEach(item => item.classList.add('d-none'));
             }
+            atualizarPreviaEntrada();
+        }
+
+        document.querySelectorAll('#formEntrada input, #formEntrada select').forEach(campo => {
+            campo.addEventListener('input', atualizarPreviaEntrada);
+            campo.addEventListener('change', atualizarPreviaEntrada);
+        });
+
+        function atualizarPreviaEntrada() {
+            const tipo = document.getElementById('Input_TipoEntrada')?.value;
+            const preview = document.getElementById('entradaPreview');
+            if (!preview) return;
+
+            if (tipo === 'Extra') {
+                const horas = parseNumero(document.getElementById('Input_HorasExtras')?.value);
+                preview.innerHTML = horas > 0
+                    ? `<strong>${horas.toLocaleString('pt-BR')} hora(s) extra(s)</strong><span>O valor será calculado usando a base salarial cadastrada.</span>`
+                    : '<span>Informe as horas extras para conferir o lançamento.</span>';
+                return;
+            }
+
+            const valorHora = parseNumero(document.getElementById('Input_ValorHora')?.value);
+            const horasUteis = parseNumero(document.getElementById('Input_HorasUteisMes')?.value);
+            const total = valorHora * horasUteis;
+            preview.innerHTML = total > 0
+                ? `<span>Salário estimado no período</span><strong>${total.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</strong>`
+                : '<span>Preencha valor da hora e horas úteis para visualizar a estimativa.</span>';
+        }
+
+        function parseNumero(valor) {
+            const numero = Number(String(valor || '0').replace(/\./g, '').replace(',', '.'));
+            return Number.isFinite(numero) ? numero : 0;
         }
 
         document.addEventListener('DOMContentLoaded', function () {
@@ -104,7 +152,13 @@
             const buttons = document.querySelectorAll('form button[type="submit"]');
 
             forms.forEach(form => {
-                form.addEventListener('submit', function () {
+                form.addEventListener('submit', function (event) {
+                    form.classList.add('was-validated');
+                    if (!form.checkValidity()) {
+                        event.preventDefault();
+                        form.querySelector(':invalid')?.focus();
+                        return;
+                    }
                     // Ativa overlay
                     overlay.style.display = 'flex';
 

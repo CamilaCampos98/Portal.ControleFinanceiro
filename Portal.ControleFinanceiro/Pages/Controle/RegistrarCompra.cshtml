@@ -4,68 +4,82 @@
     ViewData["Title"] = "Registrar Compra";
 }
 <div class="main-container">
-    <h2><i class="bi bi-cart-plus"></i> Registrar Compra</h2>
+    <div class="page-heading">
+        <div>
+            <h2><i class="bi bi-cart-plus"></i> Registrar compra</h2>
+            <p>Registre uma compra manualmente ou importe os lançamentos de uma fatura.</p>
+        </div>
+    </div>
 
     @if (!string.IsNullOrEmpty(Model.Mensagem))
     {
         <div class="alert @(Model.Sucesso ? "alert-success" : "alert-danger") alert-dismissible fade show shadow-sm mt-3" role="alert">
-            <pre class="m-0">@Model.Mensagem</pre>
+            <span>@Model.Mensagem</span>
             <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
         </div>
     }
 
-    <form method="post" asp-page-handler="Registrar">
+    <section class="data-entry-card" aria-labelledby="compraManualTitulo">
+    <h3 id="compraManualTitulo">Compra manual</h3>
+    <p class="text-muted">Os campos com * são obrigatórios.</p>
+    <form method="post" asp-page-handler="Registrar" id="formCompraManual" novalidate>
         <div class="row g-3">
             <div class="col-md-4">
-                <label class="form-label">Pessoa</label>
-                <input asp-for="Input.Pessoa" class="form-control" placeholder="Ex.: João" />
+                <label class="form-label">Pessoa <span class="required-mark">*</span></label>
+                <input asp-for="Input.Pessoa" class="form-control" placeholder="Ex.: João" required />
+                <span asp-validation-for="Input.Pessoa" class="invalid-feedback d-block"></span>
             </div>
             <div class="col-md-4">
-                <label class="form-label">Descrição</label>
-                <input asp-for="Input.Descricao" class="form-control" placeholder="Ex.: Mercado" />
+                <label class="form-label">Descrição <span class="required-mark">*</span></label>
+                <input asp-for="Input.Descricao" class="form-control" placeholder="Ex.: Mercado" required autofocus />
+                <span asp-validation-for="Input.Descricao" class="invalid-feedback d-block"></span>
             </div>
             <div class="col-md-4">
-                <label class="form-label">Valor (R$)</label>
-                <input asp-for="Input.ValorTotal" class="form-control" type="number" step="0.01" />
+                <label class="form-label">Valor (R$) <span class="required-mark">*</span></label>
+                <input asp-for="Input.ValorTotal" class="form-control" type="number" min="0.01" step="0.01" required />
+                <small id="compraValorFormatado" class="form-text">R$ 0,00</small>
+                <span asp-validation-for="Input.ValorTotal" class="invalid-feedback d-block"></span>
             </div>
             <div class="col-md-4">
-                <label class="form-label">Data da Compra</label>
-                <input asp-for="Input.Data" class="form-control" type="date" />
+                <label class="form-label">Data da compra <span class="required-mark">*</span></label>
+                <input asp-for="Input.Data" class="form-control" type="date" required />
             </div>
             <div class="col-md-4">
-                <label class="form-label">Forma de Pagamento</label>
+                <label class="form-label">Forma de pagamento <span class="required-mark">*</span></label>
                 <select asp-for="Input.FormaPgto" class="form-select">
                     <option value="C">Crédito</option>
                     <option value="D">Débito</option>
                 </select>
             </div>
             <div class="col-md-4" id="cartao-div">
-                <label class="form-label">Cartão</label>
+                <label class="form-label">Cartão <span class="required-mark">*</span></label>
                 <select asp-for="Input.Cartao" class="form-select" id="selectCartao">
                     <option value="">Selecione...</option>
                 </select>
             </div>
             <div class="col-md-4">
-                <label class="form-label">Parcelas</label>
-                <input asp-for="Input.TotalParcelas" class="form-control" type="number" value="1" />
+                <label class="form-label">Parcelas <span class="required-mark">*</span></label>
+                <input asp-for="Input.TotalParcelas" class="form-control" type="number" min="1" value="1" required />
             </div>
             <div class="col-md-4">
-                <label class="form-label">Fonte (Ex.: Salário)</label>
-                <input asp-for="Input.Fonte" class="form-control" />
+                <label class="form-label">Fonte <span class="required-mark">*</span></label>
+                <input asp-for="Input.Fonte" class="form-control" placeholder="Ex.: Salário" required />
             </div>
         </div>
 
-        <button type="button"
-                class="btn btn-outline-primary mt-3 me-2"
-                data-bs-toggle="modal"
-                data-bs-target="#importarModal">
-            <i class="bi bi-upload"></i> Importar fatura (CSV)
-        </button>
-
-        <button class="btn btn-success mt-3" type="submit">
-            <i class="bi bi-check-circle"></i> Registrar
-        </button>
+        <div id="compraManualRevisao" class="purchase-review d-none mt-3" aria-live="polite"></div>
+        <div class="form-actions mt-3">
+            <button class="btn btn-success" type="button" id="btnRevisarCompra"><i class="bi bi-eye"></i> Revisar compra</button>
+            <button class="btn btn-outline-secondary d-none" type="button" id="btnEditarCompra"><i class="bi bi-arrow-left"></i> Corrigir dados</button>
+            <button class="btn btn-success d-none" type="submit" id="btnConfirmarCompra"><i class="bi bi-check-circle"></i> Confirmar registro</button>
+        </div>
     </form>
+    </section>
+
+    <section class="import-entry-card mt-3">
+        <div><h3>Importar fatura</h3><p>Cole os lançamentos, confira o período e revise a quantidade antes de importar.</p></div>
+        <button type="button" class="btn btn-outline-primary" data-bs-toggle="modal" data-bs-target="#importarModal"><i class="bi bi-upload"></i> Abrir importação</button>
+    </section>
 </div>
 <div class="loading-overlay" id="loadingOverlay">
     <div>
@@ -74,7 +88,7 @@
 </div>
 
 <div class="modal fade" id="importarModal" tabindex="-1">
-    <div class="modal-dialog">
+        <div class="modal-dialog modal-lg modal-dialog-centered modal-fullscreen-sm-down">
         <div class="modal-content">
 
             <form method="post"
@@ -82,7 +96,7 @@
                   asp-page-handler="ImportarFatura">
 
                 <div class="modal-header">
-                    <h5 class="modal-title">Importar fatura do cartão</h5>
+                    <h5 class="modal-title">Importar fatura</h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                 </div>
 
@@ -120,6 +134,7 @@
                     <div class="import-preview" id="importPreview">
                         <span>Período e parcelas serão conferidos antes do envio.</span>
                     </div>
+                    <div id="importError" class="alert alert-danger d-none mt-3" role="alert"></div>
 
                     <textarea id="saidaCamila" hidden></textarea>
                     <textarea id="saidaDiego" hidden></textarea>
@@ -167,6 +182,50 @@
 
          // Executa no carregamento inicial
          toggleCartao();
+
+         const formCompraManual = document.getElementById('formCompraManual');
+         const btnRevisarCompra = document.getElementById('btnRevisarCompra');
+         const btnEditarCompra = document.getElementById('btnEditarCompra');
+         const btnConfirmarCompra = document.getElementById('btnConfirmarCompra');
+         const compraRevisao = document.getElementById('compraManualRevisao');
+         const valorCompra = document.getElementById('Input_ValorTotal');
+
+         formaPgto.addEventListener('change', () => {
+             if (btnRevisarCompra) btnRevisarCompra.disabled = formaPgto.value === 'C' && cartaoSelect.disabled;
+         });
+
+         valorCompra?.addEventListener('input', () => {
+             document.getElementById('compraValorFormatado').textContent = formatarMoeda(Number(valorCompra.value || 0));
+         });
+
+         btnRevisarCompra?.addEventListener('click', () => {
+             formCompraManual.classList.add('was-validated');
+             if (!formCompraManual.checkValidity()) {
+                 formCompraManual.querySelector(':invalid')?.focus();
+                 return;
+             }
+
+             const credito = formaPgto.value === 'C';
+             compraRevisao.innerHTML = `<h6>Confira antes de registrar</h6><div>`
+                 + `<strong>${escaparHtml(document.getElementById('Input_Descricao').value)}</strong>`
+                 + `<span>${formatarMoeda(Number(valorCompra.value))}</span>`
+                 + `<span>${formatarDataInput(document.getElementById('Input_Data').value)}</span>`
+                 + `<span>${credito ? `Crédito · ${escaparHtml(cartaoSelect.value)} · ${document.getElementById('Input_TotalParcelas').value} parcela(s)` : 'Débito'}</span>`
+                 + `<span>Fonte: ${escaparHtml(document.getElementById('Input_Fonte').value)}</span></div>`;
+             compraRevisao.classList.remove('d-none');
+             btnRevisarCompra.classList.add('d-none');
+             btnEditarCompra.classList.remove('d-none');
+             btnConfirmarCompra.classList.remove('d-none');
+             btnConfirmarCompra.focus();
+         });
+
+         btnEditarCompra?.addEventListener('click', () => {
+             compraRevisao.classList.add('d-none');
+             btnRevisarCompra.classList.remove('d-none');
+             btnEditarCompra.classList.add('d-none');
+             btnConfirmarCompra.classList.add('d-none');
+             document.getElementById('Input_Descricao')?.focus();
+         });
 
          document.addEventListener('DOMContentLoaded', function () {
              const overlay = document.getElementById('loadingOverlay');
@@ -226,6 +285,12 @@
 
          } catch (error) {
              console.error("Erro ao carregar cartões:", error);
+             const aviso = document.createElement('div');
+             aviso.className = 'alert alert-warning mt-3';
+             aviso.textContent = 'Não foi possível carregar os cartões. Tente novamente antes de registrar uma compra no crédito.';
+             document.getElementById('cartao-div')?.appendChild(aviso);
+             cartaoSelect.disabled = true;
+             if (btnRevisarCompra) btnRevisarCompra.disabled = formaPgto.value === 'C';
          }
          });
 
@@ -287,7 +352,7 @@
             const mesFaturaInput = document.querySelector('[name="MesFatura"]').value;
             // formato: yyyy-MM
             if (!mesFaturaInput) {
-                alert("Selecione o mês da fatura.");
+                mostrarErroImportacao("Selecione o mês da fatura.");
                 return false;
             }
 
@@ -297,7 +362,7 @@
             const cartao = document.querySelector('[name="CartaoImportacao"]').value;
 
             if (!pessoa || !cartao || !texto.trim()) {
-                alert("Informe pessoa, cartão e os lançamentos da fatura.");
+                mostrarErroImportacao("Informe pessoa, cartão e os lançamentos da fatura.");
                 return false;
             }
 
@@ -316,7 +381,7 @@
             const resp = await fetch(url);
 
             if (!resp.ok) {
-                alert("Erro ao obter período da fatura");
+                mostrarErroImportacao("Não foi possível obter o período da fatura.");
                 return false;
             }
 
@@ -491,6 +556,28 @@
 
         function formatarData(data) {
             return data.toLocaleDateString("pt-BR", { timeZone: "UTC" });
+        }
+
+        function mostrarErroImportacao(mensagem) {
+            const erro = document.getElementById('importError');
+            erro.textContent = mensagem;
+            erro.classList.remove('d-none');
+        }
+
+        function escaparHtml(valor) {
+            const elemento = document.createElement('div');
+            elemento.textContent = valor || '';
+            return elemento.innerHTML;
+        }
+
+        function formatarMoeda(valor) {
+            return Number(valor || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+        }
+
+        function formatarDataInput(valor) {
+            if (!valor) return '';
+            const [ano, mes, dia] = valor.split('-');
+            return `${dia}/${mes}/${ano}`;
         }
 
     </script>

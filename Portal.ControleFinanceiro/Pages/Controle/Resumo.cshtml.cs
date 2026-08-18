@@ -22,6 +22,8 @@ public class ResumoModel : PageModel
     public bool Sucesso { get; set; }
     public string? Mensagem { get; set; }
     public string? UrlApi => _configuration["UrlApi"];
+    public bool AbrirModalNovaCompra { get; set; }
+    public string? ErroNovaCompra { get; set; }
 
     public int PaginaAtual { get; set; } = 1;
     public int TotalPaginas { get; set; }
@@ -36,12 +38,24 @@ public class ResumoModel : PageModel
     [BindProperty]
     public CompraInputModel NovaCompra { get; set; } = new();
 
-    public IActionResult OnGet(int pagina = 1)
+    public async Task<IActionResult> OnGetAsync(int pagina = 1, string? pessoa = null, string? periodo = null)
     {
         PaginaAtual = pagina;
 
-        var resumoJson = HttpContext.Session.GetString("ResumoJson");
-        Resumo = resumoJson != null ? JsonSerializer.Deserialize<ResultadoResumo>(resumoJson) : null;
+        if (!string.IsNullOrWhiteSpace(pessoa) && !string.IsNullOrWhiteSpace(periodo))
+        {
+            Filtro = new FiltroResumo
+            {
+                Pessoa = pessoa,
+                Periodo = periodo
+            };
+            Resumo = await ObterResumoAsync(Filtro);
+        }
+        else
+        {
+            var resumoJson = HttpContext.Session.GetString("ResumoJson");
+            Resumo = resumoJson != null ? JsonSerializer.Deserialize<ResultadoResumo>(resumoJson) : null;
+        }
 
         // Código para buscar Resumo, etc.
         if (Resumo != null)
@@ -235,19 +249,27 @@ public class ResumoModel : PageModel
         NovaCompra.Pessoa = resumoAtual.Pessoa;
         Filtro = new FiltroResumo { Pessoa = resumoAtual.Pessoa, Periodo = resumoAtual.Periodo };
 
-        var camposInvalidos = string.IsNullOrWhiteSpace(NovaCompra.Descricao)
-            || !NovaCompra.ValorTotal.HasValue
-            || NovaCompra.ValorTotal <= 0
-            || NovaCompra.Data == default
-            || string.IsNullOrWhiteSpace(NovaCompra.FormaPgto)
-            || NovaCompra.TotalParcelas < 1
-            || string.IsNullOrWhiteSpace(NovaCompra.Fonte)
-            || (NovaCompra.FormaPgto == "C" && string.IsNullOrWhiteSpace(NovaCompra.Cartao));
+        ModelState.Clear();
+        if (string.IsNullOrWhiteSpace(NovaCompra.Descricao))
+            ModelState.AddModelError("NovaCompra.Descricao", "Informe a descrição.");
+        if (!NovaCompra.ValorTotal.HasValue || NovaCompra.ValorTotal <= 0)
+            ModelState.AddModelError("NovaCompra.ValorTotal", "Informe um valor maior que zero.");
+        if (NovaCompra.Data == default)
+            ModelState.AddModelError("NovaCompra.Data", "Informe a data da compra.");
+        if (string.IsNullOrWhiteSpace(NovaCompra.FormaPgto))
+            ModelState.AddModelError("NovaCompra.FormaPgto", "Selecione a forma de pagamento.");
+        if (NovaCompra.TotalParcelas < 1)
+            ModelState.AddModelError("NovaCompra.TotalParcelas", "Informe pelo menos uma parcela.");
+        if (string.IsNullOrWhiteSpace(NovaCompra.Fonte))
+            ModelState.AddModelError("NovaCompra.Fonte", "Informe a fonte.");
+        if (NovaCompra.FormaPgto == "C" && string.IsNullOrWhiteSpace(NovaCompra.Cartao))
+            ModelState.AddModelError("NovaCompra.Cartao", "Selecione o cartão.");
 
-        if (camposInvalidos)
+        if (!ModelState.IsValid)
         {
             Resumo = resumoAtual;
-            Mensagem = "Preencha todos os campos obrigatórios da compra.";
+            AbrirModalNovaCompra = true;
+            ErroNovaCompra = "Revise os campos destacados antes de continuar.";
             return Page();
         }
 
@@ -273,7 +295,8 @@ public class ResumoModel : PageModel
             if (!response.IsSuccessStatusCode)
             {
                 Resumo = resumoAtual;
-                Mensagem = await response.Content.ReadAsStringAsync();
+                AbrirModalNovaCompra = true;
+                ErroNovaCompra = await response.Content.ReadAsStringAsync();
                 return Page();
             }
 
@@ -286,7 +309,8 @@ public class ResumoModel : PageModel
         catch (Exception ex)
         {
             Resumo = resumoAtual;
-            Mensagem = $"Erro ao registrar compra: {ex.Message}";
+            AbrirModalNovaCompra = true;
+            ErroNovaCompra = $"Erro ao registrar compra: {ex.Message}";
             return Page();
         }
     }

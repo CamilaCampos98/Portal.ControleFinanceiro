@@ -49,6 +49,7 @@ namespace Portal.ControleFinanceiro.Pages
                     };
 
                     ResumoGeral = JsonSerializer.Deserialize<List<ResumoPessoaMesDTO>>(content, options) ?? new();
+
                     await CarregarPeriodoEUltimaCompraAsync(httpClient, urlApi, options);
                     Sucesso = true;
                 }
@@ -71,65 +72,56 @@ namespace Portal.ControleFinanceiro.Pages
             string? urlApi,
             JsonSerializerOptions options)
         {
-            var pessoas = ResumoGeral?
-                .Select(x => x.Pessoa)
-                .Where(x => !string.IsNullOrWhiteSpace(x))
-                .Distinct(StringComparer.OrdinalIgnoreCase)
-                .OrderBy(x => x)
-                .ToList() ?? new List<string>();
-
-            if (!pessoas.Any() || string.IsNullOrWhiteSpace(urlApi))
+            var usuarioLogado = User.Identity?.Name;
+            if (string.IsNullOrWhiteSpace(usuarioLogado) || string.IsNullOrWhiteSpace(urlApi))
                 return;
 
-            PeriodoAtual = await ObterPeriodoAtualItauAsync(httpClient, urlApi, pessoas[0]);
+            PeriodoAtual = await ObterPeriodoAtualItauAsync(httpClient, urlApi, usuarioLogado);
             if (string.IsNullOrWhiteSpace(PeriodoAtual))
                 return;
 
             var compras = new List<UltimaCompraDTO>();
 
-            foreach (var pessoa in pessoas)
+            var url = $"{urlApi}Compra/ResumoPessoaPeriodo" +
+                      $"?pessoa={Uri.EscapeDataString(usuarioLogado)}" +
+                      $"&mesAno={Uri.EscapeDataString(PeriodoAtual)}";
+
+            var response = await httpClient.GetAsync(url);
+            if (!response.IsSuccessStatusCode)
+                return;
+
+            var json = await response.Content.ReadAsStringAsync();
+            var resumo = JsonSerializer.Deserialize<ResumoPeriodoDTO>(json, options);
+
+            if (resumo?.Compras == null)
+                return;
+
+            foreach (var compra in resumo.Compras)
             {
-                var url = $"{urlApi}Compra/ResumoPessoaPeriodo" +
-                          $"?pessoa={Uri.EscapeDataString(pessoa)}" +
-                          $"&mesAno={Uri.EscapeDataString(PeriodoAtual)}";
-
-                var response = await httpClient.GetAsync(url);
-                if (!response.IsSuccessStatusCode)
+                if (!TryGetString(compra, "Data", out var dataTexto) ||
+                    !DateTime.TryParse(dataTexto, new CultureInfo("pt-BR"), DateTimeStyles.None, out var data))
                     continue;
 
-                var json = await response.Content.ReadAsStringAsync();
-                var resumo = JsonSerializer.Deserialize<ResumoPeriodoDTO>(json, options);
-
-                if (resumo?.Compras == null)
+                if (data.Date > DateTime.Today)
                     continue;
 
-                foreach (var compra in resumo.Compras)
+                TryGetString(compra, "Compra", out var descricao);
+                TryGetString(compra, "Cartao", out var cartao);
+                TryGetString(compra, "Parcela", out var parcela);
+                TryGetString(compra, "IdLan", out var idLanTexto);
+                TryGetDecimal(compra, "Valor", out var valor);
+                long.TryParse(idLanTexto, out var idLan);
+
+                compras.Add(new UltimaCompraDTO
                 {
-                    if (!TryGetString(compra, "Data", out var dataTexto) ||
-                        !DateTime.TryParse(dataTexto, new CultureInfo("pt-BR"), DateTimeStyles.None, out var data))
-                        continue;
-
-                    if (data.Date > DateTime.Today)
-                        continue;
-
-                    TryGetString(compra, "Compra", out var descricao);
-                    TryGetString(compra, "Cartao", out var cartao);
-                    TryGetString(compra, "Parcela", out var parcela);
-                    TryGetString(compra, "IdLan", out var idLanTexto);
-                    TryGetDecimal(compra, "Valor", out var valor);
-                    long.TryParse(idLanTexto, out var idLan);
-
-                    compras.Add(new UltimaCompraDTO
-                    {
-                        Pessoa = pessoa,
-                        Descricao = descricao ?? "-",
-                        Cartao = cartao ?? "-",
-                        Parcela = parcela,
-                        Data = data,
-                        Valor = valor,
-                        IdLan = idLan
-                    });
-                }
+                    Pessoa = usuarioLogado,
+                    Descricao = descricao ?? "-",
+                    Cartao = cartao ?? "-",
+                    Parcela = parcela,
+                    Data = data,
+                    Valor = valor,
+                    IdLan = idLan
+                });
             }
 
             UltimasComprasPorPessoa = compras

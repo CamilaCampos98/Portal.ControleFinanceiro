@@ -11,21 +11,22 @@
                 <i class="bi bi-calculator"></i>
                 Calculadora de Horas Úteis
             </h2>
-            <p>Calcula o período de folha de 26 do mês informado até 25 do mês seguinte.</p>
+            <p>Confira dias e horas úteis da folha, considerando fins de semana e feriados de Barueri/SP.</p>
         </div>
         <span class="status-badge status-open">Barueri/SP</span>
     </div>
 
-    <form method="post" class="fixed-control-panel workdays-form">
+    <form method="post" class="fixed-control-panel workdays-form" id="formHorasUteis" novalidate>
         <div class="workdays-form-grid">
             <div>
-                <label class="form-label" asp-for="Input.MesReferencia">Mês de referência</label>
+                <label class="form-label" asp-for="Input.MesReferencia">Mês de referência <span class="required-mark">*</span></label>
                 <input asp-for="Input.MesReferencia" class="form-control" type="month" required />
                 <span asp-validation-for="Input.MesReferencia" class="text-danger small"></span>
             </div>
             <div>
-                <label class="form-label" asp-for="Input.HorasPorDia">Horas por dia</label>
+                <label class="form-label" asp-for="Input.HorasPorDia">Horas por dia <span class="required-mark">*</span></label>
                 <input asp-for="Input.HorasPorDia" class="form-control" type="number" min="1" max="24" step="1" required />
+                <div class="workdays-hour-presets" aria-label="Atalhos de jornada"><button type="button" data-hours="6">6 h</button><button type="button" data-hours="8">8 h</button></div>
                 <span asp-validation-for="Input.HorasPorDia" class="text-danger small"></span>
             </div>
             <div class="workdays-actions">
@@ -35,6 +36,7 @@
                 </button>
             </div>
         </div>
+        <div class="period-preview" id="workdaysPeriodPreview" role="status" aria-live="polite"><i class="bi bi-calendar-range" aria-hidden="true"></i><span>Selecione o mês para conferir o período da folha.</span></div>
         <div asp-validation-summary="ModelOnly" class="text-danger mt-3"></div>
     </form>
 
@@ -49,8 +51,8 @@
             }
 
             <div class="workdays-period">
-                <span class="metric-label">Período calculado</span>
-                <strong>@Model.Resultado.Periodo</strong>
+                <div><span class="metric-label">Período calculado</span><strong>@Model.Resultado.Periodo</strong></div>
+                <button type="button" class="btn btn-outline-secondary btn-sm" id="copiarHorasUteis" data-texto="@Model.Resultado.TotalHorasUteis horas úteis em @Model.Resultado.DiasUteis dias úteis — período @Model.Resultado.Periodo"><i class="bi bi-clipboard"></i> Copiar resultado</button>
             </div>
 
             <div class="workdays-summary-grid">
@@ -67,12 +69,12 @@
                 <div class="metric-card">
                     <small>Dias corridos</small>
                     <strong>@Model.Resultado.DiasTotais</strong>
-                    <span>@Model.Resultado.DiasNaoUteis dias não úteis</span>
+                    <span>@Model.Resultado.DiasFimSemana em fins de semana</span>
                 </div>
                 <div class="metric-card metric-warn">
                     <small>Feriados</small>
                     <strong>@Model.Resultado.Feriados.Count</strong>
-                    <span>No período considerado</span>
+                    <span>@Model.Resultado.FeriadosEmDiasUteis em dias de semana</span>
                 </div>
             </div>
 
@@ -113,3 +115,51 @@
         </section>
     }
 </div>
+
+<div class="loading-overlay" id="loadingOverlay"><div><div class="spinner-border text-primary" role="status"><span class="visually-hidden">Calculando...</span></div></div></div>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const form = document.getElementById('formHorasUteis');
+            const mes = document.getElementById('Input_MesReferencia');
+            const horas = document.getElementById('Input_HorasPorDia');
+            const preview = document.getElementById('workdaysPeriodPreview');
+
+            function atualizarPeriodo() {
+                if (!mes?.value) return;
+                const [ano, numeroMes] = mes.value.split('-').map(Number);
+                const inicio = new Date(ano, numeroMes - 1, 26);
+                const fim = new Date(ano, numeroMes, 25);
+                preview.querySelector('span').textContent = `Folha de ${inicio.toLocaleDateString('pt-BR')} até ${fim.toLocaleDateString('pt-BR')}.`;
+            }
+
+            mes?.addEventListener('change', atualizarPeriodo);
+            atualizarPeriodo();
+
+            document.querySelectorAll('[data-hours]').forEach(botao => botao.addEventListener('click', () => {
+                horas.value = botao.dataset.hours;
+                document.querySelectorAll('[data-hours]').forEach(item => item.classList.toggle('active', item === botao));
+                horas.focus();
+            }));
+
+            form?.addEventListener('submit', event => {
+                form.classList.add('was-validated');
+                if (!form.checkValidity()) {
+                    event.preventDefault();
+                    form.querySelector(':invalid')?.focus();
+                    return;
+                }
+                document.getElementById('loadingOverlay').style.display = 'flex';
+                form.querySelector('button[type="submit"]').disabled = true;
+            });
+
+            document.getElementById('copiarHorasUteis')?.addEventListener('click', async event => {
+                const botao = event.currentTarget;
+                await navigator.clipboard.writeText(botao.dataset.texto);
+                botao.innerHTML = '<i class="bi bi-check2"></i> Copiado';
+            });
+        });
+    </script>
+}
