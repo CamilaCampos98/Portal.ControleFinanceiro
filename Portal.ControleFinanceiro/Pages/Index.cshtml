@@ -4,8 +4,10 @@
 @{
     ViewData["Title"] = "Resumo financeiro";
     var cultura = new CultureInfo("pt-BR");
-    var meses = Model.ResumoGeral?.Select(x => x.MesAno).Where(m => !string.IsNullOrWhiteSpace(m)).Distinct()
-        .OrderByDescending(m => DateTime.TryParseExact(m, "MM/yyyy", cultura, DateTimeStyles.None, out var data) ? data : DateTime.MinValue).ToList() ?? new List<string>();
+    var inicioProjecao = new DateTime(DateTime.Today.Year, DateTime.Today.Month, 1);
+    var meses = Enumerable.Range(0, 7)
+        .Select(deslocamento => inicioProjecao.AddMonths(deslocamento).ToString("MM/yyyy", cultura))
+        .ToList();
     var pessoas = Model.ResumoGeral?.Where(x => !string.IsNullOrWhiteSpace(x.Pessoa)).GroupBy(x => x.Pessoa).OrderBy(g => g.Key).ToList();
 }
 
@@ -106,10 +108,10 @@
 
         <section class="home-section" aria-labelledby="historicoTitulo">
             <div class="home-section-heading">
-                <div><span class="eyebrow">Evolução mensal</span><h2 id="historicoTitulo">Histórico de saldos</h2></div>
-                <span class="home-section-caption">Períodos mais recentes primeiro</span>
+                <div><span class="eyebrow">Próximos meses</span><h2 id="historicoTitulo">Projeção de saldos</h2></div>
+                <span class="home-section-caption">Mês atual e os próximos seis meses</span>
             </div>
-            <div class="table-responsive history-table-shell" tabindex="0" aria-label="Histórico mensal de saldos por pessoa">
+            <div class="table-responsive history-table-shell" tabindex="0" aria-label="Projeção de saldos dos próximos meses por pessoa">
                 <table class="table history-table mb-0">
                     <thead><tr><th scope="col">Pessoa</th>@foreach (var mes in meses) { <th scope="col">@mes</th> }</tr></thead>
                     <tbody>
