@@ -292,7 +292,7 @@ namespace Portal.ControleFinanceiro.Pages.Controle
                     .Select(i => BuildCompraKey(PessoaImportacao, dataFatura.AddMonths(i), valor))
                     .ToList();
 
-                if (chavesParcelas.Any(comprasExistentes.Contains))
+                if (chavesParcelas.Any(chave => CompraExisteComTolerancia(comprasExistentes, chave, 0.01m)))
                 {
                     totalIgnoradas++;
                     if (totalParcelas > 1)
@@ -356,6 +356,43 @@ namespace Portal.ControleFinanceiro.Pages.Controle
             return $"{pessoa.Trim().ToUpperInvariant()}|" +
                    $"{data:yyyy-MM-dd}|" +
                    $"{valor.ToString(CultureInfo.InvariantCulture)}";
+        }
+
+        private static bool CompraExisteComTolerancia(
+            IEnumerable<string> comprasExistentes,
+            string chaveNova,
+            decimal tolerancia)
+        {
+            if (!TryParseCompraKey(chaveNova, out var pessoaNova, out var dataNova, out var valorNovo))
+                return false;
+
+            return comprasExistentes.Any(chaveExistente =>
+                TryParseCompraKey(chaveExistente, out var pessoaExistente, out var dataExistente, out var valorExistente) &&
+                string.Equals(pessoaExistente, pessoaNova, StringComparison.OrdinalIgnoreCase) &&
+                dataExistente.Date == dataNova.Date &&
+                Math.Abs(valorExistente - valorNovo) <= tolerancia);
+        }
+
+        private static bool TryParseCompraKey(
+            string chave,
+            out string pessoa,
+            out DateTime data,
+            out decimal valor)
+        {
+            pessoa = string.Empty;
+            data = default;
+            valor = default;
+            var partes = chave.Split('|');
+
+            if (partes.Length != 3 ||
+                !DateTime.TryParseExact(partes[1], "yyyy-MM-dd", CultureInfo.InvariantCulture, DateTimeStyles.None, out data) ||
+                !decimal.TryParse(partes[2], NumberStyles.Any, CultureInfo.InvariantCulture, out valor))
+            {
+                return false;
+            }
+
+            pessoa = partes[0];
+            return true;
         }
 
         private static string[] ParseCsvLine(string line)

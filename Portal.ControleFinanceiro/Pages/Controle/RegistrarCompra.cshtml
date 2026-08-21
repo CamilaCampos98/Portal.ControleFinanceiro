@@ -134,6 +134,7 @@
                     <div class="import-preview" id="importPreview">
                         <span>Período e parcelas serão conferidos antes do envio.</span>
                     </div>
+                    <div id="importComparison" class="import-comparison d-none" aria-live="polite"></div>
                     <div id="importError" class="alert alert-danger d-none mt-3" role="alert"></div>
 
                     <textarea id="saidaCamila" hidden></textarea>
@@ -298,6 +299,8 @@
         form.id = 'formImportarFatura';
         const btnConferirImportacao = document.getElementById("btnConferirImportacao");
         const btnImportarAgora = document.getElementById("btnImportarAgora");
+        let itensConferenciaAtuais = [];
+        let pessoaConferenciaEhDiego = false;
 
         form.addEventListener("submit", function (e) {
             if (form.dataset.ready !== "true") {
@@ -332,9 +335,12 @@
                 csv = document.getElementById("saidaCamila").value;
 
             document.getElementById("CsvGerado").value = csv;
-            form.dataset.ready = "true";
-            btnImportarAgora.disabled = false;
-            btnConferirImportacao.innerHTML = '<i class="bi bi-check2-circle"></i> Conferido';
+            const possuiLancamentos = csv.split(/\r?\n/).filter(linha => linha.trim()).length > 1;
+            form.dataset.ready = possuiLancamentos ? "true" : "false";
+            btnImportarAgora.disabled = !possuiLancamentos;
+            btnConferirImportacao.innerHTML = possuiLancamentos
+                ? '<i class="bi bi-check2-circle"></i> Conferido'
+                : '<i class="bi bi-check-all"></i> Tudo já cadastrado';
         }
 
         function invalidarConferencia() {
@@ -342,6 +348,8 @@
             btnImportarAgora.disabled = true;
             btnConferirImportacao.innerHTML = '<i class="bi bi-search"></i> Conferir fatura';
             document.getElementById("CsvGerado").value = "";
+            document.getElementById("importComparison").classList.add("d-none");
+            document.getElementById("importError").classList.add("d-none");
         }
 
 
@@ -498,23 +506,113 @@
                 ultimoItem = item;
             }
 
-            const csvCamila = montarCsv(itensCamila);
-            const csvDiego = montarCsv(itensDiego);
+            const pessoaEhDiego = pessoa.trim().toLowerCase().includes("diego");
+            const itensSelecionados = pessoaEhDiego ? itensDiego : itensCamila;
+            const conferencia = await conferirComprasExistentes(urlApi, pessoa, itensSelecionados);
+            if (!conferencia) return false;
+
+            itensConferenciaAtuais = conferencia.naoCadastradas;
+            pessoaConferenciaEhDiego = pessoaEhDiego;
+
+            const csvCamila = montarCsv(pessoaEhDiego ? itensCamila : conferencia.naoCadastradas);
+            const csvDiego = montarCsv(pessoaEhDiego ? conferencia.naoCadastradas : itensDiego);
 
             document.getElementById("saidaCamila").value = csvCamila;
             document.getElementById("saidaDiego").value  = csvDiego;
 
-            const totalParcelados = [...itensCamila, ...itensDiego]
+            const totalParcelados = itensSelecionados
                 .filter(item => item.totalParcelas > 1)
                 .length;
 
             document.getElementById("importPreview").innerHTML =
                 `<strong>Período:</strong> ${formatarData(inicioFatura)} até ${formatarData(fimFatura)}<br>` +
-                `<strong>Camila:</strong> ${itensCamila.length} lançamento(s) · ` +
-                `<strong>Diego:</strong> ${itensDiego.length} lançamento(s) · ` +
+                `<strong>Encontradas:</strong> ${itensSelecionados.length} · ` +
+                `<strong>Já cadastradas:</strong> ${conferencia.jaCadastradas.length} · ` +
+                `<strong>A importar:</strong> ${conferencia.naoCadastradas.length} · ` +
                 `<strong>Parcelados:</strong> ${totalParcelados}`;
 
+            renderizarConferencia(conferencia);
+
             return true;
+        }
+
+        async function conferirComprasExistentes(urlApi, pessoa, itens) {
+            try {
+                const response = await fetch(`${urlApi}Compra/GetCompras?pessoa=${encodeURIComponent(pessoa)}`);
+                if (!response.ok) throw new Error('Falha ao buscar compras existentes.');
+
+                const chaves = await response.json();
+                const existentes = chaves.map(chave => {
+                    const partes = String(chave).split('|');
+                    return { dataIso: partes[1], valor: Number(partes[2]), usado: false };
+                }).filter(item => item.dataIso && Number.isFinite(item.valor));
+
+                const jaCadastradas = [];
+                const naoCadastradas = [];
+
+                itens.forEach(item => {
+                    const valorItem = Number(item.valor);
+                    const indice = existentes.findIndex(existente =>
+                        !existente.usado &&
+                        existente.dataIso === item.dataIso &&
+                        Math.abs(existente.valor - valorItem) <= 0.0100001);
+
+                    if (indice >= 0) {
+                        existentes[indice].usado = true;
+                        jaCadastradas.push(item);
+                    } else {
+                        naoCadastradas.push(item);
+                    }
+                });
+
+                return { jaCadastradas, naoCadastradas };
+            } catch (error) {
+                mostrarErroImportacao('Não foi possível conferir as compras já cadastradas. A importação foi bloqueada para evitar duplicidades.');
+                return null;
+            }
+        }
+
+        function renderizarConferencia(conferencia) {
+            const container = document.getElementById('importComparison');
+            const linhas = conferencia.naoCadastradas.map((item, indice) => `
+                <tr><td class="import-selection"><input type="checkbox" class="form-check-input import-item-check" data-index="${indice}" checked aria-label="Importar ${escaparHtml(item.descricao)}"></td><td>${formatarDataInput(item.dataIso)}</td><td>${escaparHtml(item.descricao)}</td><td>${formatarMoeda(Number(item.valor))}</td></tr>`).join('');
+
+            container.innerHTML = `<div class="import-comparison__header"><div><strong>Escolha as compras que serão importadas</strong><span id="importSelectionCount">${conferencia.naoCadastradas.length} de ${conferencia.naoCadastradas.length} selecionada(s)</span></div><span class="status-badge ${conferencia.naoCadastradas.length ? 'status-open' : 'status-paid'}">${conferencia.naoCadastradas.length ? 'Revisar' : 'Tudo cadastrado'}</span></div>`
+                + (linhas ? `<div class="table-responsive"><table class="table table-sm mb-0"><thead><tr><th class="import-selection"><input type="checkbox" class="form-check-input" id="importSelectAll" checked aria-label="Selecionar ou desmarcar todas"></th><th>Data</th><th>Compra</th><th>Valor</th></tr></thead><tbody>${linhas}</tbody></table></div>` : '<p class="mb-0 text-muted">Nenhuma compra nova para importar.</p>')
+                + (conferencia.jaCadastradas.length ? `<details><summary>${conferencia.jaCadastradas.length} compra(s) já cadastrada(s) foram ignoradas</summary><ul>${conferencia.jaCadastradas.map(item => `<li>${formatarDataInput(item.dataIso)} · ${escaparHtml(item.descricao)} · ${formatarMoeda(Number(item.valor))}</li>`).join('')}</ul></details>` : '');
+            container.classList.remove('d-none');
+
+            container.querySelectorAll('.import-item-check').forEach(check => check.addEventListener('change', atualizarSelecaoImportacao));
+            container.querySelector('#importSelectAll')?.addEventListener('change', event => {
+                container.querySelectorAll('.import-item-check').forEach(check => check.checked = event.target.checked);
+                atualizarSelecaoImportacao();
+            });
+        }
+
+        function atualizarSelecaoImportacao() {
+            const checks = Array.from(document.querySelectorAll('.import-item-check'));
+            const selecionados = checks
+                .filter(check => check.checked)
+                .map(check => itensConferenciaAtuais[Number(check.dataset.index)])
+                .filter(Boolean);
+            const csv = montarCsv(selecionados);
+
+            if (pessoaConferenciaEhDiego) document.getElementById('saidaDiego').value = csv;
+            else document.getElementById('saidaCamila').value = csv;
+
+            document.getElementById('CsvGerado').value = csv;
+            document.getElementById('importSelectionCount').textContent = `${selecionados.length} de ${checks.length} selecionada(s)`;
+            form.dataset.ready = selecionados.length ? 'true' : 'false';
+            btnImportarAgora.disabled = selecionados.length === 0;
+            btnImportarAgora.innerHTML = selecionados.length
+                ? `<i class="bi bi-upload"></i> Importar ${selecionados.length} compra(s)`
+                : '<i class="bi bi-slash-circle"></i> Nenhuma selecionada';
+
+            const selecionarTodos = document.getElementById('importSelectAll');
+            if (selecionarTodos) {
+                selecionarTodos.checked = checks.length > 0 && selecionados.length === checks.length;
+                selecionarTodos.indeterminate = selecionados.length > 0 && selecionados.length < checks.length;
+            }
         }
 
         function montarCsv(itens) {
