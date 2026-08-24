@@ -2,6 +2,7 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 using Portal.ControleFinanceiro.Models;
+using Portal.ControleFinanceiro.Models.Response;
 using System.Net.Http;
 using System.Reflection;
 using System.Text;
@@ -300,9 +301,22 @@ public class ResumoModel : PageModel
                 return Page();
             }
 
+            var retornoJson = await response.Content.ReadAsStringAsync();
+            var retorno = JsonSerializer.Deserialize<CompraResponseModel>(retornoJson);
+            var periodoRegistrado = string.IsNullOrWhiteSpace(retorno?.mesAno)
+                ? resumoAtual.Periodo
+                : retorno.mesAno;
+
+            Filtro = new FiltroResumo
+            {
+                Pessoa = resumoAtual.Pessoa,
+                Periodo = periodoRegistrado
+            };
             Resumo = await ObterResumoAsync(Filtro);
             Sucesso = true;
-            Mensagem = "Compra registrada com sucesso.";
+            Mensagem = periodoRegistrado == resumoAtual.Periodo
+                ? "Compra registrada com sucesso."
+                : $"Compra registrada com sucesso na fatura {periodoRegistrado}.";
             NovaCompra = new CompraInputModel();
             return Page();
         }
