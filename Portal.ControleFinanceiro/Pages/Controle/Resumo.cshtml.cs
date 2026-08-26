@@ -80,6 +80,27 @@ public class ResumoModel : PageModel
 
     }
 
+    public async Task<IActionResult> OnGetCartoesAsync()
+    {
+        try
+        {
+            using var httpClient = new HttpClient();
+            var response = await httpClient.GetAsync($"{UrlApi}Compra/GetCartoes");
+            var content = await response.Content.ReadAsStringAsync();
+
+            return new ContentResult
+            {
+                Content = content,
+                ContentType = "application/json",
+                StatusCode = (int)response.StatusCode
+            };
+        }
+        catch
+        {
+            return StatusCode(StatusCodes.Status502BadGateway);
+        }
+    }
+
     public async Task OnPostAsync()
     {
         Resumo = await ObterResumoAsync(Filtro);

@@ -52,6 +52,27 @@ public class Fixos : PageModel
         UrlApi = _configuration["UrlApi"];
     }
 
+    public async Task<IActionResult> OnGetTiposFixosAsync()
+    {
+        try
+        {
+            using var httpClient = new HttpClient();
+            var response = await httpClient.GetAsync($"{_configuration["UrlApi"]}Compra/GetTiposFixos");
+            var content = await response.Content.ReadAsStringAsync();
+
+            return new ContentResult
+            {
+                Content = content,
+                ContentType = "application/json",
+                StatusCode = (int)response.StatusCode
+            };
+        }
+        catch
+        {
+            return StatusCode(StatusCodes.Status502BadGateway);
+        }
+    }
+
     public async Task<IActionResult> OnPostGerarAsync()
     {
         UrlApi = _configuration["UrlApi"];

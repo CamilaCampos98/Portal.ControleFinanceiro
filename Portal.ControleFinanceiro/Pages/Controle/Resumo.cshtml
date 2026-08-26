@@ -792,7 +792,7 @@
             });
 
             try {
-                const response = await fetch(urlApiResumo + 'Compra/GetCartoes');
+                const response = await fetch('@Url.Page("/Controle/Resumo", "Cartoes")');
                 if (!response.ok) throw new Error('Erro ao buscar cartões.');
 
                 const cartaoSelecionado = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(Model.NovaCompra.Cartao));

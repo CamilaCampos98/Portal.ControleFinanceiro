@@ -50,6 +50,27 @@ namespace Portal.ControleFinanceiro.Pages.Controle
             Input.Pessoa = User.Identity?.Name ?? string.Empty;
         }
 
+        public async Task<IActionResult> OnGetCartoesAsync()
+        {
+            try
+            {
+                using var httpClient = new HttpClient();
+                var response = await httpClient.GetAsync($"{_configuration["UrlApi"]}Compra/GetCartoes");
+                var content = await response.Content.ReadAsStringAsync();
+
+                return new ContentResult
+                {
+                    Content = content,
+                    ContentType = "application/json",
+                    StatusCode = (int)response.StatusCode
+                };
+            }
+            catch
+            {
+                return StatusCode(StatusCodes.Status502BadGateway);
+            }
+        }
+
         public async Task<IActionResult> OnPostRegistrarAsync()
         {
             try

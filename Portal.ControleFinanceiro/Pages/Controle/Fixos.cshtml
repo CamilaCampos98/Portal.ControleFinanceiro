@@ -416,8 +416,7 @@
             const status = document.getElementById("tiposFixosStatus");
             if (!select) return;
 
-            const urlApi = "@(Model.UrlApi ?? "")";
-            const endpoint = `${urlApi.replace(/\/?$/, "/")}Compra/GetTiposFixos`;
+            const endpoint = '@Url.Page("/Controle/Fixos", "TiposFixos")';
             const choices = window.Choices ? new Choices(select, {
                 removeItemButton: true,
                 shouldSort: false,
