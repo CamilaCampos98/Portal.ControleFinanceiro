@@ -87,8 +87,6 @@
     decimal receitaTotal = 0m;
     decimal totalComprometido = 0m;
     decimal percentualComprometido = 0m;
-    decimal gastoPorDiaDisponivel = 0m;
-    int diasRestantes = 1;
     KeyValuePair<string, decimal>? maiorCartao = null;
 
     if (Model.Resumo != null)
@@ -96,14 +94,6 @@
         receitaTotal = Model.Resumo.Salario + Model.Resumo.Extras;
         totalComprometido = Model.Resumo.TotalGasto + Model.Resumo.GastosFixos;
         percentualComprometido = receitaTotal > 0 ? (totalComprometido / receitaTotal) * 100 : 0;
-
-        if (DateTime.TryParseExact(Model.Resumo.Periodo, "MM/yyyy", cultura, DateTimeStyles.None, out var periodoResumo))
-        {
-            var fimPeriodo = new DateTime(periodoResumo.Year, periodoResumo.Month, DateTime.DaysInMonth(periodoResumo.Year, periodoResumo.Month));
-            diasRestantes = Math.Max(1, (fimPeriodo.Date - hoje.Date).Days + 1);
-        }
-
-        gastoPorDiaDisponivel = Model.Resumo.SaldoRestante / diasRestantes;
 
         if (Model.Resumo.ResumoPorCartao != null && Model.Resumo.ResumoPorCartao.Any())
         {
@@ -179,10 +169,10 @@
                     <strong class="valor-sigiloso" onclick="toggleTodos()">@Model.Resumo.SaldoRestante.ToString("C", cultura)</strong>
                     <small>@(Model.Resumo.SaldoRestante < 0 ? "Fechamento negativo" : "Após fixos e compras")</small>
                 </div>
-                <div class="metric-card @(gastoPorDiaDisponivel < 0 ? "metric-danger" : gastoPorDiaDisponivel < 25 ? "metric-warning" : "")">
-                    <span class="metric-label">Pode gastar por dia</span>
-                    <strong class="valor-sigiloso" onclick="toggleTodos()">@gastoPorDiaDisponivel.ToString("C", cultura)</strong>
-                    <small>Por @diasRestantes dia(s)</small>
+                <div class="metric-card">
+                    <span class="metric-label">Competência</span>
+                    <strong>@Model.Resumo.Periodo</strong>
+                    <small>Cada cartão respeita seu próprio fechamento</small>
                 </div>
             </div>
 
@@ -205,7 +195,7 @@
                 {
                     <div class="insight insight-good">
                         <i class="bi bi-check2-circle"></i>
-                        <span>O mês ainda está saudável. Mantenha o gasto diário abaixo de @gastoPorDiaDisponivel.ToString("C", cultura) para preservar o saldo.</span>
+                        <span>O período ainda está saudável. Acompanhe o saldo previsto, pois cada cartão possui sua própria data de fechamento.</span>
                     </div>
                 }
 

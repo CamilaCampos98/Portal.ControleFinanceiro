@@ -170,7 +170,6 @@ public class ResumoModel : PageModel
         var urlApi = _configuration["UrlApi"];
         var url = $"{urlApi}Compra/EditarCompra";
 
-        Compra.MesAno = Compra.Data?.ToString("MM/yyyy");
         Compra.Parcela = Compra.Parcela ?? "";
 
         var json = JsonSerializer.Serialize(Compra, new JsonSerializerOptions
@@ -184,12 +183,19 @@ public class ResumoModel : PageModel
 
         if (response.IsSuccessStatusCode)
         {
+            var retornoJson = await response.Content.ReadAsStringAsync();
+            using var retorno = JsonDocument.Parse(retornoJson);
+            var periodoCalculado = retorno.RootElement.TryGetProperty("mesAno", out var mesAnoJson)
+                ? mesAnoJson.GetString()
+                : null;
+
             Mensagem = "Compra atualizada com sucesso.";
             Sucesso = true;
-            // Retornar para a página de pesquisa, mantendo os filtros preenchidos
             return RedirectToPage("./Resumo", new
             {
-                pagina = 1
+                pagina = 1,
+                pessoa = Compra.Pessoa,
+                periodo = string.IsNullOrWhiteSpace(periodoCalculado) ? Compra.MesAno : periodoCalculado
             });
         }
         else

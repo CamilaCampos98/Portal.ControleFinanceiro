@@ -7,6 +7,11 @@
 <div class="main-container">
 <div class="page-heading"><div><h2><i class="bi bi-wallet2"></i> Registrar entrada</h2><p>Cadastre o salário mensal ou acrescente horas extras ao período.</p></div></div>
 
+<div class="period-preview" role="note">
+    <i class="bi bi-info-circle" aria-hidden="true"></i>
+    <span><strong>Período financeiro:</strong> informe o mesmo Mês/Ano usado no Resumo. Uma entrada em 08/2026 compõe o Resumo 08/2026 e corresponde à folha trabalhada de 26/07/2026 a 25/08/2026, recebida em setembro. O sistema consulta automaticamente as horas úteis dessa folha.</span>
+</div>
+
 @if (!string.IsNullOrEmpty(Model.Mensagem))
 {
     <div class="alert @(Model.Sucesso ? "alert-success" : "alert-danger") alert-dismissible fade show shadow-sm mt-3" role="alert">
@@ -43,7 +48,7 @@
                 <input asp-for="Input.HorasExtras" class="form-control" type="text" inputmode="decimal" />
         </div>
         <div class="col-md-4">
-            <label class="form-label">Mês/Ano <span class="required-mark">*</span></label>
+            <label class="form-label">Mês/Ano do Resumo <span class="required-mark">*</span></label>
                 <input asp-for="Input.MesAno" id="filtroPeriodo" class="form-control" placeholder="Ex.: 05/2025" required />
         </div>
     </div>
@@ -130,7 +135,10 @@
             status.textContent = 'Consultando dias úteis e feriados do período…';
 
             try {
-                const url = `@Url.Page("/Controle/CalculadoraHorasUteis")?handler=CalcularPeriodo&mesAno=${encodeURIComponent(periodo)}`;
+                const [mes, ano] = periodo.split('/').map(Number);
+                const inicioFolha = new Date(ano, mes - 2, 1);
+                const periodoFolha = `${String(inicioFolha.getMonth() + 1).padStart(2, '0')}/${inicioFolha.getFullYear()}`;
+                const url = `@Url.Page("/Controle/CalculadoraHorasUteis")?handler=CalcularPeriodo&mesAno=${encodeURIComponent(periodoFolha)}`;
                 const response = await fetch(url);
                 if (!response.ok) throw new Error('Falha na consulta.');
                 const resultado = await response.json();
