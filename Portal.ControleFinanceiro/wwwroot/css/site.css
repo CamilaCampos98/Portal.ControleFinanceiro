@@ -69,10 +69,15 @@ body {
     height: 44px;
     display: inline-grid;
     place-items: center;
-    border-radius: 8px;
-    background: rgba(47, 156, 133, 0.18);
-    color: #7ee0c9;
-    font-size: 1.45rem;
+    flex: 0 0 44px;
+}
+
+.brand-mark img {
+    width: 44px;
+    height: 44px;
+    display: block;
+    border-radius: 12px;
+    filter: drop-shadow(0 5px 10px rgba(0, 0, 0, 0.22));
 }
 
 .brand-name,
