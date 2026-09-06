@@ -154,6 +154,20 @@ body {
     font-size: 0.9rem;
 }
 
+.app-footer .container-fluid {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+}
+
+.app-version {
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    white-space: nowrap;
+}
+
 .main-container {
     width: min(1180px, 100%);
     margin: 0 auto;
