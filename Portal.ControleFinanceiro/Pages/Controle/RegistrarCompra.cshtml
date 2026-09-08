@@ -199,7 +199,7 @@
              document.getElementById('compraValorFormatado').textContent = formatarMoeda(Number(valorCompra.value || 0));
          });
 
-         btnRevisarCompra?.addEventListener('click', () => {
+         btnRevisarCompra?.addEventListener('click', async () => {
              formCompraManual.classList.add('was-validated');
              if (!formCompraManual.checkValidity()) {
                  formCompraManual.querySelector(':invalid')?.focus();
@@ -207,11 +207,42 @@
              }
 
              const credito = formaPgto.value === 'C';
+             let periodoCompra = '';
+
+             if (credito) {
+                 btnRevisarCompra.disabled = true;
+                 try {
+                     const parametros = new URLSearchParams({
+                         handler: 'PeriodoCompra',
+                         data: document.getElementById('Input_Data').value,
+                         pessoa: document.getElementById('Input_Pessoa').value,
+                         cartao: cartaoSelect.value
+                     });
+                     const response = await fetch(`${window.location.pathname}?${parametros}`);
+                     const resultado = await response.json().catch(() => null);
+                     if (!response.ok) {
+                         throw new Error(resultado?.mensagem || 'Não foi possível calcular o período da compra.');
+                     }
+
+                     const parcelas = Number(document.getElementById('Input_TotalParcelas').value || 1);
+                     const tituloPeriodo = parcelas > 1 ? 'Período da 1ª parcela' : 'Período da compra';
+                     const complemento = parcelas > 1 ? ' · demais parcelas nos períodos seguintes' : '';
+                     periodoCompra = `<span><b>${tituloPeriodo}:</b> ${escaparHtml(resultado.mesAno)} · ${escaparHtml(resultado.inicio)} a ${escaparHtml(resultado.fim)}${complemento}</span>`;
+                 } catch (error) {
+                     compraRevisao.innerHTML = `<div class="alert alert-danger mb-0">${escaparHtml(error.message)}</div>`;
+                     compraRevisao.classList.remove('d-none');
+                     return;
+                 } finally {
+                     btnRevisarCompra.disabled = false;
+                 }
+             }
+
              compraRevisao.innerHTML = `<h6>Confira antes de registrar</h6><div>`
                  + `<strong>${escaparHtml(document.getElementById('Input_Descricao').value)}</strong>`
                  + `<span>${formatarMoeda(Number(valorCompra.value))}</span>`
                  + `<span>${formatarDataInput(document.getElementById('Input_Data').value)}</span>`
                  + `<span>${credito ? `Crédito · ${escaparHtml(cartaoSelect.value)} · ${document.getElementById('Input_TotalParcelas').value} parcela(s)` : 'Débito'}</span>`
+                 + periodoCompra
                  + `<span>Fonte: ${escaparHtml(document.getElementById('Input_Fonte').value)}</span></div>`;
              compraRevisao.classList.remove('d-none');
              btnRevisarCompra.classList.add('d-none');

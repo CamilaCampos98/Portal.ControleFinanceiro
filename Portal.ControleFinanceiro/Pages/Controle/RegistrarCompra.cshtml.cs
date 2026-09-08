@@ -71,6 +71,57 @@ namespace Portal.ControleFinanceiro.Pages.Controle
             }
         }
 
+        public async Task<IActionResult> OnGetPeriodoCompraAsync(DateTime data, string pessoa, string cartao)
+        {
+            if (data == default || string.IsNullOrWhiteSpace(pessoa) || string.IsNullOrWhiteSpace(cartao))
+                return BadRequest(new { mensagem = "Informe data, pessoa e cartão para calcular o período." });
+
+            try
+            {
+                using var httpClient = new HttpClient();
+                var urlApi = _configuration["UrlApi"];
+
+                foreach (var deslocamento in new[] { 0, -1, 1 })
+                {
+                    var mesReferencia = new DateTime(data.Year, data.Month, 1).AddMonths(deslocamento);
+                    var mesAno = mesReferencia.ToString("MM/yyyy", CultureInfo.InvariantCulture);
+                    var url = $"{urlApi}Compra/PeriodoFatura" +
+                              $"?pessoa={Uri.EscapeDataString(pessoa)}" +
+                              $"&mesAno={Uri.EscapeDataString(mesAno)}" +
+                              $"&cartao={Uri.EscapeDataString(cartao)}";
+
+                    var response = await httpClient.GetAsync(url);
+                    if (!response.IsSuccessStatusCode)
+                        continue;
+
+                    var json = await response.Content.ReadAsStringAsync();
+                    var periodo = JsonSerializer.Deserialize<PeriodoFaturaDto>(json, new JsonSerializerOptions
+                    {
+                        PropertyNameCaseInsensitive = true
+                    });
+
+                    if (periodo != null && data.Date >= periodo.Inicio.Date && data.Date <= periodo.Fim.Date)
+                    {
+                        return new JsonResult(new
+                        {
+                            mesAno,
+                            inicio = periodo.Inicio.ToString("dd/MM/yyyy"),
+                            fim = periodo.Fim.ToString("dd/MM/yyyy")
+                        });
+                    }
+                }
+
+                return BadRequest(new { mensagem = "Não foi possível identificar o período dessa compra." });
+            }
+            catch
+            {
+                return StatusCode(StatusCodes.Status502BadGateway, new
+                {
+                    mensagem = "Não foi possível consultar o período da compra na API."
+                });
+            }
+        }
+
         public async Task<IActionResult> OnPostRegistrarAsync()
         {
             try
