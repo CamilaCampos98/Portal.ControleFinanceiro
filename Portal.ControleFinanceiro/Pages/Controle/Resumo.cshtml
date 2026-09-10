@@ -765,11 +765,12 @@
             const btnRevisar = document.getElementById('btnRevisarNovaCompra');
             const btnVoltar = document.getElementById('btnVoltarNovaCompra');
             const btnConfirmar = document.getElementById('btnConfirmarNovaCompra');
-            const urlApiResumo = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(Model.UrlApi));
+            const endpointPeriodoCompra = '@Url.Page("/Controle/RegistrarCompra", "PeriodoCompra")';
             const pessoaResumo = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(Model.Resumo?.Pessoa ?? string.Empty));
             const periodoResumo = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(Model.Resumo?.Periodo ?? string.Empty));
             const abrirModalNovaCompra = @Html.Raw(Model.AbrirModalNovaCompra ? "true" : "false");
             let periodoCalculado = '';
+            let faixaPeriodoCalculado = '';
             let carregandoCartoes = true;
 
             if (!modalElement || !form || !formaPgto || !cartaoContainer || !cartaoSelect) return;
@@ -823,57 +824,51 @@
 
             async function conferirPeriodo() {
                 periodoCalculado = '';
+                faixaPeriodoCalculado = '';
 
                 if (!dataCompra?.value) {
                     atualizarPeriodoStatus('Preencha a data para conferir o período de contabilização.', false);
-                    return;
+                    return false;
                 }
 
                 if (formaPgto.value !== 'C') {
                     const [ano, mes] = dataCompra.value.split('-');
                     periodoCalculado = `${mes}/${ano}`;
                     atualizarPeriodoStatus(`Compra no débito. Referência da data: ${periodoCalculado}.`, false);
-                    return;
+                    return true;
                 }
 
                 if (!cartaoSelect.value || carregandoCartoes) {
                     atualizarPeriodoStatus('Selecione o cartão para conferir o período de contabilização.', false);
-                    return;
+                    return false;
                 }
 
                 atualizarPeriodoStatus('Conferindo o período da compra…', false);
-                const data = new Date(`${dataCompra.value}T12:00:00`);
-                const candidatos = [0, -1, 1];
 
                 try {
-                    for (const deslocamento of candidatos) {
-                        const referencia = new Date(data.getFullYear(), data.getMonth() + deslocamento, 1);
-                        const mesAno = `${String(referencia.getMonth() + 1).padStart(2, '0')}/${referencia.getFullYear()}`;
-                        const url = urlApiResumo + 'Compra/PeriodoFatura'
-                            + `?pessoa=${encodeURIComponent(pessoaResumo)}`
-                            + `&mesAno=${encodeURIComponent(mesAno)}`
-                            + `&cartao=${encodeURIComponent(cartaoSelect.value)}`;
-                        const response = await fetch(url);
-                        if (!response.ok) continue;
+                    const url = new URL(endpointPeriodoCompra, window.location.origin);
+                    url.searchParams.set('data', dataCompra.value);
+                    url.searchParams.set('pessoa', pessoaResumo);
+                    url.searchParams.set('cartao', cartaoSelect.value);
 
-                        const periodo = await response.json();
-                        const inicio = new Date(periodo.inicio);
-                        const fim = new Date(periodo.fim);
-                        if (data >= inicio && data <= fim) {
-                            periodoCalculado = mesAno;
-                            const diverge = mesAno !== periodoResumo;
-                            atualizarPeriodoStatus(
-                                diverge
-                                    ? `Atenção: esta compra será contabilizada em ${mesAno}, fora do resumo pesquisado.`
-                                    : `Esta compra será contabilizada em ${mesAno}.`,
-                                diverge);
-                            return;
-                        }
+                    const response = await fetch(url);
+                    const periodo = await response.json().catch(() => null);
+                    if (!response.ok) {
+                        throw new Error(periodo?.mensagem || 'Não foi possível identificar o período.');
                     }
 
-                    atualizarPeriodoStatus('Não foi possível identificar o período. Revise data e cartão.', true);
+                    periodoCalculado = periodo.mesAno;
+                    faixaPeriodoCalculado = `${periodo.inicio} a ${periodo.fim}`;
+                    const diverge = periodoCalculado !== periodoResumo;
+                    atualizarPeriodoStatus(
+                        diverge
+                            ? `Atenção: esta compra será contabilizada em ${periodoCalculado}, fora do resumo pesquisado.`
+                            : `Esta compra será contabilizada em ${periodoCalculado}.`,
+                        diverge);
+                    return true;
                 } catch (error) {
-                    atualizarPeriodoStatus('Não foi possível conferir o período agora.', true);
+                    atualizarPeriodoStatus(error.message || 'Não foi possível conferir o período agora.', true);
+                    return false;
                 }
             }
 
@@ -897,7 +892,8 @@
                     return;
                 }
 
-                await conferirPeriodo();
+                const periodoConfirmado = await conferirPeriodo();
+                if (!periodoConfirmado) return;
                 const descricao = document.getElementById('NovaCompra_Descricao').value;
                 const fonte = document.getElementById('NovaCompra_Fonte').value;
                 const valorFormatado = Number(valor.value).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
@@ -911,7 +907,7 @@
                     <span>${formatarDataCompra(dataCompra.value)}</span>
                     <span>${pagamento}${escaparHtml(detalheCartao)}${detalheParcelas}</span>
                     <span>Fonte: ${escaparHtml(fonte)}</span>
-                    <span>Período: ${periodoCalculado || 'a confirmar no registro'}</span>`;
+                    <span>Período: ${escaparHtml(periodoCalculado)}${faixaPeriodoCalculado ? ` · ${escaparHtml(faixaPeriodoCalculado)}` : ''}</span>`;
 
                 campos.classList.add('d-none');
                 revisao.classList.remove('d-none');
