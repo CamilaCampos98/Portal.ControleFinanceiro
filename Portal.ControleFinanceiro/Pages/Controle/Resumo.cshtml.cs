@@ -410,6 +410,7 @@ public class ResumoModel : PageModel
         public decimal Extras { get; set; }
         public decimal TotalGasto { get; set; }
         public decimal GastosFixos { get; set; }
+        public decimal ValorGuardado { get; set; }
         public decimal SaldoRestante { get; set; }
         public bool SaldoCritico { get; set; }
         public List<Dictionary<string, object>> Compras { get; set; }
