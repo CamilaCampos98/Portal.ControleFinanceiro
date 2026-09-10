@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 using Portal.ControleFinanceiro.Models;
 using Portal.ControleFinanceiro.Models.Response;
+using System.Globalization;
 using System.Net.Http;
 using System.Reflection;
 using System.Text;
@@ -58,23 +59,7 @@ public class ResumoModel : PageModel
             Resumo = resumoJson != null ? JsonSerializer.Deserialize<ResultadoResumo>(resumoJson) : null;
         }
 
-        // Código para buscar Resumo, etc.
-        if (Resumo != null)
-        {
-            if (Resumo.Compras.Count > 0)
-            {
-                var totalItens = Resumo.Compras.Count;
-                TotalPaginas = (int)Math.Ceiling(totalItens / (double)ItensPorPagina);
-
-                Resumo.Compras = Resumo.Compras
-     .OrderByDescending(x => DateTime.Parse(x["Data"].ToString()))
-     .ThenByDescending(x => Convert.ToInt32(x["IdLan"].ToString()))
-     .Skip((PaginaAtual - 1) * ItensPorPagina)
-     .Take(ItensPorPagina)
-     .ToList();
-
-            }
-        }
+        OrdenarEPaginarCompras();
 
         return Page();
 
@@ -112,22 +97,87 @@ public class ResumoModel : PageModel
             return;
         }
 
-        if (Resumo?.Compras?.Count > 0)
+        OrdenarEPaginarCompras();
+    }
+
+    private void OrdenarEPaginarCompras()
+    {
+        if (Resumo?.Compras == null || Resumo.Compras.Count == 0)
         {
-            var totalItens = Resumo.Compras.Count;
-
-            TotalPaginas = (int)Math.Ceiling(totalItens / (double)ItensPorPagina);
-
-            Resumo.Compras = Resumo.Compras
-     .OrderByDescending(x => DateTime.Parse(x["Data"].ToString()))
-     .ThenByDescending(x => Convert.ToInt32(x["IdLan"].ToString()))
-     .Skip((PaginaAtual - 1) * ItensPorPagina)
-     .Take(ItensPorPagina)
-     .ToList();
-
-
-
+            TotalPaginas = 0;
+            return;
         }
+
+        TotalPaginas = (int)Math.Ceiling(Resumo.Compras.Count / (double)ItensPorPagina);
+        PaginaAtual = Math.Clamp(PaginaAtual, 1, TotalPaginas);
+
+        Resumo.Compras = Resumo.Compras
+            .Select((compra, indice) => new
+            {
+                Compra = compra,
+                Data = ObterDataCompra(compra),
+                Id = ObterIdLancamento(compra),
+                IndiceOriginal = indice
+            })
+            .OrderByDescending(item => item.Data)
+            .ThenByDescending(item => item.Id)
+            .ThenBy(item => item.IndiceOriginal)
+            .Skip((PaginaAtual - 1) * ItensPorPagina)
+            .Take(ItensPorPagina)
+            .Select(item => item.Compra)
+            .ToList();
+    }
+
+    private static DateTime ObterDataCompra(Dictionary<string, object> compra)
+    {
+        if (!compra.TryGetValue("Data", out var valor) || valor == null)
+            return DateTime.MinValue;
+
+        if (valor is DateTime data)
+            return data;
+
+        if (valor is JsonElement json)
+        {
+            if (json.ValueKind == JsonValueKind.String && json.TryGetDateTime(out data))
+                return data;
+
+            valor = json.ValueKind == JsonValueKind.String ? json.GetString() : json.ToString();
+        }
+
+        var texto = valor?.ToString();
+        var formatos = new[]
+        {
+            "dd/MM/yyyy",
+            "d/M/yyyy",
+            "yyyy-MM-dd",
+            "yyyy-MM-dd'T'HH:mm:ss",
+            "yyyy-MM-dd'T'HH:mm:ss.FFFFFFFK"
+        };
+
+        if (DateTime.TryParseExact(
+                texto,
+                formatos,
+                CultureInfo.InvariantCulture,
+                DateTimeStyles.AllowWhiteSpaces | DateTimeStyles.RoundtripKind,
+                out data))
+        {
+            return data;
+        }
+
+        return DateTime.TryParse(texto, new CultureInfo("pt-BR"), DateTimeStyles.AllowWhiteSpaces, out data)
+            ? data
+            : DateTime.MinValue;
+    }
+
+    private static long ObterIdLancamento(Dictionary<string, object> compra)
+    {
+        if (!compra.TryGetValue("IdLan", out var valor) || valor == null)
+            return long.MinValue;
+
+        var texto = valor is JsonElement json ? json.ToString() : valor.ToString();
+        return long.TryParse(texto, NumberStyles.Integer, CultureInfo.InvariantCulture, out var id)
+            ? id
+            : long.MinValue;
     }
 
     private async Task<ResultadoResumo> ObterResumoAsync(FiltroResumo filtro)
