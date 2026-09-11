@@ -2,92 +2,120 @@
 @model Portal.ControleFinanceiro.Pages.Controle.RegistrarCompraModel
 @{
     ViewData["Title"] = "Registrar Compra";
+    Layout = "_HomeLayout";
 }
-<div class="main-container">
-    <div class="page-heading">
+<main class="purchase-entry-page">
+    <header class="purchase-entry-heading">
         <div>
-            <h2><i class="bi bi-cart-plus"></i> Registrar compra</h2>
-            <p>Registre uma compra manualmente ou importe os lançamentos de uma fatura.</p>
+            <span class="eyebrow">Compras</span>
+            <h1>Registrar compra</h1>
+            <p>Adicione uma compra manualmente ou importe os lançamentos de uma fatura.</p>
         </div>
-    </div>
+        <span class="purchase-entry-heading-icon" aria-hidden="true"><i class="bi bi-receipt-cutoff"></i></span>
+    </header>
 
     @if (!string.IsNullOrEmpty(Model.Mensagem))
     {
-        <div class="alert @(Model.Sucesso ? "alert-success" : "alert-danger") alert-dismissible fade show shadow-sm mt-3" role="alert">
+        <div class="alert @(Model.Sucesso ? "alert-success" : "alert-danger") alert-dismissible fade show shadow-sm mb-0" role="alert">
             <span>@Model.Mensagem</span>
             <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
         </div>
     }
 
-    <section class="data-entry-card" aria-labelledby="compraManualTitulo">
-    <h3 id="compraManualTitulo">Compra manual</h3>
-    <p class="text-muted">Os campos com * são obrigatórios.</p>
-    <form method="post" asp-page-handler="Registrar" id="formCompraManual" novalidate>
-        <div class="row g-3">
-            <div class="col-md-4">
-                <label class="form-label">Pessoa <span class="required-mark">*</span></label>
-                <input asp-for="Input.Pessoa" class="form-control" placeholder="Ex.: João" required />
-                <span asp-validation-for="Input.Pessoa" class="invalid-feedback d-block"></span>
+    <div class="purchase-entry-layout">
+        <section class="purchase-form-card" aria-labelledby="compraManualTitulo">
+            <div class="purchase-section-heading">
+                <span class="purchase-section-icon" aria-hidden="true"><i class="bi bi-pencil-square"></i></span>
+                <div>
+                    <h2 id="compraManualTitulo">Compra manual</h2>
+                    <p>Preencha os dados e confira o período antes de registrar.</p>
+                </div>
             </div>
-            <div class="col-md-4">
-                <label class="form-label">Descrição <span class="required-mark">*</span></label>
-                <input asp-for="Input.Descricao" class="form-control" placeholder="Ex.: Mercado" required autofocus />
-                <span asp-validation-for="Input.Descricao" class="invalid-feedback d-block"></span>
-            </div>
-            <div class="col-md-4">
-                <label class="form-label">Valor (R$) <span class="required-mark">*</span></label>
-                <input asp-for="Input.ValorTotal" class="form-control" type="number" min="0.01" step="0.01" required />
-                <small id="compraValorFormatado" class="form-text">R$ 0,00</small>
-                <span asp-validation-for="Input.ValorTotal" class="invalid-feedback d-block"></span>
-            </div>
-            <div class="col-md-4">
-                <label class="form-label">Data da compra <span class="required-mark">*</span></label>
-                <input asp-for="Input.Data" class="form-control" type="date" required />
-            </div>
-            <div class="col-md-4">
-                <label class="form-label">Forma de pagamento <span class="required-mark">*</span></label>
-                <select asp-for="Input.FormaPgto" class="form-select">
-                    <option value="C">Crédito</option>
-                    <option value="D">Débito</option>
-                </select>
-            </div>
-            <div class="col-md-4" id="cartao-div">
-                <label class="form-label">Cartão <span class="required-mark">*</span></label>
-                <select asp-for="Input.Cartao" class="form-select" id="selectCartao">
-                    <option value="">Selecione...</option>
-                </select>
-            </div>
-            <div class="col-md-4">
-                <label class="form-label">Parcelas <span class="required-mark">*</span></label>
-                <input asp-for="Input.TotalParcelas" class="form-control" type="number" min="1" value="1" required />
-            </div>
-            <div class="col-md-4">
-                <label class="form-label">Fonte <span class="required-mark">*</span></label>
-                <input asp-for="Input.Fonte" class="form-control" placeholder="Ex.: Salário" required />
-            </div>
-        </div>
 
-        <div id="compraManualRevisao" class="purchase-review d-none mt-3" aria-live="polite"></div>
-        <div class="form-actions mt-3">
-            <button class="btn btn-success" type="button" id="btnRevisarCompra"><i class="bi bi-eye"></i> Revisar compra</button>
-            <button class="btn btn-outline-secondary d-none" type="button" id="btnEditarCompra"><i class="bi bi-arrow-left"></i> Corrigir dados</button>
-            <button class="btn btn-success d-none" type="submit" id="btnConfirmarCompra"><i class="bi bi-check-circle"></i> Confirmar registro</button>
-        </div>
-    </form>
-    </section>
+            <form method="post" asp-page-handler="Registrar" id="formCompraManual" novalidate>
+                <div class="row g-3 purchase-fields">
+                    <div class="col-md-6">
+                        <label class="form-label">Pessoa <span class="required-mark">*</span></label>
+                        <input asp-for="Input.Pessoa" class="form-control" placeholder="Ex.: Camila ou Diego" required />
+                        <span asp-validation-for="Input.Pessoa" class="invalid-feedback d-block"></span>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label">Data da compra <span class="required-mark">*</span></label>
+                        <input asp-for="Input.Data" class="form-control" type="date" required />
+                    </div>
+                    <div class="col-md-8">
+                        <label class="form-label">Descrição <span class="required-mark">*</span></label>
+                        <input asp-for="Input.Descricao" class="form-control" placeholder="Ex.: Mercado" required autofocus />
+                        <span asp-validation-for="Input.Descricao" class="invalid-feedback d-block"></span>
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label">Valor <span class="required-mark">*</span></label>
+                        <div class="purchase-money-field">
+                            <span>R$</span>
+                            <input asp-for="Input.ValorTotal" class="form-control" type="number" min="0.01" step="0.01" placeholder="0,00" required />
+                        </div>
+                        <small id="compraValorFormatado" class="form-text">R$ 0,00</small>
+                        <span asp-validation-for="Input.ValorTotal" class="invalid-feedback d-block"></span>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label">Forma de pagamento <span class="required-mark">*</span></label>
+                        <select asp-for="Input.FormaPgto" class="form-select">
+                            <option value="C">Crédito</option>
+                            <option value="D">Débito</option>
+                        </select>
+                    </div>
+                    <div class="col-md-6" id="cartao-div">
+                        <label class="form-label">Cartão <span class="required-mark">*</span></label>
+                        <select asp-for="Input.Cartao" class="form-select" id="selectCartao">
+                            <option value="">Selecione...</option>
+                        </select>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label">Parcelas <span class="required-mark">*</span></label>
+                        <input asp-for="Input.TotalParcelas" class="form-control" type="number" min="1" value="1" required />
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label">Fonte <span class="required-mark">*</span></label>
+                        <input asp-for="Input.Fonte" class="form-control" placeholder="Ex.: Salário" required />
+                    </div>
+                </div>
 
-    <section class="import-entry-card mt-3">
-        <div><h3>Importar fatura</h3><p>Cole os lançamentos, confira o período e revise a quantidade antes de importar.</p></div>
-        <button type="button" class="btn btn-outline-primary" data-bs-toggle="modal" data-bs-target="#importarModal"><i class="bi bi-upload"></i> Abrir importação</button>
-    </section>
-</div>
+                <div id="compraManualRevisao" class="purchase-review d-none mt-4" aria-live="polite"></div>
+                <div class="form-actions purchase-form-actions mt-4">
+                    <button class="btn btn-success" type="button" id="btnRevisarCompra"><i class="bi bi-eye"></i> Revisar compra</button>
+                    <button class="btn btn-outline-secondary d-none" type="button" id="btnEditarCompra"><i class="bi bi-arrow-left"></i> Corrigir dados</button>
+                    <button class="btn btn-success d-none" type="submit" id="btnConfirmarCompra"><i class="bi bi-check-circle"></i> Confirmar registro</button>
+                </div>
+            </form>
+        </section>
+
+        <aside class="purchase-entry-aside">
+            <section class="purchase-import-card">
+                <span class="purchase-import-icon" aria-hidden="true"><i class="bi bi-file-earmark-arrow-up"></i></span>
+                <span class="eyebrow">Importação</span>
+                <h2>Importar fatura</h2>
+                <p>Cole os lançamentos da fatura e confira o período e a quantidade antes de salvar.</p>
+                <button type="button" class="btn btn-outline-primary" data-bs-toggle="modal" data-bs-target="#importarModal"><i class="bi bi-upload"></i> Abrir importação</button>
+            </section>
+
+            <section class="purchase-help-card" aria-labelledby="compraSeguraTitulo">
+                <h2 id="compraSeguraTitulo"><i class="bi bi-shield-check" aria-hidden="true"></i> Registro seguro</h2>
+                <ul>
+                    <li><span>1</span> Preencha os dados da compra.</li>
+                    <li><span>2</span> Confira o período calculado do cartão.</li>
+                    <li><span>3</span> Confirme somente após revisar.</li>
+                </ul>
+            </section>
+        </aside>
+    </div>
+</main>
 <div class="loading-overlay" id="loadingOverlay">
     <div>
         <div class="spinner-border text-primary" role="status"></div>
     </div>
 </div>
 
-<div class="modal fade" id="importarModal" tabindex="-1">
+<div class="modal fade purchase-import-modal" id="importarModal" tabindex="-1" aria-labelledby="importarModalTitulo" aria-hidden="true">
         <div class="modal-dialog modal-lg modal-dialog-centered modal-fullscreen-sm-down">
         <div class="modal-content">
 
@@ -96,8 +124,11 @@
                   asp-page-handler="ImportarFatura">
 
                 <div class="modal-header">
-                    <h5 class="modal-title">Importar fatura</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    <div>
+                        <span class="eyebrow">Importação</span>
+                        <h5 class="modal-title" id="importarModalTitulo">Importar fatura</h5>
+                    </div>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
                 </div>
 
                 <div class="modal-body">
