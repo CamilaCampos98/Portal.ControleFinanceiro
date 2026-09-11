@@ -1,3 +1,6 @@
+@{
+    var currentPage = ViewContext.RouteData.Values["page"]?.ToString();
+}
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
@@ -22,12 +25,12 @@
             </a>
 
             <nav class="home-sidebar-nav">
-                <a class="active" asp-page="/Index"><i class="bi bi-grid-1x2" aria-hidden="true"></i><span>Visão geral</span></a>
-                <a asp-page="/Controle/Resumo"><i class="bi bi-bar-chart-line" aria-hidden="true"></i><span>Resumo</span></a>
-                <a asp-page="/Controle/RegistrarCompra"><i class="bi bi-receipt" aria-hidden="true"></i><span>Compras</span></a>
-                <a asp-page="/Controle/Fixos"><i class="bi bi-calendar-check" aria-hidden="true"></i><span>Gastos fixos</span></a>
-                <a asp-page="/Controle/RegistrarEntrada"><i class="bi bi-wallet2" aria-hidden="true"></i><span>Entradas</span></a>
-                <a asp-page="/Controle/CalculadoraHorasUteis"><i class="bi bi-clock-history" aria-hidden="true"></i><span>Horas úteis</span></a>
+                <a class="@(currentPage == "/Index" ? "active" : "")" asp-page="/Index"><i class="bi bi-grid-1x2" aria-hidden="true"></i><span>Visão geral</span></a>
+                <a class="@(currentPage == "/Controle/Resumo" ? "active" : "")" asp-page="/Controle/Resumo"><i class="bi bi-bar-chart-line" aria-hidden="true"></i><span>Resumo</span></a>
+                <a class="@(currentPage == "/Controle/RegistrarCompra" ? "active" : "")" asp-page="/Controle/RegistrarCompra"><i class="bi bi-receipt" aria-hidden="true"></i><span>Compras</span></a>
+                <a class="@(currentPage == "/Controle/Fixos" ? "active" : "")" asp-page="/Controle/Fixos"><i class="bi bi-calendar-check" aria-hidden="true"></i><span>Gastos fixos</span></a>
+                <a class="@(currentPage == "/Controle/RegistrarEntrada" ? "active" : "")" asp-page="/Controle/RegistrarEntrada"><i class="bi bi-wallet2" aria-hidden="true"></i><span>Entradas</span></a>
+                <a class="@(currentPage == "/Controle/CalculadoraHorasUteis" ? "active" : "")" asp-page="/Controle/CalculadoraHorasUteis"><i class="bi bi-clock-history" aria-hidden="true"></i><span>Horas úteis</span></a>
             </nav>
 
             <div class="home-sidebar-footer">
@@ -46,11 +49,11 @@
         </div>
 
         <nav class="home-bottom-nav" aria-label="Navegação principal">
-            <a class="active" asp-page="/Index"><i class="bi bi-grid-1x2" aria-hidden="true"></i><span>Início</span></a>
-            <a asp-page="/Controle/Resumo"><i class="bi bi-bar-chart-line" aria-hidden="true"></i><span>Resumo</span></a>
-            <a asp-page="/Controle/RegistrarCompra"><i class="bi bi-plus-circle" aria-hidden="true"></i><span>Compra</span></a>
-            <a asp-page="/Controle/Fixos"><i class="bi bi-calendar-check" aria-hidden="true"></i><span>Fixos</span></a>
-            <a asp-page="/Controle/CalculadoraHorasUteis"><i class="bi bi-clock-history" aria-hidden="true"></i><span>Horas</span></a>
+            <a class="@(currentPage == "/Index" ? "active" : "")" asp-page="/Index"><i class="bi bi-grid-1x2" aria-hidden="true"></i><span>Início</span></a>
+            <a class="@(currentPage == "/Controle/Resumo" ? "active" : "")" asp-page="/Controle/Resumo"><i class="bi bi-bar-chart-line" aria-hidden="true"></i><span>Resumo</span></a>
+            <a class="@(currentPage == "/Controle/RegistrarCompra" ? "active" : "")" asp-page="/Controle/RegistrarCompra"><i class="bi bi-plus-circle" aria-hidden="true"></i><span>Compra</span></a>
+            <a class="@(currentPage == "/Controle/Fixos" ? "active" : "")" asp-page="/Controle/Fixos"><i class="bi bi-calendar-check" aria-hidden="true"></i><span>Fixos</span></a>
+            <a class="@(currentPage == "/Controle/CalculadoraHorasUteis" ? "active" : "")" asp-page="/Controle/CalculadoraHorasUteis"><i class="bi bi-clock-history" aria-hidden="true"></i><span>Horas</span></a>
         </nav>
     </div>
 
