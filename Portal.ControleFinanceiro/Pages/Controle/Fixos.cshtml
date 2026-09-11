@@ -4,6 +4,7 @@
 @model Fixos
 @{
     ViewData["Title"] = "Gastos Fixos";
+    Layout = "_HomeLayout";
 
     var cultura = new CultureInfo("pt-BR");
     var totalFixos = Model.FixosModel?.Sum(f => ValorFixo(f.Valor)) ?? 0;
@@ -17,23 +18,32 @@
 
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/choices.js/public/assets/styles/choices.min.css" />
 
-<div class="main-container fixed-expenses-page">
-    <div class="page-heading">
+<main class="fixed-expenses-page">
+    <header class="fixed-page-heading">
         <div>
-            <h2><i class="bi bi-calendar-check"></i> Gastos Fixos</h2>
+            <span class="eyebrow">Planejamento mensal</span>
+            <h1>Gastos fixos</h1>
             <p>Monte, confira e acompanhe os compromissos recorrentes do mês.</p>
         </div>
-    </div>
+        <span class="fixed-page-heading-icon" aria-hidden="true"><i class="bi bi-calendar-check"></i></span>
+    </header>
 
     @if (!string.IsNullOrEmpty(Model.Mensagem))
     {
-        <div class="alert @(Model.Sucesso ? "alert-success" : "alert-danger") alert-dismissible fade show shadow-sm mt-3" role="alert">
+        <div class="alert @(Model.Sucesso ? "alert-success" : "alert-danger") alert-dismissible fade show shadow-sm mb-0" role="alert">
             <pre class="m-0">@Model.Mensagem</pre>
             <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
         </div>
     }
 
     <form method="post" class="fixed-control-panel">
+        <div class="fixed-panel-heading">
+            <div>
+                <span class="fixed-panel-icon" aria-hidden="true"><i class="bi bi-sliders"></i></span>
+                <div><h2>Configurar período</h2><p>Escolha a pessoa, o mês e os tipos que deseja consultar ou gerar.</p></div>
+            </div>
+            <span class="fixed-required-note">Selecione ao menos um tipo para gerar</span>
+        </div>
         <div class="row g-3 align-items-end">
             <div class="col-md-3">
                 <label for="Pessoa" class="form-label">Pessoa</label>
@@ -62,27 +72,27 @@
                 <i class="bi bi-plus-circle"></i>
                 Gerar novos
             </button>
+            <button type="submit" form="formCopiarMesAnterior" class="btn btn-outline-warning" title="Copia os fixos do mês anterior para o período informado">
+                <i class="bi bi-arrow-down-circle"></i>
+                Copiar mês anterior
+            </button>
         </div>
     </form>
 
     <form method="post" asp-page-handler="CopiarMesAnterior" class="fixed-copy-form" id="formCopiarMesAnterior">
         <input type="hidden" name="Pessoa" id="copyPessoa" value="@Model.Pessoa" />
         <input type="hidden" name="Periodo" id="copyPeriodo" value="@Model.Periodo" />
-        <button type="submit" class="btn btn-outline-warning" title="Copia os fixos do mês anterior para o período informado">
-            <i class="bi bi-arrow-down-circle"></i>
-            Copiar mês anterior
-        </button>
     </form>
 
     <ul class="nav nav-tabs fixed-tabs" id="fixosTabs" role="tablist">
         <li class="nav-item" role="presentation">
             <button class="nav-link active" id="fixos-mes-tab" data-bs-toggle="tab" data-bs-target="#fixos-mes" type="button" role="tab" aria-controls="fixos-mes" aria-selected="true">
-                Fixos do mês
+                <i class="bi bi-calendar3" aria-hidden="true"></i> Fixos do mês
             </button>
         </li>
         <li class="nav-item" role="presentation">
             <button class="nav-link" id="financiamentos-tab" data-bs-toggle="tab" data-bs-target="#financiamentos" type="button" role="tab" aria-controls="financiamentos" aria-selected="false">
-                Financiamentos
+                <i class="bi bi-bank" aria-hidden="true"></i> Financiamentos
             </button>
         </li>
     </ul>
@@ -179,24 +189,24 @@
                                         @fixo.Id
                                         <input type="hidden" name="FixosModel[@i].Id" value="@fixo.Id" />
                                     </td>
-                                    <td>
+                                    <td data-label="Tipo">
                                         <strong>@fixo.Tipo</strong>
                                         <input type="hidden" name="FixosModel[@i].Tipo" value="@fixo.Tipo" />
                                     </td>
-                                    <td>
+                                    <td data-label="Mês/Ano">
                                         @fixo.MesAno
                                         <input type="hidden" name="FixosModel[@i].MesAno" value="@fixo.MesAno" />
                                     </td>
-                                    <td>
+                                    <td data-label="Vencimento">
                                         @fixo.Vencimento
                                         <input type="hidden" name="FixosModel[@i].Vencimento" value="@fixo.Vencimento" />
                                     </td>
-                                    <td>
+                                    <td data-label="Valor">
                                         <input type="number" step="0.01" class="form-control fixed-value-input"
                                                name="FixosModel[@i].Valor"
                                                value="@valorInput" />
                                     </td>
-                                    <td>
+                                    <td data-label="Status">
                                         <label class="fixed-check">
                                             <input type="checkbox"
                                                    name="FixosModel[@i].Pago"
@@ -206,7 +216,7 @@
                                             <span class="status-badge @(pago ? "status-paid" : "status-open")">@(pago ? "Pago" : "Pendente")</span>
                                         </label>
                                     </td>
-                                    <td>
+                                    <td data-label="Dividido">
                                         <label class="fixed-check">
                                             <input type="checkbox"
                                                    name="FixosModel[@i].Dividido"
@@ -216,7 +226,7 @@
                                             <span class="status-badge @(dividido ? "status-split" : "status-neutral")">@(dividido ? "Sim" : "Não")</span>
                                         </label>
                                     </td>
-                                    <td>
+                                    <td data-label="Ações">
                                         <div class="row-actions">
                                             <button type="button"
                                                     class="btn btn-warning btn-sm btnDividir"
@@ -345,13 +355,13 @@
         </div>
     </div>
 
-    <div class="modal fade" id="dividirModal" tabindex="-1" aria-hidden="true">
+    <div class="modal fade fixed-split-modal" id="dividirModal" tabindex="-1" aria-labelledby="dividirModalTitulo" aria-hidden="true">
         <div class="modal-dialog">
             <div class="modal-content">
                 <form method="post" asp-page-handler="DividirGastoFixo">
                     <div class="modal-header">
-                        <h5 class="modal-title">Dividir gasto fixo</h5>
-                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                        <div><span class="eyebrow">Rateio</span><h5 class="modal-title" id="dividirModalTitulo">Dividir gasto fixo</h5></div>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
                     </div>
                     <div class="modal-body">
                         <input type="hidden" name="IdGasto" id="modalIdGasto" />
@@ -377,7 +387,7 @@
             </div>
         </div>
     </div>
-</div>
+</main>
 
 <div class="loading-overlay" id="loadingOverlay">
     <div>
