@@ -2,48 +2,54 @@
 @model CalculadoraHorasUteisModel
 @{
     ViewData["Title"] = "Calculadora de Horas Úteis";
+    Layout = "_HomeLayout";
 }
 
-<div class="main-container workdays-page">
-    <div class="page-heading">
+<main class="workdays-page">
+    <header class="workdays-page-heading">
         <div>
-            <h2>
-                <i class="bi bi-calculator"></i>
-                Calculadora de Horas Úteis
-            </h2>
+            <span class="eyebrow">Planejamento da folha</span>
+            <h1>Calculadora de horas úteis</h1>
             <p>Confira dias e horas úteis da folha, considerando fins de semana e feriados de Barueri/SP.</p>
         </div>
-        <span class="status-badge status-open">Barueri/SP</span>
-    </div>
+        <span class="workdays-page-heading-icon" aria-hidden="true"><i class="bi bi-clock-history"></i></span>
+    </header>
 
-    <div class="period-preview" role="note">
-        <i class="bi bi-info-circle" aria-hidden="true"></i>
-        <span><strong>Como funciona:</strong> o mês escolhido identifica o início da folha. Exemplo: 08/2026 calcula de 26/08/2026 a 25/09/2026. Para conferir 26/07/2026 a 25/08/2026, escolha 07/2026.</span>
-    </div>
-
-    <form method="post" class="fixed-control-panel workdays-form" id="formHorasUteis" novalidate>
-        <div class="workdays-form-grid">
-            <div>
-                <label class="form-label" asp-for="Input.MesReferencia">Mês de referência <span class="required-mark">*</span></label>
-                <input asp-for="Input.MesReferencia" class="form-control" type="month" required />
-                <span asp-validation-for="Input.MesReferencia" class="text-danger small"></span>
+    <div class="workdays-setup-layout">
+        <form method="post" class="workdays-form" id="formHorasUteis" novalidate>
+            <div class="workdays-section-heading">
+                <span class="workdays-section-icon" aria-hidden="true"><i class="bi bi-calculator"></i></span>
+                <div><h2>Calcular período</h2><p>Informe o mês inicial da folha e a jornada diária.</p></div>
             </div>
-            <div>
-                <label class="form-label" asp-for="Input.HorasPorDia">Horas por dia <span class="required-mark">*</span></label>
-                <input asp-for="Input.HorasPorDia" class="form-control" type="number" min="1" max="24" step="1" required />
-                <div class="workdays-hour-presets" aria-label="Atalhos de jornada"><button type="button" data-hours="6">6 h</button><button type="button" data-hours="8">8 h</button></div>
-                <span asp-validation-for="Input.HorasPorDia" class="text-danger small"></span>
+            <div class="workdays-form-grid">
+                <div>
+                    <label class="form-label" asp-for="Input.MesReferencia">Mês de referência <span class="required-mark">*</span></label>
+                    <input asp-for="Input.MesReferencia" class="form-control" type="month" required />
+                    <span asp-validation-for="Input.MesReferencia" class="text-danger small"></span>
+                </div>
+                <div>
+                    <label class="form-label" asp-for="Input.HorasPorDia">Horas por dia <span class="required-mark">*</span></label>
+                    <input asp-for="Input.HorasPorDia" class="form-control" type="number" min="1" max="24" step="1" required />
+                    <div class="workdays-hour-presets" aria-label="Atalhos de jornada"><button type="button" data-hours="6">6 h</button><button type="button" data-hours="8">8 h</button></div>
+                    <span asp-validation-for="Input.HorasPorDia" class="text-danger small"></span>
+                </div>
             </div>
+            <div class="period-preview" id="workdaysPeriodPreview" role="status" aria-live="polite"><i class="bi bi-calendar-range" aria-hidden="true"></i><span>Selecione o mês para conferir o período da folha.</span></div>
+            <div asp-validation-summary="ModelOnly" class="text-danger mt-3"></div>
             <div class="workdays-actions">
-                <button type="submit" class="btn btn-success responsive-button">
-                    <i class="bi bi-check2-circle"></i>
-                    Calcular
-                </button>
+                <button type="submit" class="btn btn-success"><i class="bi bi-check2-circle"></i> Calcular horas úteis</button>
             </div>
-        </div>
-        <div class="period-preview" id="workdaysPeriodPreview" role="status" aria-live="polite"><i class="bi bi-calendar-range" aria-hidden="true"></i><span>Selecione o mês para conferir o período da folha.</span></div>
-        <div asp-validation-summary="ModelOnly" class="text-danger mt-3"></div>
-    </form>
+        </form>
+
+        <aside class="workdays-info-card" role="note">
+            <span class="workdays-info-icon" aria-hidden="true"><i class="bi bi-geo-alt"></i></span>
+            <span class="eyebrow">Regra aplicada</span>
+            <h2>Folha de Barueri/SP</h2>
+            <p>O mês escolhido identifica o início da folha, sempre do dia 26 ao dia 25 do mês seguinte.</p>
+            <div class="workdays-example"><span>Exemplo: 08/2026</span><strong>26/08 a 25/09</strong><small>Fins de semana e feriados são descontados.</small></div>
+            <p class="workdays-info-footnote"><i class="bi bi-info-circle"></i> Para calcular 26/07 a 25/08, escolha 07/2026.</p>
+        </aside>
+    </div>
 
     @if (Model.Resultado is not null)
     {
@@ -119,7 +125,7 @@
             </div>
         </section>
     }
-</div>
+</main>
 
 <div class="loading-overlay" id="loadingOverlay"><div><div class="spinner-border text-primary" role="status"><span class="visually-hidden">Calculando...</span></div></div></div>
 

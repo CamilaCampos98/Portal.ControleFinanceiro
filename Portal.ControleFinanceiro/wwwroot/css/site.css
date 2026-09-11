@@ -3139,20 +3139,136 @@ body {
 }
 
 .workdays-page {
+    width: min(1120px, 100%);
+    margin: 0 auto;
     display: grid;
     gap: 1rem;
 }
 
+.workdays-page-heading {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1.5rem;
+    padding: 1.35rem 1.5rem;
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    background: linear-gradient(135deg, var(--surface) 58%, var(--accent-soft));
+    box-shadow: var(--shadow);
+}
+
+.workdays-page-heading h1 {
+    margin: 0;
+    color: var(--ink);
+    font-size: clamp(1.7rem, 3vw, 2.25rem);
+    font-weight: 800;
+}
+
+.workdays-page-heading p,
+.workdays-section-heading p {
+    margin: 0.35rem 0 0;
+    color: var(--muted);
+}
+
+.workdays-page-heading-icon {
+    width: 58px;
+    height: 58px;
+    flex: 0 0 58px;
+    display: grid;
+    place-items: center;
+    border-radius: 16px;
+    background: var(--brand-strong);
+    color: #fff;
+    font-size: 1.5rem;
+    box-shadow: 0 10px 24px rgba(20, 88, 71, 0.2);
+}
+
+.workdays-setup-layout {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 300px;
+    gap: 1rem;
+    align-items: start;
+}
+
+.workdays-form,
+.workdays-info-card {
+    padding: clamp(1.15rem, 2.5vw, 1.75rem);
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    background: var(--surface);
+    box-shadow: var(--shadow);
+}
+
+.workdays-section-heading {
+    display: flex;
+    align-items: center;
+    gap: 0.85rem;
+    padding-bottom: 1.15rem;
+    margin-bottom: 1.25rem;
+    border-bottom: 1px solid var(--line);
+}
+
+.workdays-section-heading h2,
+.workdays-info-card h2 {
+    margin: 0;
+    color: var(--ink);
+    font-size: 1.15rem;
+    font-weight: 800;
+}
+
+.workdays-section-icon,
+.workdays-info-icon {
+    display: grid;
+    place-items: center;
+    border-radius: 12px;
+    background: var(--accent-soft);
+    color: var(--accent);
+}
+
+.workdays-section-icon {
+    width: 42px;
+    height: 42px;
+    flex: 0 0 42px;
+}
+
 .workdays-form-grid {
     display: grid;
-    grid-template-columns: minmax(220px, 1fr) minmax(160px, 0.55fr) minmax(150px, auto);
+    grid-template-columns: minmax(220px, 1fr) minmax(160px, 0.6fr);
     gap: 0.85rem;
-    align-items: end;
+    align-items: start;
+}
+
+.workdays-form .form-label {
+    color: var(--ink);
+    font-size: 0.82rem;
+    font-weight: 800;
+}
+
+.workdays-form .form-control {
+    min-height: 46px;
+    border-color: var(--line);
+    border-radius: 8px;
+    background-color: #fbfdfc;
+}
+
+.workdays-form .form-control:focus {
+    border-color: var(--accent);
+    background: #fff;
+    box-shadow: 0 0 0 0.2rem rgba(47, 156, 133, 0.14);
 }
 
 .workdays-actions {
     display: flex;
-    align-items: end;
+    justify-content: flex-end;
+    padding-top: 1rem;
+    margin-top: 1rem;
+    border-top: 1px solid var(--line);
+}
+
+.workdays-actions .btn {
+    min-height: 44px;
+    border-radius: 8px;
+    font-weight: 800;
 }
 
 .workdays-hour-presets {
@@ -3181,9 +3297,9 @@ body {
 .workdays-result-shell {
     display: grid;
     gap: 1rem;
-    padding: 1rem;
+    padding: 1.25rem;
     border: 1px solid var(--line);
-    border-radius: 8px;
+    border-radius: 12px;
     background: var(--surface);
     box-shadow: var(--shadow);
 }
@@ -3195,7 +3311,7 @@ body {
     gap: 0.2rem;
     padding: 1rem;
     border: 1px solid var(--line);
-    border-radius: 8px;
+    border-radius: 10px;
     background: var(--surface-muted);
 }
 
@@ -3274,6 +3390,104 @@ body {
     color: var(--muted);
     font-weight: 700;
     background: var(--surface-muted);
+}
+
+.workdays-info-card {
+    background: linear-gradient(155deg, var(--surface), var(--accent-soft));
+}
+
+.workdays-info-icon {
+    width: 48px;
+    height: 48px;
+    margin-bottom: 1rem;
+    font-size: 1.2rem;
+}
+
+.workdays-info-card > p {
+    margin: 0.65rem 0 0;
+    color: var(--muted);
+    font-size: 0.9rem;
+    line-height: 1.55;
+}
+
+.workdays-example {
+    display: grid;
+    gap: 0.1rem;
+    padding: 0.9rem;
+    margin-top: 1rem;
+    border: 1px solid rgba(47, 156, 133, 0.25);
+    border-radius: 10px;
+    background: rgba(255, 255, 255, 0.72);
+}
+
+.workdays-example span,
+.workdays-example small {
+    color: var(--muted);
+    font-size: 0.76rem;
+    font-weight: 700;
+}
+
+.workdays-example strong {
+    color: var(--brand-strong);
+    font-size: 1.15rem;
+}
+
+.workdays-info-card .workdays-info-footnote {
+    display: flex;
+    gap: 0.45rem;
+    margin-top: 1rem;
+    font-size: 0.8rem;
+    font-weight: 700;
+}
+
+@media (max-width: 991.98px) {
+    .workdays-setup-layout {
+        grid-template-columns: 1fr;
+    }
+}
+
+@media (max-width: 767.98px) {
+    .workdays-page {
+        gap: 0.75rem;
+    }
+
+    .workdays-page-heading {
+        align-items: flex-start;
+        padding: 1rem;
+    }
+
+    .workdays-page-heading-icon {
+        width: 44px;
+        height: 44px;
+        flex-basis: 44px;
+        border-radius: 12px;
+        font-size: 1.15rem;
+    }
+
+    .workdays-form,
+    .workdays-info-card,
+    .workdays-result-shell {
+        padding: 1rem;
+    }
+
+    .workdays-actions,
+    .workdays-actions .btn {
+        width: 100%;
+    }
+
+    .workdays-summary-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 0.65rem;
+    }
+
+    .workdays-summary-grid .metric-card {
+        min-width: 0;
+        padding: 0.9rem;
+    }
+
+    .workdays-summary-grid .metric-card strong {
+        font-size: 1.2rem;
+    }
 }
 
 @media (max-width: 768px) {
