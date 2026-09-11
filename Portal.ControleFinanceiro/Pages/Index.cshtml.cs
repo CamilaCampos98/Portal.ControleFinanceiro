@@ -27,7 +27,8 @@ namespace Portal.ControleFinanceiro.Pages
 
         public List<ResumoPessoaMesDTO>? ResumoGeral { get; set; }
         public string? PeriodoAtual { get; set; }
-        public List<UltimaCompraDTO> UltimasComprasPorPessoa { get; set; } = new();
+        public ResumoPeriodoDTO? ResumoAtual { get; set; }
+        public List<UltimaCompraDTO> ComprasRecentes { get; set; } = new();
 
         public async Task OnGetAsync()
         {
@@ -57,8 +58,8 @@ namespace Portal.ControleFinanceiro.Pages
                     }
                     catch (Exception ex)
                     {
-                        _logger.LogWarning(ex, "Não foi possível carregar o período Itaú ou a última compra da tela inicial.");
-                        UltimasComprasPorPessoa = new List<UltimaCompraDTO>();
+                        _logger.LogWarning(ex, "Não foi possível carregar os detalhes do período atual da tela inicial.");
+                        ComprasRecentes = new List<UltimaCompraDTO>();
                     }
                 }
                 else
@@ -85,6 +86,12 @@ namespace Portal.ControleFinanceiro.Pages
                 return;
 
             PeriodoAtual = await ObterPeriodoAtualItauAsync(httpClient, urlApi, usuarioLogado);
+            PeriodoAtual ??= ResumoGeral?
+                .Where(item => item.Pessoa.Equals(usuarioLogado, StringComparison.OrdinalIgnoreCase))
+                .Select(item => item.MesAno)
+                .OrderByDescending(ConverterPeriodo)
+                .FirstOrDefault();
+
             if (string.IsNullOrWhiteSpace(PeriodoAtual))
                 return;
 
@@ -100,6 +107,7 @@ namespace Portal.ControleFinanceiro.Pages
 
             var json = await response.Content.ReadAsStringAsync();
             var resumo = JsonSerializer.Deserialize<ResumoPeriodoDTO>(json, options);
+            ResumoAtual = resumo;
 
             if (resumo?.Compras == null)
                 return;
@@ -116,6 +124,7 @@ namespace Portal.ControleFinanceiro.Pages
                 TryGetString(compra, "Compra", out var descricao);
                 TryGetString(compra, "Cartao", out var cartao);
                 TryGetString(compra, "Parcela", out var parcela);
+                TryGetString(compra, "FormaPgto", out var formaPagamento);
                 TryGetString(compra, "IdLan", out var idLanTexto);
                 TryGetDecimal(compra, "Valor", out var valor);
                 long.TryParse(idLanTexto, out var idLan);
@@ -126,20 +135,30 @@ namespace Portal.ControleFinanceiro.Pages
                     Descricao = descricao ?? "-",
                     Cartao = cartao ?? "-",
                     Parcela = parcela,
+                    FormaPagamento = formaPagamento ?? "-",
                     Data = data,
                     Valor = valor,
                     IdLan = idLan
                 });
             }
 
-            UltimasComprasPorPessoa = compras
-                .GroupBy(x => x.Pessoa, StringComparer.OrdinalIgnoreCase)
-                .Select(grupo => grupo
-                    .OrderByDescending(x => x.Data)
-                    .ThenByDescending(x => x.IdLan)
-                    .First())
-                .OrderBy(x => x.Pessoa)
+            ComprasRecentes = compras
+                .OrderByDescending(x => x.Data)
+                .ThenByDescending(x => x.IdLan)
+                .Take(6)
                 .ToList();
+        }
+
+        private static DateTime ConverterPeriodo(string? periodo)
+        {
+            return DateTime.TryParseExact(
+                periodo,
+                "MM/yyyy",
+                CultureInfo.InvariantCulture,
+                DateTimeStyles.None,
+                out var data)
+                ? data
+                : DateTime.MinValue;
         }
 
         private static async Task<string?> ObterPeriodoAtualItauAsync(
@@ -214,9 +233,18 @@ namespace Portal.ControleFinanceiro.Pages
 
         }
 
-        private sealed class ResumoPeriodoDTO
+        public sealed class ResumoPeriodoDTO
         {
+            public string Pessoa { get; set; } = string.Empty;
+            public string Periodo { get; set; } = string.Empty;
+            public decimal Salario { get; set; }
+            public decimal Extras { get; set; }
+            public decimal GastosFixos { get; set; }
+            public decimal ValorGuardado { get; set; }
+            public decimal TotalGasto { get; set; }
+            public decimal SaldoRestante { get; set; }
             public List<Dictionary<string, JsonElement>> Compras { get; set; } = new();
+            public Dictionary<string, decimal> ResumoPorCartao { get; set; } = new();
         }
 
         private sealed class PeriodoFaturaDTO
@@ -231,6 +259,7 @@ namespace Portal.ControleFinanceiro.Pages
             public string Descricao { get; set; } = string.Empty;
             public string Cartao { get; set; } = string.Empty;
             public string? Parcela { get; set; }
+            public string FormaPagamento { get; set; } = string.Empty;
             public DateTime Data { get; set; }
             public decimal Valor { get; set; }
             public long IdLan { get; set; }

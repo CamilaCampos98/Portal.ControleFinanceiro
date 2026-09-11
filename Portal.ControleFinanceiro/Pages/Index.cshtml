@@ -2,13 +2,56 @@
 @model IndexModel
 @using System.Globalization
 @{
-    ViewData["Title"] = "Resumo financeiro";
+    Layout = "_HomeLayout";
+    ViewData["Title"] = "Visão geral";
+
     var cultura = new CultureInfo("pt-BR");
-    var inicioProjecao = new DateTime(DateTime.Today.Year, DateTime.Today.Month, 1);
-    var meses = Enumerable.Range(0, 7)
-        .Select(deslocamento => inicioProjecao.AddMonths(deslocamento).ToString("MM/yyyy", cultura))
+    var nomeUsuario = Model.ResumoAtual?.Pessoa ?? User.Identity?.Name ?? "Usuário";
+    var primeiroNome = cultura.TextInfo.ToTitleCase(nomeUsuario.Trim().ToLower(cultura).Split(' ')[0]);
+    var resumoAtualGeral = Model.ResumoGeral?
+        .FirstOrDefault(item =>
+            item.Pessoa.Equals(nomeUsuario, StringComparison.OrdinalIgnoreCase) &&
+            item.MesAno == Model.PeriodoAtual);
+
+    var receita = (Model.ResumoAtual?.Salario ?? 0) + (Model.ResumoAtual?.Extras ?? 0);
+    var compras = Model.ResumoAtual?.TotalGasto ?? 0;
+    var fixos = Model.ResumoAtual?.GastosFixos ?? 0;
+    var guardado = Model.ResumoAtual?.ValorGuardado ?? resumoAtualGeral?.ValorGuardado ?? 0;
+    var saldo = Model.ResumoAtual?.SaldoRestante ?? resumoAtualGeral?.SaldoRestante ?? 0;
+    var comprometido = compras + fixos + guardado;
+    var percentualComprometido = receita > 0 ? Math.Min(100, comprometido / receita * 100) : 0;
+    var percentualDisponivel = receita > 0 ? Math.Max(0, saldo / receita * 100) : 0;
+
+    var totalDistribuicao = comprometido + Math.Max(0, saldo);
+    var percentualCompras = totalDistribuicao > 0 ? compras / totalDistribuicao * 100 : 0;
+    var percentualFixos = totalDistribuicao > 0 ? fixos / totalDistribuicao * 100 : 0;
+    var percentualGuardado = totalDistribuicao > 0 ? guardado / totalDistribuicao * 100 : 0;
+    var fimCompras = percentualCompras;
+    var fimFixos = fimCompras + percentualFixos;
+    var fimGuardado = fimFixos + percentualGuardado;
+    var graficoDistribuicao = FormattableString.Invariant(
+        $"conic-gradient(var(--danger) 0 {fimCompras:0.##}%, var(--warning) {fimCompras:0.##}% {fimFixos:0.##}%, var(--home-saved) {fimFixos:0.##}% {fimGuardado:0.##}%, var(--accent) {fimGuardado:0.##}% 100%)");
+
+    var cartoes = Model.ResumoAtual?.ResumoPorCartao?
+        .Where(item => item.Value > 0)
+        .OrderByDescending(item => item.Value)
+        .ToList() ?? new List<KeyValuePair<string, decimal>>();
+    var totalCartoes = cartoes.Sum(item => item.Value);
+
+    var mesesProjetados = Model.ResumoGeral?
+        .Where(item => item.Pessoa.Equals(nomeUsuario, StringComparison.OrdinalIgnoreCase))
+        .Select(item => new
+        {
+            Resumo = item,
+            Data = DateTime.TryParseExact(item.MesAno, "MM/yyyy", cultura, DateTimeStyles.None, out var data)
+                ? data
+                : DateTime.MinValue
+        })
+        .Where(item => item.Data != DateTime.MinValue)
+        .OrderBy(item => item.Data)
+        .Where(item => item.Data >= new DateTime(DateTime.Today.Year, DateTime.Today.Month, 1))
+        .Take(4)
         .ToList();
-    var pessoas = Model.ResumoGeral?.Where(x => !string.IsNullOrWhiteSpace(x.Pessoa)).GroupBy(x => x.Pessoa).OrderBy(g => g.Key).ToList();
 }
 
 <main class="home-dashboard" aria-labelledby="homeTitle">
@@ -23,122 +66,140 @@
             </div>
         </section>
     }
-    else if (pessoas != null && pessoas.Any())
+    else if (Model.ResumoGeral?.Any() == true)
     {
         <header class="home-heading">
             <div>
-                <span class="eyebrow">Visão geral</span>
-                <h1 id="homeTitle">Resumo financeiro</h1>
-                <p>Acompanhe o saldo disponível e as movimentações mais recentes.</p>
+                <h1 id="homeTitle">Olá, @primeiroNome</h1>
+                <p>Veja como está o seu orçamento neste mês.</p>
             </div>
-            <div class="current-period" aria-label="Período atual da fatura do cartão principal Itaú">
-                <i class="bi bi-calendar3" aria-hidden="true"></i>
-                <span>Fatura Itaú atual</span>
-                <strong>@(Model.PeriodoAtual ?? "Não identificada")</strong>
+            <div class="home-heading-actions">
+                <span class="current-period"><i class="bi bi-calendar3" aria-hidden="true"></i> @(Model.PeriodoAtual ?? "Período atual")</span>
+                <a class="home-primary-action" asp-page="/Controle/RegistrarCompra"><i class="bi bi-plus-lg" aria-hidden="true"></i><span>Nova compra</span></a>
             </div>
         </header>
 
-        <nav class="home-shortcuts" aria-label="Atalhos financeiros">
-            <a class="home-shortcut home-shortcut--primary" asp-page="/Controle/RegistrarCompra"><i class="bi bi-cart-plus" aria-hidden="true"></i><span><strong>Nova compra</strong><small>Registrar uma movimentação</small></span></a>
-            <a class="home-shortcut" asp-page="/Controle/Resumo"><i class="bi bi-bar-chart-line" aria-hidden="true"></i><span><strong>Resumo detalhado</strong><small>Consultar pessoa e período</small></span></a>
-            <a class="home-shortcut" asp-page="/Controle/Fixos"><i class="bi bi-calendar-check" aria-hidden="true"></i><span><strong>Fixos</strong><small>Contas e financiamentos</small></span></a>
-            <a class="home-shortcut" asp-page="/Controle/RegistrarEntrada"><i class="bi bi-wallet2" aria-hidden="true"></i><span><strong>Nova entrada</strong><small>Registrar receita</small></span></a>
-        </nav>
+        <section class="home-metric-grid" aria-label="Resumo financeiro do período">
+            <article class="home-metric home-metric--balance @(saldo < 0 ? "home-metric--negative" : "")">
+                <span>Saldo disponível</span>
+                <strong>@saldo.ToString("C", cultura)</strong>
+                <small>@percentualDisponivel.ToString("0", cultura)% da renda ainda disponível</small>
+                <div class="home-progress" role="progressbar" aria-label="Percentual da renda comprometida" aria-valuenow="@percentualComprometido.ToString("0", CultureInfo.InvariantCulture)" aria-valuemin="0" aria-valuemax="100"><span style="width: @percentualComprometido.ToString("0.##", CultureInfo.InvariantCulture)%"></span></div>
+            </article>
+            <article class="home-metric"><span>Entradas</span><strong>@receita.ToString("C", cultura)</strong><small>Salário e extras</small></article>
+            <article class="home-metric"><span>Total gasto</span><strong>@compras.ToString("C", cultura)</strong><small>Compras do período</small></article>
+            <article class="home-metric"><span>Guardado</span><strong>@guardado.ToString("C", cultura)</strong><small>Reserva deste mês</small></article>
+        </section>
 
-        <section class="home-section" aria-labelledby="saldoAtualTitulo">
-            <div class="home-section-heading">
-                <div><span class="eyebrow">Disponibilidade</span><h2 id="saldoAtualTitulo">Saldo atual por pessoa</h2></div>
-                <span class="home-section-caption">Referência: @(Model.PeriodoAtual ?? "período não identificado")</span>
-            </div>
-            <div class="current-balance-grid">
-                @foreach (var grupo in pessoas)
-                {
-                    var resumoAtual = string.IsNullOrWhiteSpace(Model.PeriodoAtual) ? null : grupo.FirstOrDefault(x => x.MesAno == Model.PeriodoAtual);
-                    var periodoConsulta = Model.PeriodoAtual ?? grupo
-                        .Select(x => x.MesAno)
-                        .OrderByDescending(m => DateTime.TryParseExact(m, "MM/yyyy", cultura, DateTimeStyles.None, out var data) ? data : DateTime.MinValue)
-                        .FirstOrDefault();
-                    var saldoClass = resumoAtual == null ? "balance-card--empty" : resumoAtual.SaldoRestante < 0 ? "balance-card--negative" : "balance-card--positive";
-                    <article class="balance-card @saldoClass">
-                        <div class="balance-card__header">
-                            <span class="balance-person"><i class="bi bi-person-circle" aria-hidden="true"></i> @grupo.Key</span>
-                            @if (resumoAtual == null) { <span class="balance-status">Sem dados</span> }
-                            else if (resumoAtual.SaldoRestante < 0) { <span class="balance-status"><i class="bi bi-exclamation-circle" aria-hidden="true"></i> Negativo</span> }
-                            else { <span class="balance-status"><i class="bi bi-check-circle" aria-hidden="true"></i> Disponível</span> }
+        <div class="home-content-grid">
+            <div class="home-content-main">
+                <section class="home-panel" aria-labelledby="distribuicaoTitulo">
+                    <div class="home-panel-heading">
+                        <h2 id="distribuicaoTitulo">Distribuição do mês</h2>
+                        <a asp-page="/Controle/Resumo" asp-route-pessoa="@nomeUsuario" asp-route-periodo="@Model.PeriodoAtual">Ver detalhes</a>
+                    </div>
+                    <div class="home-distribution">
+                        <div class="home-donut" style="background: @graficoDistribuicao" role="img" aria-label="Distribuição entre compras, gastos fixos, valor guardado e saldo disponível"><span></span></div>
+                        <div class="home-legend">
+                            <div><i class="home-legend-dot home-legend-dot--purchases"></i><span>Compras</span><strong>@compras.ToString("C", cultura)</strong></div>
+                            <div><i class="home-legend-dot home-legend-dot--fixed"></i><span>Gastos fixos</span><strong>@fixos.ToString("C", cultura)</strong></div>
+                            <div><i class="home-legend-dot home-legend-dot--saved"></i><span>Guardado</span><strong>@guardado.ToString("C", cultura)</strong></div>
+                            <div><i class="home-legend-dot home-legend-dot--available"></i><span>Disponível</span><strong>@saldo.ToString("C", cultura)</strong></div>
                         </div>
-                        <span class="balance-label">Saldo</span>
-                        <strong class="balance-value">@(resumoAtual == null ? "—" : resumoAtual.SaldoRestante.ToString("C", cultura))</strong>
-                        <div class="balance-saved"><span>Valor guardado</span><strong>@(resumoAtual == null ? "—" : resumoAtual.ValorGuardado.ToString("C", cultura))</strong></div>
-                        <a asp-page="/Controle/Resumo"
-                           asp-route-pessoa="@grupo.Key"
-                           asp-route-periodo="@periodoConsulta"
-                           aria-label="Ver resumo detalhado de @grupo.Key no período @periodoConsulta">Ver resumo <i class="bi bi-arrow-right" aria-hidden="true"></i></a>
-                    </article>
-                }
-            </div>
-        </section>
+                    </div>
+                </section>
 
-        <section class="home-section" aria-labelledby="ultimasComprasTitulo">
-            <div class="home-section-heading">
-                <div><span class="eyebrow">Movimentações</span><h2 id="ultimasComprasTitulo">Sua última compra</h2></div>
-                <span class="home-section-caption">Compras registradas até hoje</span>
-            </div>
-            @if (Model.UltimasComprasPorPessoa.Any())
-            {
-                <div class="latest-purchase-grid">
-                    @foreach (var compra in Model.UltimasComprasPorPessoa)
+                <section class="home-panel" aria-labelledby="comprasRecentesTitulo">
+                    <div class="home-panel-heading">
+                        <h2 id="comprasRecentesTitulo">Compras recentes</h2>
+                        <a asp-page="/Controle/Resumo" asp-route-pessoa="@nomeUsuario" asp-route-periodo="@Model.PeriodoAtual">Ver todas</a>
+                    </div>
+                    @if (Model.ComprasRecentes.Any())
                     {
-                        <article class="latest-purchase-card">
-                            <div class="latest-purchase-card__top"><span class="purchase-person"><i class="bi bi-person" aria-hidden="true"></i> @compra.Pessoa</span><strong>@compra.Valor.ToString("C", cultura)</strong></div>
-                            <h3>@compra.Descricao</h3>
-                            <div class="purchase-meta">
-                                <time datetime="@compra.Data.ToString("yyyy-MM-dd")"><i class="bi bi-calendar-event" aria-hidden="true"></i> @compra.Data.ToString("dd/MM/yyyy")</time>
-                                <span><i class="bi bi-credit-card" aria-hidden="true"></i> @compra.Cartao</span>
-                                @if (!string.IsNullOrWhiteSpace(compra.Parcela)) { <span class="purchase-installment">Parcela @compra.Parcela</span> }
-                            </div>
-                        </article>
-                    }
-                </div>
-            }
-            else
-            {
-                <div class="home-inline-empty"><i class="bi bi-cart-x" aria-hidden="true"></i><span>Nenhuma compra encontrada no período atual até hoje.</span></div>
-            }
-        </section>
-
-        <section class="home-section" aria-labelledby="historicoTitulo">
-            <div class="home-section-heading">
-                <div><span class="eyebrow">Próximos meses</span><h2 id="historicoTitulo">Projeção de saldos</h2></div>
-                <span class="home-section-caption">Mês atual e os próximos seis meses</span>
-            </div>
-            <div class="table-responsive history-table-shell" tabindex="0" aria-label="Projeção de saldos dos próximos meses por pessoa">
-                <table class="table history-table mb-0">
-                    <thead><tr><th scope="col">Pessoa</th>@foreach (var mes in meses) { <th scope="col">@mes</th> }</tr></thead>
-                    <tbody>
-                        @foreach (var grupo in pessoas)
+                        @foreach (var grupo in Model.ComprasRecentes.GroupBy(item => item.Data.Date).OrderByDescending(grupo => grupo.Key))
                         {
-                            <tr>
-                                <th scope="row">@grupo.Key</th>
-                                @foreach (var mes in meses)
+                            var rotuloData = grupo.Key == DateTime.Today
+                                ? $"Hoje, {grupo.Key:dd 'de' MMMM}"
+                                : grupo.Key == DateTime.Today.AddDays(-1)
+                                    ? $"Ontem, {grupo.Key:dd 'de' MMMM}"
+                                    : grupo.Key.ToString("dd 'de' MMMM", cultura);
+                            <h3 class="home-purchase-day">@rotuloData</h3>
+                            <div class="home-purchase-list">
+                                @foreach (var compraRecente in grupo)
                                 {
-                                    var resumoMes = grupo.FirstOrDefault(x => x.MesAno == mes);
-                                    <td class="@(resumoMes != null && resumoMes.SaldoRestante < 0 ? "history-value--negative" : "")">
-                                        @if (resumoMes == null) { <span class="history-empty" aria-label="Sem dados">—</span> }
-                                        else { <strong>@resumoMes.SaldoRestante.ToString("C", cultura)</strong><small>Guardado: @resumoMes.ValorGuardado.ToString("C", cultura)</small> }
-                                    </td>
+                                    <article class="home-purchase-item">
+                                        <span class="home-purchase-icon"><i class="bi bi-bag" aria-hidden="true"></i></span>
+                                        <div>
+                                            <strong>@compraRecente.Descricao</strong>
+                                            <small>@compraRecente.Cartao · @compraRecente.FormaPagamento @(!string.IsNullOrWhiteSpace(compraRecente.Parcela) ? $"· {compraRecente.Parcela}" : "")</small>
+                                        </div>
+                                        <div class="home-purchase-value"><strong>@compraRecente.Valor.ToString("C", cultura)</strong><small>Período @Model.PeriodoAtual</small></div>
+                                    </article>
                                 }
-                            </tr>
+                            </div>
                         }
-                    </tbody>
-                </table>
+                    }
+                    else
+                    {
+                        <div class="home-inline-empty"><i class="bi bi-cart-x" aria-hidden="true"></i><span>Nenhuma compra encontrada neste período.</span></div>
+                    }
+                </section>
             </div>
-        </section>
+
+            <aside class="home-content-aside">
+                <section class="home-panel" aria-labelledby="cartoesTitulo">
+                    <div class="home-panel-heading"><h2 id="cartoesTitulo">Cartões</h2><a asp-page="/Controle/Resumo" asp-route-pessoa="@nomeUsuario" asp-route-periodo="@Model.PeriodoAtual">Detalhes</a></div>
+                    @if (cartoes.Any())
+                    {
+                        <div class="home-card-list">
+                            @foreach (var cartao in cartoes.Take(5))
+                            {
+                                var participacao = totalCartoes > 0 ? cartao.Value / totalCartoes * 100 : 0;
+                                <article class="home-card-item">
+                                    <div><span>@cartao.Key</span><strong>@cartao.Value.ToString("C", cultura)</strong></div>
+                                    <div class="home-card-bar"><span style="width: @participacao.ToString("0.##", CultureInfo.InvariantCulture)%"></span></div>
+                                    <small>@participacao.ToString("0", cultura)% das compras em cartão</small>
+                                </article>
+                            }
+                        </div>
+                    }
+                    else
+                    {
+                        <div class="home-inline-empty"><span>Nenhum gasto em cartão neste período.</span></div>
+                    }
+                </section>
+
+                <section class="home-panel" aria-labelledby="projecaoTitulo">
+                    <div class="home-panel-heading"><h2 id="projecaoTitulo">Próximos meses</h2></div>
+                    @if (mesesProjetados?.Any() == true)
+                    {
+                        <div class="home-forecast-list">
+                            @foreach (var item in mesesProjetados)
+                            {
+                                <a asp-page="/Controle/Resumo" asp-route-pessoa="@nomeUsuario" asp-route-periodo="@item.Resumo.MesAno">
+                                    <span>@item.Data.ToString("MMMM", cultura)</span>
+                                    <strong class="@(item.Resumo.SaldoRestante < 0 ? "is-negative" : "")">@item.Resumo.SaldoRestante.ToString("C", cultura)</strong>
+                                </a>
+                            }
+                        </div>
+                    }
+                    else
+                    {
+                        <div class="home-inline-empty"><span>Nenhuma projeção encontrada.</span></div>
+                    }
+                </section>
+            </aside>
+        </div>
     }
     else
     {
         <section class="home-state" aria-labelledby="homeTitle">
             <i class="bi bi-bar-chart" aria-hidden="true"></i>
-            <div><h1 id="homeTitle">Seu resumo financeiro aparecerá aqui</h1><p>Ainda não encontramos dados para apresentar. Registre uma entrada ou uma compra para começar.</p><div class="d-flex flex-wrap gap-2"><a class="btn btn-success" asp-page="/Controle/RegistrarEntrada">Registrar entrada</a><a class="btn btn-outline-success" asp-page="/Controle/RegistrarCompra">Registrar compra</a></div></div>
+            <div>
+                <h1 id="homeTitle">Seu resumo financeiro aparecerá aqui</h1>
+                <p>Ainda não encontramos dados para apresentar. Registre uma entrada ou uma compra para começar.</p>
+                <div class="d-flex flex-wrap gap-2"><a class="btn btn-success" asp-page="/Controle/RegistrarEntrada">Registrar entrada</a><a class="btn btn-outline-success" asp-page="/Controle/RegistrarCompra">Registrar compra</a></div>
+            </div>
         </section>
     }
 </main>
