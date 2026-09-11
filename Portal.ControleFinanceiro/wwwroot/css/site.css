@@ -2824,6 +2824,241 @@ body {
     font-size: 1.1rem;
 }
 
+.income-entry-page {
+    width: min(1080px, 100%);
+    margin: 0 auto;
+    display: grid;
+    gap: 1rem;
+}
+
+.income-entry-heading {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1.5rem;
+    padding: 1.35rem 1.5rem;
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    background: linear-gradient(135deg, var(--surface) 58%, var(--accent-soft));
+    box-shadow: var(--shadow);
+}
+
+.income-entry-heading h1 {
+    margin: 0;
+    color: var(--ink);
+    font-size: clamp(1.7rem, 3vw, 2.25rem);
+    font-weight: 800;
+}
+
+.income-entry-heading p,
+.income-section-heading p {
+    margin: 0.35rem 0 0;
+    color: var(--muted);
+}
+
+.income-entry-heading-icon {
+    width: 58px;
+    height: 58px;
+    flex: 0 0 58px;
+    display: grid;
+    place-items: center;
+    border-radius: 16px;
+    background: var(--brand-strong);
+    color: #fff;
+    font-size: 1.5rem;
+    box-shadow: 0 10px 24px rgba(20, 88, 71, 0.2);
+}
+
+.income-entry-layout {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 300px;
+    gap: 1rem;
+    align-items: start;
+}
+
+.income-form-card,
+.income-info-card {
+    padding: clamp(1.15rem, 2.5vw, 1.75rem);
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    background: var(--surface);
+    box-shadow: var(--shadow);
+}
+
+.income-section-heading {
+    display: flex;
+    align-items: center;
+    gap: 0.85rem;
+    padding-bottom: 1.15rem;
+    margin-bottom: 1.25rem;
+    border-bottom: 1px solid var(--line);
+}
+
+.income-section-heading h2,
+.income-info-card h2 {
+    margin: 0;
+    color: var(--ink);
+    font-size: 1.15rem;
+    font-weight: 800;
+}
+
+.income-section-icon,
+.income-info-icon {
+    display: grid;
+    place-items: center;
+    border-radius: 12px;
+    background: var(--accent-soft);
+    color: var(--accent);
+}
+
+.income-section-icon {
+    width: 42px;
+    height: 42px;
+    flex: 0 0 42px;
+}
+
+.income-fields .form-label {
+    margin-bottom: 0.4rem;
+    color: var(--ink);
+    font-size: 0.82rem;
+    font-weight: 800;
+}
+
+.income-fields .form-control,
+.income-fields .form-select {
+    min-height: 46px;
+    border-color: var(--line);
+    border-radius: 8px;
+    background-color: #fbfdfc;
+}
+
+.income-fields .form-control:focus,
+.income-fields .form-select:focus {
+    border-color: var(--accent);
+    background: #fff;
+    box-shadow: 0 0 0 0.2rem rgba(47, 156, 133, 0.14);
+}
+
+.income-fields .form-control:disabled {
+    background: #edf2ef;
+    color: #8a9691;
+}
+
+.income-money-field {
+    position: relative;
+}
+
+.income-money-field > span {
+    position: absolute;
+    z-index: 1;
+    top: 50%;
+    left: 0.85rem;
+    transform: translateY(-50%);
+    color: var(--muted);
+    font-size: 0.85rem;
+    font-weight: 800;
+}
+
+.income-money-field .form-control {
+    padding-left: 2.6rem;
+}
+
+.income-form-actions {
+    display: flex;
+    justify-content: flex-end;
+    padding-top: 1.15rem;
+    border-top: 1px solid var(--line);
+}
+
+.income-form-actions .btn {
+    min-height: 44px;
+    border-radius: 8px;
+    font-weight: 800;
+}
+
+.income-info-card {
+    background: linear-gradient(155deg, var(--surface), var(--accent-soft));
+}
+
+.income-info-icon {
+    width: 48px;
+    height: 48px;
+    margin-bottom: 1rem;
+    font-size: 1.2rem;
+}
+
+.income-info-card > p {
+    margin: 0.65rem 0 0;
+    color: var(--muted);
+    font-size: 0.9rem;
+    line-height: 1.55;
+}
+
+.income-period-example {
+    display: grid;
+    gap: 0.1rem;
+    padding: 0.9rem;
+    margin-top: 1rem;
+    border: 1px solid rgba(47, 156, 133, 0.25);
+    border-radius: 10px;
+    background: rgba(255, 255, 255, 0.72);
+}
+
+.income-period-example span,
+.income-period-example small {
+    color: var(--muted);
+    font-size: 0.76rem;
+    font-weight: 700;
+}
+
+.income-period-example strong {
+    color: var(--brand-strong);
+    font-size: 1.15rem;
+}
+
+.income-info-card .income-info-footnote {
+    display: flex;
+    gap: 0.45rem;
+    margin-top: 1rem;
+    font-size: 0.8rem;
+    font-weight: 700;
+}
+
+@media (max-width: 991.98px) {
+    .income-entry-layout {
+        grid-template-columns: 1fr;
+    }
+}
+
+@media (max-width: 767.98px) {
+    .income-entry-page {
+        gap: 0.75rem;
+    }
+
+    .income-entry-heading {
+        align-items: flex-start;
+        padding: 1rem;
+    }
+
+    .income-entry-heading-icon {
+        width: 44px;
+        height: 44px;
+        flex-basis: 44px;
+        border-radius: 12px;
+        font-size: 1.15rem;
+    }
+
+    .income-form-card,
+    .income-info-card {
+        padding: 1rem;
+    }
+
+    .income-form-actions,
+    .income-form-actions .btn {
+        width: 100%;
+    }
+}
+
 .message-preserve-lines { white-space: pre-line; }
 
 .finance-interest {

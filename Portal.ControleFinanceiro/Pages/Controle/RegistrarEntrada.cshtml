@@ -2,65 +2,73 @@
 @model Portal.ControleFinanceiro.Pages.Controle.RegistrarEntradaModel
 @{
     ViewData["Title"] = "Registrar Entrada";
+    Layout = "_HomeLayout";
 }
 
-<div class="main-container">
-<div class="page-heading"><div><h2><i class="bi bi-wallet2"></i> Registrar entrada</h2><p>Cadastre o salário mensal ou acrescente horas extras ao período.</p></div></div>
-
-<div class="period-preview" role="note">
-    <i class="bi bi-info-circle" aria-hidden="true"></i>
-    <span><strong>Período financeiro:</strong> informe o mesmo Mês/Ano usado no Resumo. Uma entrada em 08/2026 compõe o Resumo 08/2026 e corresponde à folha trabalhada de 26/07/2026 a 25/08/2026, recebida em setembro. O sistema consulta automaticamente as horas úteis dessa folha.</span>
-</div>
+<main class="income-entry-page">
+<header class="income-entry-heading">
+    <div><span class="eyebrow">Receitas</span><h1>Registrar entrada</h1><p>Cadastre o salário mensal ou acrescente horas extras ao período.</p></div>
+    <span class="income-entry-heading-icon" aria-hidden="true"><i class="bi bi-wallet2"></i></span>
+</header>
 
 @if (!string.IsNullOrEmpty(Model.Mensagem))
 {
-    <div class="alert @(Model.Sucesso ? "alert-success" : "alert-danger") alert-dismissible fade show shadow-sm mt-3" role="alert">
+    <div class="alert @(Model.Sucesso ? "alert-success" : "alert-danger") alert-dismissible fade show shadow-sm mb-0" role="alert">
         <span class="message-preserve-lines">@Model.Mensagem</span>
         <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
     </div>
 }
 
-<section class="data-entry-card">
-<form method="post" id="formEntrada" novalidate>
-    <div class="row g-3">
-        <div class="col-md-4">
-            <label class="form-label">Tipo de entrada <span class="required-mark">*</span></label>
-            <select asp-for="Input.TipoEntrada" class="form-select" onchange="atualizarCamposEntrada()">
-                <option value="Salario">Salário</option>
-                <option value="Extra">Extra</option>
-            </select>
+<div class="income-entry-layout">
+    <section class="income-form-card" aria-labelledby="dadosEntradaTitulo">
+        <div class="income-section-heading">
+            <span class="income-section-icon" aria-hidden="true"><i class="bi bi-pencil-square"></i></span>
+            <div><h2 id="dadosEntradaTitulo">Dados da entrada</h2><p>Escolha o tipo e confira a estimativa antes de registrar.</p></div>
         </div>
-        <div class="col-md-4">
-            <label class="form-label">Pessoa <span class="required-mark">*</span></label>
-            <input asp-for="Input.Pessoa" class="form-control" required />
-        </div>
-        <div class="col-md-4">
-            <label class="form-label">Valor da hora (R$) <span class="required-mark salary-required">*</span></label>
-                <input asp-for="Input.ValorHora" class="form-control" type="text" inputmode="decimal" step="0.01" />
-        </div>
-        <div class="col-md-4">
-            <label class="form-label">Horas úteis no mês <span class="required-mark salary-required">*</span></label>
-            <input asp-for="Input.HorasUteisMes" class="form-control" type="number" />
-            <small id="horasUteisStatus" class="form-text" aria-live="polite">Preenchido automaticamente conforme o período.</small>
-        </div>
-        <div class="col-md-4">
-            <label class="form-label">Horas extras <span class="required-mark extra-required d-none">*</span></label>
-                <input asp-for="Input.HorasExtras" class="form-control" type="text" inputmode="decimal" />
-        </div>
-        <div class="col-md-4">
-            <label class="form-label">Mês/Ano do Resumo <span class="required-mark">*</span></label>
-                <input asp-for="Input.MesAno" id="filtroPeriodo" class="form-control" placeholder="Ex.: 05/2025" required />
-        </div>
-    </div>
+        <form method="post" id="formEntrada" novalidate>
+            <div class="row g-3 income-fields">
+                <div class="col-md-6">
+                    <label class="form-label">Tipo de entrada <span class="required-mark">*</span></label>
+                    <select asp-for="Input.TipoEntrada" class="form-select" onchange="atualizarCamposEntrada()"><option value="Salario">Salário</option><option value="Extra">Hora extra</option></select>
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label">Pessoa <span class="required-mark">*</span></label>
+                    <input asp-for="Input.Pessoa" class="form-control" placeholder="Ex.: Camila ou Diego" required />
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label">Mês/Ano do Resumo <span class="required-mark">*</span></label>
+                    <input asp-for="Input.MesAno" id="filtroPeriodo" class="form-control" placeholder="Ex.: 05/2026" required />
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label">Valor da hora <span class="required-mark salary-required">*</span></label>
+                    <div class="income-money-field"><span>R$</span><input asp-for="Input.ValorHora" class="form-control" type="text" inputmode="decimal" placeholder="0,00" /></div>
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label">Horas úteis no mês <span class="required-mark salary-required">*</span></label>
+                    <input asp-for="Input.HorasUteisMes" class="form-control" type="number" placeholder="Calculado automaticamente" />
+                    <small id="horasUteisStatus" class="form-text" aria-live="polite">Preenchido automaticamente conforme o período.</small>
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label">Horas extras <span class="required-mark extra-required d-none">*</span></label>
+                    <input asp-for="Input.HorasExtras" class="form-control" type="text" inputmode="decimal" placeholder="Ex.: 8,5" />
+                </div>
+            </div>
 
-    <div class="entry-preview mt-3" id="entradaPreview" role="status" aria-live="polite"><span>Preencha os dados para visualizar o cálculo.</span></div>
+            <div class="entry-preview mt-4" id="entradaPreview" role="status" aria-live="polite"><span>Preencha os dados para visualizar o cálculo.</span></div>
+            <div class="income-form-actions mt-4"><button class="btn btn-success" type="submit"><i class="bi bi-check-circle"></i> Registrar entrada</button></div>
+        </form>
+    </section>
 
-    <button class="btn btn-success mt-3" type="submit">
-        <i class="bi bi-check-circle"></i> Registrar Entrada
-    </button>
-</form>
-</section>
+    <aside class="income-info-card" role="note">
+        <span class="income-info-icon" aria-hidden="true"><i class="bi bi-calendar-range"></i></span>
+        <span class="eyebrow">Entenda o período</span>
+        <h2>Período financeiro</h2>
+        <p>Informe o mesmo Mês/Ano usado no Resumo. Uma entrada em <strong>08/2026</strong> compõe o Resumo 08/2026.</p>
+        <div class="income-period-example"><span>Folha considerada</span><strong>26/07 a 25/08</strong><small>Recebida em setembro</small></div>
+        <p class="income-info-footnote"><i class="bi bi-stars" aria-hidden="true"></i> As horas úteis são consultadas automaticamente.</p>
+    </aside>
 </div>
+</main>
 <div class="loading-overlay" id="loadingOverlay">
     <div>
         <div class="spinner-border text-primary" role="status"></div>
