@@ -641,7 +641,7 @@ body.home-app-body {
         z-index: 1030;
         min-height: 64px;
         display: grid;
-        grid-template-columns: repeat(5, 1fr);
+        grid-template-columns: repeat(6, 1fr);
         padding: 0.35rem;
         border: 1px solid var(--line);
         border-radius: 18px;
@@ -659,7 +659,7 @@ body.home-app-body {
         gap: 0.15rem;
         border-radius: 12px;
         color: var(--muted);
-        font-size: 0.65rem;
+        font-size: 0.6rem;
         font-weight: 700;
         text-decoration: none;
     }
