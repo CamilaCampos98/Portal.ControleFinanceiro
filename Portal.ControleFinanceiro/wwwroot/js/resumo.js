@@ -110,7 +110,7 @@ function editarCompra(idLan) {
             idLan: idLan,
             pessoa: pessoa,
             compra: row.children[2].innerText,
-            valor: parseFloat(row.children[3].innerText.replace('R$', '').trim().replace('.', '').replace(',', '.')),
+            valor: Number.parseFloat(row.dataset.valor || '0'),
             formaPgto: row.children[4].innerText,
             cartao: row.children[5].innerText,
             parcela: row.children[6].innerText,

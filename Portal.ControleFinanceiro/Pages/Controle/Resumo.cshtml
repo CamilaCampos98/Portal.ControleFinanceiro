@@ -322,7 +322,7 @@
                                         }
                                     }
 
-                                    <tr class="text-center">
+                                    <tr class="text-center" data-valor="@valor.ToString(CultureInfo.InvariantCulture)">
                                         <td data-label="ID">@c["IdLan"]</td>
                                         <td data-label="Data">@DateTime.Parse(c["Data"].ToString()).ToString("dd/MM/yyyy")</td>
                                         <td data-label="Compra" class="text-start">@c["Compra"]</td>
@@ -1040,7 +1040,7 @@
                     idLan: idLan,
                     pessoa: pessoa,
                     compra: row.children[2].textContent,
-                    valor: parseFloat(row.children[3].textContent.replace('R$', '').trim().replace('.', '').replace(',', '.')),
+                    valor: Number.parseFloat(row.dataset.valor || '0'),
                     formaPgto: row.children[4].textContent,
                     cartao: row.children[5].textContent,
                     parcela: row.children[6].textContent,
