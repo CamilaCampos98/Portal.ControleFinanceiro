@@ -3024,6 +3024,59 @@ body {
     font-weight: 700;
 }
 
+.income-salaries-card .income-section-heading {
+    margin-bottom: 0.75rem;
+}
+
+.income-salaries-list {
+    max-height: 360px;
+    overflow-y: auto;
+    border: 1px solid var(--line);
+    border-radius: 10px;
+}
+
+.income-salaries-table {
+    width: 100%;
+    border-collapse: collapse;
+    color: var(--ink);
+    font-size: 0.88rem;
+}
+
+.income-salaries-table th,
+.income-salaries-table td {
+    padding: 0.7rem 0.85rem;
+    border-bottom: 1px solid var(--line);
+}
+
+.income-salaries-table th {
+    position: sticky;
+    top: 0;
+    background: var(--accent-soft);
+    color: var(--muted);
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+}
+
+.income-salaries-table th:last-child,
+.income-salaries-table td:last-child {
+    text-align: right;
+    white-space: nowrap;
+}
+
+.income-salaries-table tbody tr:last-child td {
+    border-bottom: 0;
+}
+
+.income-salaries-table tbody tr:hover {
+    background: var(--accent-soft);
+}
+
+.income-salaries-message {
+    margin: 0;
+    color: var(--muted);
+}
+
 @media (max-width: 991.98px) {
     .income-entry-layout {
         grid-template-columns: 1fr;
@@ -3051,6 +3104,11 @@ body {
     .income-form-card,
     .income-info-card {
         padding: 1rem;
+    }
+
+    .income-salaries-table th,
+    .income-salaries-table td {
+        padding: 0.65rem 0.4rem;
     }
 
     .income-form-actions,

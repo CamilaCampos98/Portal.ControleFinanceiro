@@ -5,6 +5,7 @@ using Portal.ControleFinanceiro.Models;
 using Portal.ControleFinanceiro.Models.Response;
 using System;
 using System.Net.Http;
+using System.Net.Http.Json;
 using System.Text;
 using System.Text.Json;
 using static Portal.ControleFinanceiro.Pages.Controle.RegistrarCompraModel;
@@ -27,11 +28,14 @@ namespace Portal.ControleFinanceiro.Pages.Controle
         public bool Sucesso { get; set; }
         public string ResultadoTexto { get; set; } = "";
         public string? Mensagem { get; set; }
+        public List<SalarioCadastrado> SalariosCadastrados { get; private set; } = new();
+        public string? AvisoSalarios { get; private set; }
 
-        public void OnGet()
+        public async Task OnGetAsync()
         {
             Input.Pessoa = User.Identity?.Name ?? string.Empty;
             Input.MesAno = DateTime.Today.ToString("MM/yyyy");
+            await CarregarSalariosAsync();
         }
 
         public async Task<IActionResult> OnPostAsync()
@@ -139,6 +143,34 @@ namespace Portal.ControleFinanceiro.Pages.Controle
                 Mensagem = ex.Message;
                 return Page();
             }
+            finally
+            {
+                await CarregarSalariosAsync();
+            }
+        }
+
+        private async Task CarregarSalariosAsync()
+        {
+            try
+            {
+                using var httpClient = new HttpClient();
+                var urlApi = _configuration["UrlApi"];
+                SalariosCadastrados = await httpClient.GetFromJsonAsync<List<SalarioCadastrado>>(
+                    $"{urlApi}Compra/SalariosCadastrados") ?? new();
+                AvisoSalarios = null;
+            }
+            catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException or JsonException or InvalidOperationException)
+            {
+                SalariosCadastrados = new();
+                AvisoSalarios = "Não foi possível carregar os salários cadastrados agora.";
+            }
+        }
+
+        public class SalarioCadastrado
+        {
+            public string Pessoa { get; set; } = string.Empty;
+            public string MesAno { get; set; } = string.Empty;
+            public decimal Valor { get; set; }
         }
 
         public class EntradaInput

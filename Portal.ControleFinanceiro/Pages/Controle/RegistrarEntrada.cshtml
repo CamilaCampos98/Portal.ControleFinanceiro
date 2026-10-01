@@ -68,6 +68,35 @@
         <p class="income-info-footnote"><i class="bi bi-stars" aria-hidden="true"></i> As horas úteis são consultadas automaticamente.</p>
     </aside>
 </div>
+
+<section class="income-form-card income-salaries-card" aria-labelledby="salariosCadastradosTitulo">
+    <div class="income-section-heading">
+        <span class="income-section-icon" aria-hidden="true"><i class="bi bi-table"></i></span>
+        <div><h2 id="salariosCadastradosTitulo">Salários cadastrados</h2><p>Consulta por período e pessoa · valores sem horas extras.</p></div>
+    </div>
+    @if (!string.IsNullOrEmpty(Model.AvisoSalarios))
+    {
+        <p class="income-salaries-message" role="status">@Model.AvisoSalarios</p>
+    }
+    else if (Model.SalariosCadastrados.Count == 0)
+    {
+        <p class="income-salaries-message">Nenhum salário cadastrado.</p>
+    }
+    else
+    {
+        <div class="income-salaries-list">
+            <table class="income-salaries-table">
+                <thead><tr><th scope="col">Período</th><th scope="col">Pessoa</th><th scope="col">Salário</th></tr></thead>
+                <tbody>
+                    @foreach (var salario in Model.SalariosCadastrados)
+                    {
+                        <tr><td>@salario.MesAno</td><td>@salario.Pessoa</td><td>@salario.Valor.ToString("C", new System.Globalization.CultureInfo("pt-BR"))</td></tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+</section>
 </main>
 <div class="loading-overlay" id="loadingOverlay">
     <div>
