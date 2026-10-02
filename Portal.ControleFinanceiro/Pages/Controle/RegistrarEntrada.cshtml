@@ -72,7 +72,7 @@
 <section class="income-form-card income-salaries-card" aria-labelledby="salariosCadastradosTitulo">
     <div class="income-section-heading income-salaries-heading">
         <span class="income-section-icon" aria-hidden="true"><i class="bi bi-table"></i></span>
-        <div><h2 id="salariosCadastradosTitulo">Salários cadastrados</h2><p>Período atual e próximos 6 meses · extras separados.</p></div>
+        <div><h2 id="salariosCadastradosTitulo">Salários cadastrados</h2><p>Mês/Ano selecionado e próximos 6 meses · extras separados.</p></div>
         <button class="btn btn-outline-success income-next-salaries-button" id="prepararProximosSalarios" type="button" @(Model.SalariosCadastrados.Count == 0 ? "disabled" : null)>
             <i class="bi bi-calendar-plus" aria-hidden="true"></i> Próximos 6 meses
         </button>
@@ -94,6 +94,7 @@
         </div>
         <form method="post" asp-page-handler="RegistrarProximosSalarios" id="formProximosSalarios" class="income-salary-plan-actions">
             <input type="hidden" name="planoJson" id="proximosSalariosJson" />
+            <input type="hidden" name="mesAnoSelecionado" id="mesAnoSelecionado" value="@Model.Input.MesAno" />
             <button class="btn btn-success" type="submit" id="confirmarProximosSalarios" disabled>Registrar salários e fixos</button>
         </form>
     </div>
@@ -101,16 +102,13 @@
     {
         <p class="income-salaries-message" role="status">@Model.AvisoSalarios</p>
     }
-    else if (Model.SalariosNoPeriodo.Count == 0)
-    {
-        <p class="income-salaries-message">Nenhum salário cadastrado nesse intervalo.</p>
-    }
     else
     {
-        <div class="income-salaries-list">
+        <p class="income-salaries-message" id="salariosVazios" hidden="@(Model.SalariosNoPeriodo.Count > 0)">Nenhum salário cadastrado nesse intervalo.</p>
+        <div class="income-salaries-list" id="salariosLista" hidden="@(Model.SalariosNoPeriodo.Count == 0)">
             <table class="income-salaries-table income-salaries-history-table">
                 <thead><tr><th scope="col">Período</th><th scope="col">Pessoa</th><th scope="col">Salário</th><th scope="col">Extras</th></tr></thead>
-                <tbody>
+                <tbody id="salariosNoPeriodo">
                     @foreach (var salario in Model.SalariosNoPeriodo)
                     {
                         <tr>
@@ -160,6 +158,41 @@
         function formatarPeriodo(data) {
             return `${String(data.getMonth() + 1).padStart(2, '0')}/${data.getFullYear()}`;
         }
+
+        function atualizarGridSalarios() {
+            const corpo = document.getElementById('salariosNoPeriodo');
+            if (!corpo) return;
+            const periodo = document.getElementById('filtroPeriodo').value;
+            const match = /^(0[1-9]|1[0-2])\/(\d{4})$/.exec(periodo);
+            const mesInicial = match ? Number(match[2]) * 12 + Number(match[1]) : null;
+            const salariosVisiveis = mesInicial === null ? [] : salariosCadastrados.filter(salario => {
+                const partes = /^(0[1-9]|1[0-2])\/(\d{4})$/.exec(salario.MesAno);
+                if (!partes) return false;
+                const mes = Number(partes[2]) * 12 + Number(partes[1]);
+                return mes >= mesInicial && mes <= mesInicial + 6;
+            });
+
+            corpo.replaceChildren();
+            for (const salario of salariosVisiveis) {
+                const linha = document.createElement('tr');
+                for (const [rotulo, valor] of [
+                    ['Período', salario.MesAno], ['Pessoa', salario.Pessoa],
+                    ['Salário', moedaBrasileira.format(salario.Valor)],
+                    ['Extras', moedaBrasileira.format(salario.Extras)]
+                ]) {
+                    const celula = document.createElement('td');
+                    celula.dataset.label = rotulo;
+                    celula.textContent = valor;
+                    linha.appendChild(celula);
+                }
+                corpo.appendChild(linha);
+            }
+            document.getElementById('salariosLista').hidden = salariosVisiveis.length === 0;
+            document.getElementById('salariosVazios').hidden = salariosVisiveis.length > 0;
+            document.getElementById('mesAnoSelecionado').value = periodo;
+        }
+
+        document.getElementById('filtroPeriodo').addEventListener('input', atualizarGridSalarios);
 
         function lerNovoValorHora() {
             const texto = document.getElementById('novoValorHora').value.trim().replace(/\s/g, '');

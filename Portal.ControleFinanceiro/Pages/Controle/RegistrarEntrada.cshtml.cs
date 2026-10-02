@@ -126,10 +126,11 @@ namespace Portal.ControleFinanceiro.Pages.Controle
                         Sucesso = true;
                         Mensagem = ResultadoTexto;
                         // Limpa os campos após submit
+                        var mesAnoSelecionado = Input.MesAno;
                         Input = new EntradaInput
                         {
                             Pessoa = User.Identity?.Name ?? string.Empty,
-                            MesAno = DateTime.Today.ToString("MM/yyyy")
+                            MesAno = mesAnoSelecionado
                         };
                     }
                     else
@@ -151,10 +152,11 @@ namespace Portal.ControleFinanceiro.Pages.Controle
             }
         }
 
-        public async Task<IActionResult> OnPostRegistrarProximosSalariosAsync(string planoJson)
+        public async Task<IActionResult> OnPostRegistrarProximosSalariosAsync(string planoJson, string? mesAnoSelecionado)
         {
             Input.Pessoa = User.Identity?.Name ?? string.Empty;
-            Input.MesAno = DateTime.Today.ToString("MM/yyyy");
+            Input.MesAno = DateTime.TryParseExact(mesAnoSelecionado, "MM/yyyy", CultureInfo.InvariantCulture,
+                DateTimeStyles.None, out _) ? mesAnoSelecionado : DateTime.Today.ToString("MM/yyyy");
             try
             {
                 var plano = JsonSerializer.Deserialize<PlanoProximosSalarios>(planoJson);
@@ -197,14 +199,19 @@ namespace Portal.ControleFinanceiro.Pages.Controle
                 var urlApi = _configuration["UrlApi"];
                 SalariosCadastrados = await httpClient.GetFromJsonAsync<List<SalarioCadastrado>>(
                     $"{urlApi}Compra/SalariosCadastrados") ?? new();
-                var agora = TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow,
-                    TimeZoneInfo.FindSystemTimeZoneById("America/Sao_Paulo"));
-                var periodoAtual = new DateTime(agora.Year, agora.Month, 1);
-                var ultimoPeriodo = periodoAtual.AddMonths(6);
-                SalariosNoPeriodo = SalariosCadastrados.Where(salario =>
-                    DateTime.TryParseExact(salario.MesAno, "MM/yyyy", CultureInfo.InvariantCulture,
-                        DateTimeStyles.None, out var periodo) &&
-                    periodo >= periodoAtual && periodo <= ultimoPeriodo).ToList();
+                if (DateTime.TryParseExact(Input.MesAno, "MM/yyyy", CultureInfo.InvariantCulture,
+                    DateTimeStyles.None, out var periodoSelecionado))
+                {
+                    var ultimoPeriodo = periodoSelecionado.AddMonths(6);
+                    SalariosNoPeriodo = SalariosCadastrados.Where(salario =>
+                        DateTime.TryParseExact(salario.MesAno, "MM/yyyy", CultureInfo.InvariantCulture,
+                            DateTimeStyles.None, out var periodo) &&
+                        periodo >= periodoSelecionado && periodo <= ultimoPeriodo).ToList();
+                }
+                else
+                {
+                    SalariosNoPeriodo = new();
+                }
                 AvisoSalarios = null;
             }
             catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException or JsonException or InvalidOperationException)
