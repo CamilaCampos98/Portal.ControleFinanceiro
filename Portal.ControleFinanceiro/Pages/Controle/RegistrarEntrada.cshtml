@@ -70,33 +70,62 @@
 </div>
 
 <section class="income-form-card income-salaries-card" aria-labelledby="salariosCadastradosTitulo">
-    <div class="income-section-heading">
+    <div class="income-section-heading income-salaries-heading">
         <span class="income-section-icon" aria-hidden="true"><i class="bi bi-table"></i></span>
-        <div><h2 id="salariosCadastradosTitulo">Salários cadastrados</h2><p>Consulta por período e pessoa · valores sem horas extras.</p></div>
+        <div><h2 id="salariosCadastradosTitulo">Salários cadastrados</h2><p>Período atual e próximos 6 meses · extras separados.</p></div>
+        <button class="btn btn-outline-success income-next-salaries-button" id="prepararProximosSalarios" type="button" @(Model.SalariosCadastrados.Count == 0 ? "disabled" : null)>
+            <i class="bi bi-calendar-plus" aria-hidden="true"></i> Próximos 6 meses
+        </button>
+    </div>
+    <div class="income-salary-plan" id="proximosSalariosPainel" hidden>
+        <p class="income-salary-plan-summary" id="proximosSalariosResumo"></p>
+        <p class="income-salary-plan-note">Os fixos mais recentes dessa pessoa serão copiados para cada mês novo, com novo vencimento e como “Não pago”.</p>
+        <label class="income-salary-plan-check"><input type="checkbox" id="usarNovoValorHora" /> Informar novo valor-hora</label>
+        <div class="income-salary-plan-rate" id="novoValorHoraArea" hidden>
+            <label for="novoValorHora">Novo valor por hora (R$)</label>
+            <input class="form-control" id="novoValorHora" type="text" inputmode="decimal" placeholder="Ex.: 60,00" />
+        </div>
+        <p class="income-salary-plan-status" id="proximosSalariosStatus" role="status" aria-live="polite"></p>
+        <div class="income-salaries-list">
+            <table class="income-salaries-table">
+                <thead><tr><th scope="col">Período</th><th scope="col">Horas úteis</th><th scope="col">Salário</th></tr></thead>
+                <tbody id="proximosSalariosLinhas"></tbody>
+            </table>
+        </div>
+        <form method="post" asp-page-handler="RegistrarProximosSalarios" id="formProximosSalarios" class="income-salary-plan-actions">
+            <input type="hidden" name="planoJson" id="proximosSalariosJson" />
+            <button class="btn btn-success" type="submit" id="confirmarProximosSalarios" disabled>Registrar salários e fixos</button>
+        </form>
     </div>
     @if (!string.IsNullOrEmpty(Model.AvisoSalarios))
     {
         <p class="income-salaries-message" role="status">@Model.AvisoSalarios</p>
     }
-    else if (Model.SalariosCadastrados.Count == 0)
+    else if (Model.SalariosNoPeriodo.Count == 0)
     {
-        <p class="income-salaries-message">Nenhum salário cadastrado.</p>
+        <p class="income-salaries-message">Nenhum salário cadastrado nesse intervalo.</p>
     }
     else
     {
         <div class="income-salaries-list">
-            <table class="income-salaries-table">
-                <thead><tr><th scope="col">Período</th><th scope="col">Pessoa</th><th scope="col">Salário</th></tr></thead>
+            <table class="income-salaries-table income-salaries-history-table">
+                <thead><tr><th scope="col">Período</th><th scope="col">Pessoa</th><th scope="col">Salário</th><th scope="col">Extras</th></tr></thead>
                 <tbody>
-                    @foreach (var salario in Model.SalariosCadastrados)
+                    @foreach (var salario in Model.SalariosNoPeriodo)
                     {
-                        <tr><td>@salario.MesAno</td><td>@salario.Pessoa</td><td>@salario.Valor.ToString("C", new System.Globalization.CultureInfo("pt-BR"))</td></tr>
+                        <tr>
+                            <td data-label="Período">@salario.MesAno</td>
+                            <td data-label="Pessoa">@salario.Pessoa</td>
+                            <td data-label="Salário">@salario.Valor.ToString("C", new System.Globalization.CultureInfo("pt-BR"))</td>
+                            <td data-label="Extras">@salario.Extras.ToString("C", new System.Globalization.CultureInfo("pt-BR"))</td>
+                        </tr>
                     }
                 </tbody>
             </table>
         </div>
     }
 </section>
+<script type="application/json" id="salariosCadastradosJson">@Html.Raw(System.Text.Json.JsonSerializer.Serialize(Model.SalariosCadastrados))</script>
 </main>
 <div class="loading-overlay" id="loadingOverlay">
     <div>
@@ -122,6 +151,112 @@
          // Executa na primeira carga para ajustar os campos
         document.addEventListener("DOMContentLoaded", function () {
             atualizarCamposEntrada();
+        });
+
+        const salariosCadastrados = JSON.parse(document.getElementById('salariosCadastradosJson').textContent);
+        let planoProximosSalarios = null;
+        const moedaBrasileira = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' });
+
+        function formatarPeriodo(data) {
+            return `${String(data.getMonth() + 1).padStart(2, '0')}/${data.getFullYear()}`;
+        }
+
+        function lerNovoValorHora() {
+            const texto = document.getElementById('novoValorHora').value.trim().replace(/\s/g, '');
+            if (!texto) return 0;
+            const normalizado = texto.includes(',') ? texto.replace(/\./g, '').replace(',', '.') : texto;
+            const valor = Number(normalizado);
+            return Number.isFinite(valor) && valor > 0 ? valor : 0;
+        }
+
+        function atualizarPreviaProximosSalarios() {
+            if (!planoProximosSalarios) return;
+            const usarNovoValor = document.getElementById('usarNovoValorHora').checked;
+            document.getElementById('novoValorHoraArea').hidden = !usarNovoValor;
+            const novoValor = usarNovoValor ? lerNovoValorHora() : null;
+            const valorHora = novoValor ?? planoProximosSalarios.UltimoValorHora;
+            const valido = valorHora > 0;
+            const corpo = document.getElementById('proximosSalariosLinhas');
+            corpo.replaceChildren();
+            for (const mes of planoProximosSalarios.Meses) {
+                const linha = document.createElement('tr');
+                for (const texto of [mes.MesAno, `${mes.HorasUteis} h`, valido ? moedaBrasileira.format(mes.HorasUteis * valorHora) : '—']) {
+                    const celula = document.createElement('td');
+                    celula.textContent = texto;
+                    linha.appendChild(celula);
+                }
+                corpo.appendChild(linha);
+            }
+            document.getElementById('proximosSalariosStatus').textContent = valido
+                ? `Valor-hora usado: ${moedaBrasileira.format(valorHora)}. Confira salários e fixos antes de registrar.`
+                : 'Informe um novo valor-hora maior que zero.';
+            document.getElementById('confirmarProximosSalarios').disabled = !valido;
+            document.getElementById('proximosSalariosJson').value = valido
+                ? JSON.stringify({ ...planoProximosSalarios, NovoValorHora: novoValor })
+                : '';
+        }
+
+        async function prepararProximosSalarios() {
+            planoProximosSalarios = null;
+            const painel = document.getElementById('proximosSalariosPainel');
+            const status = document.getElementById('proximosSalariosStatus');
+            const botao = document.getElementById('prepararProximosSalarios');
+            painel.hidden = false;
+            document.getElementById('proximosSalariosResumo').textContent = '';
+            document.getElementById('proximosSalariosLinhas').replaceChildren();
+            document.getElementById('confirmarProximosSalarios').disabled = true;
+            document.getElementById('proximosSalariosJson').value = '';
+
+            const pessoa = document.getElementById('Input_Pessoa').value.trim();
+            const ultimo = salariosCadastrados.find(salario => salario.Pessoa.toLocaleLowerCase('pt-BR') === pessoa.toLocaleLowerCase('pt-BR'));
+            if (!ultimo || ultimo.ValorHora <= 0) {
+                status.textContent = 'Selecione uma pessoa que já tenha salário e valor-hora cadastrados.';
+                return;
+            }
+
+            botao.disabled = true;
+            status.textContent = 'Calculando os seis períodos e feriados…';
+            try {
+                const [mes, ano] = ultimo.MesAno.split('/').map(Number);
+                const meses = await Promise.all(Array.from({ length: 6 }, async (_, indice) => {
+                    const data = new Date(ano, mes + indice, 1);
+                    const folha = new Date(data.getFullYear(), data.getMonth() - 1, 1);
+                    const url = `@Url.Page("/Controle/CalculadoraHorasUteis")?handler=CalcularPeriodo&mesAno=${encodeURIComponent(formatarPeriodo(folha))}`;
+                    const resposta = await fetch(url);
+                    if (!resposta.ok) throw new Error('Não foi possível calcular as horas úteis.');
+                    const calculo = await resposta.json();
+                    if (calculo.avisoFeriados || !calculo.totalHorasUteis)
+                        throw new Error('A consulta de feriados falhou. Tente novamente antes de registrar.');
+                    return { MesAno: formatarPeriodo(data), HorasUteis: calculo.totalHorasUteis };
+                }));
+
+                if (document.getElementById('Input_Pessoa').value.trim().toLocaleLowerCase('pt-BR') !== pessoa.toLocaleLowerCase('pt-BR'))
+                    return;
+
+                planoProximosSalarios = {
+                    Pessoa: ultimo.Pessoa,
+                    UltimoMesAno: ultimo.MesAno,
+                    UltimoValorHora: ultimo.ValorHora,
+                    Meses: meses
+                };
+                document.getElementById('proximosSalariosResumo').textContent =
+                    `${ultimo.Pessoa}: após ${ultimo.MesAno}, de ${meses[0].MesAno} a ${meses[5].MesAno}.`;
+                document.getElementById('usarNovoValorHora').checked = false;
+                document.getElementById('novoValorHora').value = '';
+                atualizarPreviaProximosSalarios();
+            } catch (erro) {
+                status.textContent = erro.message || 'Não foi possível preparar os salários.';
+            } finally {
+                botao.disabled = false;
+            }
+        }
+
+        document.getElementById('prepararProximosSalarios').addEventListener('click', prepararProximosSalarios);
+        document.getElementById('usarNovoValorHora').addEventListener('change', atualizarPreviaProximosSalarios);
+        document.getElementById('novoValorHora').addEventListener('input', atualizarPreviaProximosSalarios);
+        document.getElementById('Input_Pessoa').addEventListener('input', () => {
+            planoProximosSalarios = null;
+            document.getElementById('proximosSalariosPainel').hidden = true;
         });
 
         function atualizarCamposEntrada() {

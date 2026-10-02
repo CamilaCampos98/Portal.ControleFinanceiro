@@ -3028,6 +3028,73 @@ body {
     margin-bottom: 0.75rem;
 }
 
+.income-salaries-heading {
+    flex-wrap: wrap;
+}
+
+.income-next-salaries-button {
+    margin-left: auto;
+    white-space: nowrap;
+    border-radius: 8px;
+    font-weight: 700;
+}
+
+.income-salary-plan {
+    margin-bottom: 1rem;
+    padding: 1rem;
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    background: var(--accent-soft);
+}
+
+.income-salary-plan[hidden],
+.income-salary-plan-rate[hidden] {
+    display: none;
+}
+
+.income-salary-plan-summary {
+    margin: 0 0 0.75rem;
+    color: var(--ink);
+    font-weight: 700;
+}
+
+.income-salary-plan-note {
+    margin: 0 0 0.75rem;
+    color: var(--muted);
+    font-size: 0.85rem;
+}
+
+.income-salary-plan-check {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.45rem;
+    color: var(--ink);
+    cursor: pointer;
+}
+
+.income-salary-plan-rate {
+    max-width: 240px;
+    margin-top: 0.75rem;
+}
+
+.income-salary-plan-rate label {
+    display: block;
+    margin-bottom: 0.35rem;
+    font-weight: 700;
+}
+
+.income-salary-plan-status {
+    margin: 0.85rem 0;
+    color: var(--muted);
+    font-size: 0.85rem;
+}
+
+.income-salary-plan-actions {
+    display: flex;
+    justify-content: flex-end;
+    margin-top: 0.9rem;
+}
+
 .income-salaries-list {
     max-height: 360px;
     overflow-y: auto;
@@ -3060,6 +3127,12 @@ body {
 
 .income-salaries-table th:last-child,
 .income-salaries-table td:last-child {
+    text-align: right;
+    white-space: nowrap;
+}
+
+.income-salaries-history-table th:nth-last-child(2),
+.income-salaries-history-table td:nth-last-child(2) {
     text-align: right;
     white-space: nowrap;
 }
@@ -3109,6 +3182,46 @@ body {
     .income-salaries-table th,
     .income-salaries-table td {
         padding: 0.65rem 0.4rem;
+    }
+
+    .income-salaries-history-table thead {
+        display: none;
+    }
+
+    .income-salaries-history-table tbody tr {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 0.5rem;
+        padding: 0.75rem;
+        border-bottom: 1px solid var(--line);
+    }
+
+    .income-salaries-history-table tbody tr:last-child {
+        border-bottom: 0;
+    }
+
+    .income-salaries-history-table td {
+        display: flex;
+        flex-direction: column;
+        gap: 0.1rem;
+        padding: 0;
+        border: 0;
+        text-align: left !important;
+        white-space: normal !important;
+        overflow-wrap: anywhere;
+    }
+
+    .income-salaries-history-table td::before {
+        content: attr(data-label);
+        color: var(--muted);
+        font-size: 0.68rem;
+        font-weight: 700;
+        text-transform: uppercase;
+    }
+
+    .income-next-salaries-button,
+    .income-salary-plan-actions .btn {
+        width: 100%;
     }
 
     .income-form-actions,

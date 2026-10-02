@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Mvc.RazorPages;
 using Portal.ControleFinanceiro.Models;
 using Portal.ControleFinanceiro.Models.Response;
 using System;
+using System.Globalization;
 using System.Net.Http;
 using System.Net.Http.Json;
 using System.Text;
@@ -29,6 +30,7 @@ namespace Portal.ControleFinanceiro.Pages.Controle
         public string ResultadoTexto { get; set; } = "";
         public string? Mensagem { get; set; }
         public List<SalarioCadastrado> SalariosCadastrados { get; private set; } = new();
+        public List<SalarioCadastrado> SalariosNoPeriodo { get; private set; } = new();
         public string? AvisoSalarios { get; private set; }
 
         public async Task OnGetAsync()
@@ -149,6 +151,44 @@ namespace Portal.ControleFinanceiro.Pages.Controle
             }
         }
 
+        public async Task<IActionResult> OnPostRegistrarProximosSalariosAsync(string planoJson)
+        {
+            Input.Pessoa = User.Identity?.Name ?? string.Empty;
+            Input.MesAno = DateTime.Today.ToString("MM/yyyy");
+            try
+            {
+                var plano = JsonSerializer.Deserialize<PlanoProximosSalarios>(planoJson);
+                if (plano == null)
+                {
+                    Mensagem = "Não foi possível ler a prévia. Gere-a novamente.";
+                    return Page();
+                }
+
+                using var httpClient = new HttpClient();
+                var urlApi = _configuration["UrlApi"];
+                var resposta = await httpClient.PostAsJsonAsync($"{urlApi}Compra/RegistrarProximosSalarios", plano);
+                if (!resposta.IsSuccessStatusCode)
+                {
+                    Mensagem = await resposta.Content.ReadAsStringAsync();
+                    return Page();
+                }
+
+                Sucesso = true;
+                Mensagem = $"Seis salários e os respectivos fixos registrados, " +
+                    $"de {plano.Meses[0].MesAno} a {plano.Meses[5].MesAno}.";
+                return Page();
+            }
+            catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException or JsonException or InvalidOperationException)
+            {
+                Mensagem = "Não foi possível registrar os salários. Confira a conexão e tente novamente.";
+                return Page();
+            }
+            finally
+            {
+                await CarregarSalariosAsync();
+            }
+        }
+
         private async Task CarregarSalariosAsync()
         {
             try
@@ -157,11 +197,20 @@ namespace Portal.ControleFinanceiro.Pages.Controle
                 var urlApi = _configuration["UrlApi"];
                 SalariosCadastrados = await httpClient.GetFromJsonAsync<List<SalarioCadastrado>>(
                     $"{urlApi}Compra/SalariosCadastrados") ?? new();
+                var agora = TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow,
+                    TimeZoneInfo.FindSystemTimeZoneById("America/Sao_Paulo"));
+                var periodoAtual = new DateTime(agora.Year, agora.Month, 1);
+                var ultimoPeriodo = periodoAtual.AddMonths(6);
+                SalariosNoPeriodo = SalariosCadastrados.Where(salario =>
+                    DateTime.TryParseExact(salario.MesAno, "MM/yyyy", CultureInfo.InvariantCulture,
+                        DateTimeStyles.None, out var periodo) &&
+                    periodo >= periodoAtual && periodo <= ultimoPeriodo).ToList();
                 AvisoSalarios = null;
             }
             catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException or JsonException or InvalidOperationException)
             {
                 SalariosCadastrados = new();
+                SalariosNoPeriodo = new();
                 AvisoSalarios = "Não foi possível carregar os salários cadastrados agora.";
             }
         }
@@ -171,6 +220,23 @@ namespace Portal.ControleFinanceiro.Pages.Controle
             public string Pessoa { get; set; } = string.Empty;
             public string MesAno { get; set; } = string.Empty;
             public decimal Valor { get; set; }
+            public decimal ValorHora { get; set; }
+            public decimal Extras { get; set; }
+        }
+
+        public class PlanoProximosSalarios
+        {
+            public string Pessoa { get; set; } = string.Empty;
+            public string UltimoMesAno { get; set; } = string.Empty;
+            public decimal UltimoValorHora { get; set; }
+            public decimal? NovoValorHora { get; set; }
+            public List<MesPlanejado> Meses { get; set; } = new();
+        }
+
+        public class MesPlanejado
+        {
+            public string MesAno { get; set; } = string.Empty;
+            public int HorasUteis { get; set; }
         }
 
         public class EntradaInput
