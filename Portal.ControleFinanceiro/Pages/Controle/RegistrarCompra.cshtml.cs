@@ -71,6 +71,66 @@ namespace Portal.ControleFinanceiro.Pages.Controle
             }
         }
 
+        public async Task<IActionResult> OnGetPeriodoFaturaAsync(string pessoa, string mesAno, string cartao)
+        {
+            if (string.IsNullOrWhiteSpace(pessoa) || string.IsNullOrWhiteSpace(cartao) ||
+                !DateTime.TryParseExact(mesAno, "MM/yyyy", CultureInfo.InvariantCulture, DateTimeStyles.None, out _))
+                return BadRequest(new { mensagem = "Informe pessoa, cartão e mês da fatura." });
+
+            try
+            {
+                using var httpClient = new HttpClient();
+                var url = $"{_configuration["UrlApi"]}Compra/PeriodoFatura" +
+                          $"?pessoa={Uri.EscapeDataString(pessoa)}" +
+                          $"&mesAno={Uri.EscapeDataString(mesAno)}" +
+                          $"&cartao={Uri.EscapeDataString(cartao)}";
+                var response = await httpClient.GetAsync(url);
+                var content = await response.Content.ReadAsStringAsync();
+
+                return new ContentResult
+                {
+                    Content = content,
+                    ContentType = "application/json",
+                    StatusCode = (int)response.StatusCode
+                };
+            }
+            catch
+            {
+                return StatusCode(StatusCodes.Status502BadGateway, new
+                {
+                    mensagem = "Não foi possível consultar o período da fatura na API."
+                });
+            }
+        }
+
+        public async Task<IActionResult> OnGetComprasExistentesAsync(string pessoa)
+        {
+            if (string.IsNullOrWhiteSpace(pessoa))
+                return BadRequest(new { mensagem = "Informe a pessoa para conferir as compras." });
+
+            try
+            {
+                using var httpClient = new HttpClient();
+                var url = $"{_configuration["UrlApi"]}Compra/GetCompras?pessoa={Uri.EscapeDataString(pessoa)}";
+                var response = await httpClient.GetAsync(url);
+                var content = await response.Content.ReadAsStringAsync();
+
+                return new ContentResult
+                {
+                    Content = content,
+                    ContentType = "application/json",
+                    StatusCode = (int)response.StatusCode
+                };
+            }
+            catch
+            {
+                return StatusCode(StatusCodes.Status502BadGateway, new
+                {
+                    mensagem = "Não foi possível consultar as compras existentes na API."
+                });
+            }
+        }
+
         public async Task<IActionResult> OnGetPeriodoCompraAsync(DateTime data, string pessoa, string cartao)
         {
             if (data == default || string.IsNullOrWhiteSpace(pessoa) || string.IsNullOrWhiteSpace(cartao))

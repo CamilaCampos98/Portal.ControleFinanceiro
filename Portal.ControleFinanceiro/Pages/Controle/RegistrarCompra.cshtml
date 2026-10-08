@@ -379,7 +379,16 @@
         });
 
         async function prepararImportacao() {
-            const gerouCsv = await gerar(); // agora pode usar await
+            btnConferirImportacao.disabled = true;
+            let gerouCsv;
+            try {
+                gerouCsv = await gerar();
+            } catch (error) {
+                mostrarErroImportacao("Não foi possível conferir a fatura. Verifique a conexão e tente novamente.");
+                return;
+            } finally {
+                btnConferirImportacao.disabled = false;
+            }
 
             if (!gerouCsv)
                 return;
@@ -426,8 +435,6 @@
                 return false;
             }
 
-            const urlApi = '@Model.UrlApi';
-
             const pessoa = document.querySelector('[name="PessoaImportacao"]').value;
             const cartao = document.querySelector('[name="CartaoImportacao"]').value;
 
@@ -442,9 +449,8 @@
             const [ano, mes] = mesAnoTela.split("-");
             const mesAno = `${mes}/${ano}`;
 
-            const url =
-                `${urlApi}Compra/PeriodoFatura`
-                + `?pessoa=${encodeURIComponent(pessoa)}`
+            const url = '@Url.Page("/Controle/RegistrarCompra", "PeriodoFatura")'
+                + `&pessoa=${encodeURIComponent(pessoa)}`
                 + `&mesAno=${encodeURIComponent(mesAno)}`
                 + `&cartao=${encodeURIComponent(cartao)}`;
 
@@ -570,7 +576,7 @@
 
             const pessoaEhDiego = pessoa.trim().toLowerCase().includes("diego");
             const itensSelecionados = pessoaEhDiego ? itensDiego : itensCamila;
-            const conferencia = await conferirComprasExistentes(urlApi, pessoa, itensSelecionados);
+            const conferencia = await conferirComprasExistentes(pessoa, itensSelecionados);
             if (!conferencia) return false;
 
             itensConferenciaAtuais = conferencia.naoCadastradas;
@@ -598,9 +604,11 @@
             return true;
         }
 
-        async function conferirComprasExistentes(urlApi, pessoa, itens) {
+        async function conferirComprasExistentes(pessoa, itens) {
             try {
-                const response = await fetch(`${urlApi}Compra/GetCompras?pessoa=${encodeURIComponent(pessoa)}`);
+                const url = '@Url.Page("/Controle/RegistrarCompra", "ComprasExistentes")'
+                    + `&pessoa=${encodeURIComponent(pessoa)}`;
+                const response = await fetch(url);
                 if (!response.ok) throw new Error('Falha ao buscar compras existentes.');
 
                 const chaves = await response.json();
