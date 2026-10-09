@@ -2,7 +2,7 @@
 {
     public class FixoModel
     {
-        public long Id { get; set; }
+        public string Id { get; set; } = string.Empty;
         public string Tipo { get; set; }
         public string MesAno { get; set; }
         public string Vencimento { get; set; }

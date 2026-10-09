@@ -5,6 +5,7 @@ using Portal.ControleFinanceiro.Models;
 using Portal.ControleFinanceiro.Models.Response;
 using System.Globalization;
 using System.Net.Http;
+using System.Net.Http.Json;
 using System.Reflection;
 using System.Text;
 using System.Text.Json;
@@ -35,6 +36,7 @@ public class ResumoModel : PageModel
     public FiltroResumo Filtro { get; set; }
 
     public ResultadoResumo Resumo { get; set; }
+    public FechamentoFeriasPreview? FechamentoFerias { get; set; }
     [BindProperty]
     public EditarCompraRequest Compra { get; set; } = new();
     [BindProperty]
@@ -60,6 +62,7 @@ public class ResumoModel : PageModel
         }
 
         OrdenarEPaginarCompras();
+        await CarregarFechamentoFeriasAsync();
 
         return Page();
 
@@ -98,6 +101,76 @@ public class ResumoModel : PageModel
         }
 
         OrdenarEPaginarCompras();
+        await CarregarFechamentoFeriasAsync();
+    }
+
+    public async Task<IActionResult> OnPostFecharPeriodoFeriasAsync(string pessoa, string periodo,
+        decimal saldoEsperado, decimal reducaoEsperada)
+    {
+        Filtro = new FiltroResumo { Pessoa = pessoa, Periodo = periodo };
+        try
+        {
+            using var client = new HttpClient();
+            var response = await client.PostAsJsonAsync($"{UrlApi}Compra/Ferias/FechamentoPeriodo", new
+            {
+                Person = pessoa, Period = periodo, ExpectedBalance = saldoEsperado,
+                ExpectedReduction = reducaoEsperada
+            });
+            if (!response.IsSuccessStatusCode)
+            {
+                var body = await response.Content.ReadAsStringAsync();
+                using var json = JsonDocument.Parse(body);
+                Mensagem = json.RootElement.TryGetProperty("message", out var detail)
+                    ? detail.GetString() : "Não foi possível fechar o período. Atualize o resumo e tente novamente.";
+                Sucesso = false;
+            }
+            else
+            {
+                Mensagem = "Período fechado. O Guardado foi ajustado e as reservas de férias foram atualizadas.";
+                Sucesso = true;
+            }
+        }
+        catch (Exception)
+        {
+            Mensagem = "Não foi possível acessar o fechamento. Tente novamente mais tarde.";
+            Sucesso = false;
+        }
+        var fechamentoSucesso = Sucesso;
+        Resumo = await ObterResumoAsync(Filtro);
+        Sucesso = fechamentoSucesso;
+        OrdenarEPaginarCompras();
+        await CarregarFechamentoFeriasAsync();
+        return Page();
+    }
+
+    private async Task CarregarFechamentoFeriasAsync()
+    {
+        if (Resumo == null || string.IsNullOrWhiteSpace(Resumo.Pessoa) ||
+            string.IsNullOrWhiteSpace(Resumo.Periodo)) return;
+        try
+        {
+            using var client = new HttpClient();
+            var pessoa = Uri.EscapeDataString(Resumo.Pessoa);
+            var periodo = Uri.EscapeDataString(Resumo.Periodo);
+            var response = await client.GetAsync($"{UrlApi}Compra/Ferias/FechamentoPeriodo?pessoa={pessoa}&periodo={periodo}");
+            if (response.IsSuccessStatusCode)
+                FechamentoFerias = await response.Content.ReadFromJsonAsync<FechamentoFeriasPreview>();
+        }
+        catch { /* O resumo continua disponível se a prévia de férias falhar. */ }
+    }
+
+    public sealed class FechamentoFeriasPreview
+    {
+        public bool HasPlannedVacation { get; set; }
+        public bool IsClosed { get; set; }
+        public bool CanClose { get; set; }
+        public decimal CurrentBalance { get; set; }
+        public decimal ReductionNeeded { get; set; }
+        public decimal AvailableGuardado { get; set; }
+        public decimal ProjectedBalance { get; set; }
+        public decimal TripReserveShortfall { get; set; }
+        public decimal IncomeReserveShortfall { get; set; }
+        public string? Message { get; set; }
     }
 
     private void OrdenarEPaginarCompras()
@@ -457,6 +530,8 @@ public class ResumoModel : PageModel
         public string Pessoa { get; set; }
         public string Periodo { get; set; }
         public decimal Salario { get; set; }
+        public decimal ReceitaNaoFaturadaFerias { get; set; }
+        public decimal CoberturaDiasSemFaturamento { get; set; }
         public decimal Extras { get; set; }
         public decimal TotalGasto { get; set; }
         public decimal GastosFixos { get; set; }

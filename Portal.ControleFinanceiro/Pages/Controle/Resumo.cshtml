@@ -123,6 +123,50 @@
                 </div>
             </div>
 
+            @if (Model.FechamentoFerias?.HasPlannedVacation == true)
+            {
+                <div class="insight-list mt-3">
+                    <div class="insight insight-good d-flex flex-wrap align-items-center justify-content-between gap-3">
+                        <div>
+                            <strong>Fechamento para férias</strong>
+                            <button type="button" class="btn btn-link btn-sm p-0 align-baseline" aria-label="Para que serve fechar o período?"
+                                    title="Depois de conferir as faturas, reduz o Guardado deste período somente se for necessário para preservar R$ 200 de saldo. Prioriza o Guardado livre e, se precisar usar reservas, ajusta primeiro as férias mais próximas. Não fecha automaticamente pela data do cartão.">
+                                <i class="bi bi-info-circle" aria-hidden="true"></i>
+                            </button>
+                            <div class="small">
+                                @if (Model.FechamentoFerias.ReductionNeeded > 0)
+                                {
+                                    <span>Reduzir até @Model.FechamentoFerias.ReductionNeeded.ToString("C", cultura) do Guardado · saldo projetado @Model.FechamentoFerias.ProjectedBalance.ToString("C", cultura)</span>
+                                }
+                                else
+                                {
+                                    <span>Nenhum ajuste no Guardado é necessário neste período.</span>
+                                }
+                                @if (!string.IsNullOrWhiteSpace(Model.FechamentoFerias.Message))
+                                {
+                                    <span class="d-block">@Model.FechamentoFerias.Message</span>
+                                }
+                                @if (Model.FechamentoFerias.TripReserveShortfall + Model.FechamentoFerias.IncomeReserveShortfall > 0)
+                                {
+                                    <span class="d-block">A recompor para as férias: @Model.FechamentoFerias.TripReserveShortfall.ToString("C", cultura) para a viagem
+                                        e @Model.FechamentoFerias.IncomeReserveShortfall.ToString("C", cultura) para os dias sem faturamento.</span>
+                                }
+                            </div>
+                        </div>
+                        <form method="post" asp-page-handler="FecharPeriodoFerias"
+                              onsubmit="return confirm('Você conferiu as faturas e deseja fechar este período para o planejamento das férias?');">
+                            <input type="hidden" name="pessoa" value="@Model.Resumo.Pessoa" />
+                            <input type="hidden" name="periodo" value="@Model.Resumo.Periodo" />
+                            <input type="hidden" name="saldoEsperado" value="@Model.FechamentoFerias.CurrentBalance.ToString(cultura)" />
+                            <input type="hidden" name="reducaoEsperada" value="@Model.FechamentoFerias.ReductionNeeded.ToString(cultura)" />
+                            <button type="submit" class="btn btn-success" disabled="@(!Model.FechamentoFerias.CanClose)">
+                                <i class="bi bi-check2-circle" aria-hidden="true"></i> Fechar período
+                            </button>
+                        </form>
+                    </div>
+                </div>
+            }
+
             <div class="insight-list mt-3">
                 @if (Model.Resumo.SaldoRestante < 0)
                 {
@@ -183,11 +227,25 @@
                     <div class="row mb-3">
                          <div class="col-12 col-md"><strong>Período:</strong> @Model.Resumo.Periodo</div>
          
-                         <div class="col-12 col-md"><strong>Salário:</strong> 
+                         <div class="col-12 col-md"><strong>Salário@(Model.Resumo.ReceitaNaoFaturadaFerias > 0 ? " previsto após férias" : ""):</strong>
                              <span class="valor-sigiloso" onclick="toggleTodos()">
                                  @Model.Resumo.Salario.ToString("C", cultura)
                              </span>
                          </div>
+
+                         @if (Model.Resumo.ReceitaNaoFaturadaFerias > 0)
+                         {
+                             <div class="col-12 col-md"><strong>Receita não faturada nas férias:</strong>
+                                 <span class="valor-sigiloso" onclick="toggleTodos()">−@Model.Resumo.ReceitaNaoFaturadaFerias.ToString("C", cultura)</span>
+                             </div>
+                         }
+
+                         @if (Model.Resumo.CoberturaDiasSemFaturamento > 0)
+                         {
+                             <div class="col-12 col-md"><strong>Cobertura prevista dos dias sem faturamento:</strong>
+                                 <span class="valor-sigiloso" onclick="toggleTodos()">+@Model.Resumo.CoberturaDiasSemFaturamento.ToString("C", cultura)</span>
+                             </div>
+                         }
 
                          <div class="col-12 col-md"><strong>Extras:</strong> 
                              <span class="valor-sigiloso" onclick="toggleTodos()">

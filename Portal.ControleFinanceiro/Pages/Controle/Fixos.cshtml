@@ -132,6 +132,8 @@
 
         <div class="fixed-table-shell">
             <form method="post" asp-page-handler="Salvar">
+                <input type="hidden" name="Pessoa" value="@Model.Pessoa" />
+                <input type="hidden" name="Periodo" value="@Model.Periodo" />
                 <div class="fixed-table-header">
                     <div>
                         <h4><i class="bi bi-table"></i> Conferência mensal</h4>

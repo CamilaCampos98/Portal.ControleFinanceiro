@@ -110,7 +110,8 @@ public class Fixos : PageModel
             {
                 var fixo = new FixoModel
                 {
-                    Id = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds() + new Random().Next(1000, 9999),
+                    Id = (DateTimeOffset.UtcNow.ToUnixTimeMilliseconds() + new Random().Next(1000, 9999))
+                        .ToString(CultureInfo.InvariantCulture),
                     Tipo = tipo,
                     MesAno = mesAno,
                     Vencimento = vencimento,
@@ -250,7 +251,7 @@ public class Fixos : PageModel
                 {
                     var payload = new AtualizaFixoModel
                     {
-                        Id = fixo.Id.ToString(),
+                        Id = fixo.Id,
                         Valor = decimal.TryParse(fixo.Valor, NumberStyles.Any, CultureInfo.InvariantCulture, out var val) ? val : 0,
                         Pago = fixo.Pago?.ToLower() == "true",
                         Dividido = fixo.Dividido?.ToLower() == "true"
@@ -270,6 +271,7 @@ public class Fixos : PageModel
 
                 Sucesso = true;
                 Mensagem = "Todos os gastos fixos foram atualizados com sucesso!";
+                await CarregarSaldoDisponivelResumoAsync();
             }
 
         }

@@ -1,0 +1,221 @@
+@page
+@model Portal.ControleFinanceiro.Pages.Controle.PlanejarFeriasModel
+@using System.Globalization
+@{
+    ViewData["Title"] = "Planejar férias";
+    Layout = "_HomeLayout";
+    var culture = CultureInfo.GetCultureInfo("pt-BR");
+}
+<link rel="stylesheet" href="~/css/planejar-ferias.css" asp-append-version="true" />
+
+<main class="vacation-page">
+    <header class="vacation-heading">
+        <span class="eyebrow">Planejamento</span>
+        <h1><i class="bi bi-sun" aria-hidden="true"></i> Planejar férias</h1>
+        <p>Compare datas, veja a receita que deixará de entrar e divida a meta da viagem.</p>
+    </header>
+
+    @if (!string.IsNullOrWhiteSpace(Model.Message))
+    {
+        <div class="alert @(Model.Saved ? "alert-success" : "alert-warning")" role="status">@Model.Message</div>
+    }
+
+    <form method="post" id="vacationForm" class="vacation-form">
+        <input asp-for="Input.ExpectedLostIncome" type="hidden" />
+        <input asp-for="Input.ExpectedLowestPeriodBalanceAfter" type="hidden" />
+        @for (var index = 0; index < Model.Input.ExpectedGuardadoTransfers.Count; index++)
+        {
+            <input asp-for="Input.ExpectedGuardadoTransfers[index].Id" type="hidden" />
+            <input asp-for="Input.ExpectedGuardadoTransfers[index].RowNumber" type="hidden" />
+            <input asp-for="Input.ExpectedGuardadoTransfers[index].VacationAmount" type="hidden" />
+            <input asp-for="Input.ExpectedGuardadoTransfers[index].IncomeAmount" type="hidden" />
+        }
+        <section class="vacation-card" aria-labelledby="vacationDatesTitle">
+            <div class="vacation-card-heading"><span class="vacation-icon"><i class="bi bi-calendar-range"></i></span><div><h2 id="vacationDatesTitle">Quando e quanto</h2><p>As mesmas datas serão usadas para todas as pessoas.</p></div></div>
+            <div class="vacation-input-grid">
+                <div><label asp-for="Input.StartDate">Início</label><input asp-for="Input.StartDate" type="date" class="form-control" required /></div>
+                <div><label asp-for="Input.EndDate">Fim</label><input asp-for="Input.EndDate" type="date" class="form-control" required /></div>
+                <div><label asp-for="Input.BudgetText">Orçamento total da viagem</label><div class="vacation-money"><span>R$</span><input asp-for="Input.BudgetText" class="form-control" inputmode="decimal" placeholder="Ex.: 6.000,00" required /></div></div>
+            </div>
+        </section>
+
+        <section class="vacation-card" aria-labelledby="vacationPeopleTitle">
+            <div class="vacation-card-heading"><span class="vacation-icon"><i class="bi bi-people"></i></span><div><h2 id="vacationPeopleTitle">Quem vai</h2><p>Selecione quem deixará de faturar durante o período.</p></div></div>
+            <div class="vacation-person-list" id="vacationPeople">
+                @for (var index = 0; index < Model.Input.People.Count; index++)
+                {
+                    <label class="vacation-person">
+                        <input asp-for="Input.People[index].Selected" type="checkbox" class="vacation-person-check" />
+                        <input asp-for="Input.People[index].Person" type="hidden" />
+                        <input asp-for="Input.People[index].Percent" type="hidden" class="vacation-person-percent" />
+                        <span class="vacation-avatar" aria-hidden="true">@Model.Input.People[index].Person.Substring(0, 1).ToUpperInvariant()</span>
+                        <span class="vacation-person-name">@Model.Input.People[index].Person</span>
+                        <strong class="vacation-person-share"></strong>
+                    </label>
+                }
+            </div>
+            <div class="vacation-split" id="vacationSplit" hidden>
+                <div class="vacation-split-labels"><strong id="vacationLeftPerson"></strong><strong id="vacationRightPerson"></strong></div>
+                <input id="vacationSplitRange" type="range" min="0" max="100" step="1" value="50" aria-label="Divisão do orçamento entre as duas pessoas" />
+                <p>Arraste para dividir quanto cada um vai guardar. A receita não faturada é calculada separadamente.</p>
+            </div>
+            <div class="vacation-multi-split" id="vacationMultiSplit" hidden></div>
+        </section>
+
+        <section class="vacation-card vacation-guardado-choice">
+            <label for="Input_UseGuardado"><input asp-for="Input.UseGuardado" type="checkbox" /> Usar parte do Guardado, preservando 30% em cada mês</label>
+            <p>O portal distribuirá proporcionalmente entre os meses até completar as metas ou atingir esse limite, separando viagem e dias sem faturamento.</p>
+        </section>
+
+        <div class="vacation-form-actions"><button class="btn btn-success" type="submit" asp-page-handler="Preview" id="vacationPreviewButton"><i class="bi bi-search vacation-preview-icon" aria-hidden="true"></i><span class="vacation-preview-spinner" aria-hidden="true"></span><span class="vacation-preview-text" aria-live="polite">Comparar datas</span></button></div>
+
+        @if (Model.Preview != null)
+        {
+            var selected = Model.Preview.Selected;
+            var oneAffectedPeriod = selected.People.FirstOrDefault()?.LossByPeriod.Count == 1;
+            <section class="vacation-card vacation-results" id="vacationResults" aria-labelledby="vacationResultsTitle">
+                <div class="vacation-card-heading"><span class="vacation-icon"><i class="bi bi-graph-up-arrow"></i></span><div><h2 id="vacationResultsTitle">Prévia: @selected.StartDate.ToString("dd/MM") a @selected.EndDate.ToString("dd/MM/yyyy")</h2><p>@selected.BusinessDays dia(s) úteis sem faturamento · período de salário de 26 a 25</p></div></div>
+                @if (Model.Preview.Alternatives.Count > 0)
+                {
+                    <p class="vacation-recommendation"><i class="bi bi-stars" aria-hidden="true"></i> Melhor folga entre as datas com salários cadastrados: <strong>@Model.Preview.Recommended.StartDate.ToString("dd/MM")–@Model.Preview.Recommended.EndDate.ToString("dd/MM/yyyy")</strong>. A confirmação abaixo vale para as datas selecionadas na prévia.</p>
+                }
+                @if (!string.IsNullOrWhiteSpace(Model.Preview.Warning)) { <p class="vacation-warning">@Model.Preview.Warning</p> }
+                <p class="vacation-calculation-note">As horas por dia são inferidas do salário e do valor-hora cadastrados; quando isso não é possível, a estimativa usa 8h/dia.</p>
+                <div class="vacation-metrics">
+                    <div><span>Orçamento da viagem</span><strong>@selected.Budget.ToString("C", culture)</strong></div>
+                    <div class="vacation-income-summary">
+                        <span>Receita não faturada por pessoa</span>
+                        <dl>
+                            @foreach (var person in selected.People)
+                            {
+                                <div><dt>@person.Person</dt><dd>@person.LostIncome.ToString("C", culture)</dd></div>
+                            }
+                        </dl>
+                        <p>Total: <strong>@selected.LostIncome.ToString("C", culture)</strong></p>
+                    </div>
+                </div>
+                <p class="vacation-combined-goal"><span>Meta conjunta a formar até as férias</span><strong>@((selected.Budget + selected.LostIncome).ToString("C", culture))</strong><small>Viagem dos dois: @selected.Budget.ToString("C", culture) + receita não faturada de cada pessoa: @selected.LostIncome.ToString("C", culture).</small></p>
+                @if (Model.Input.UseGuardado && Model.Preview.AvailableGuardado.Count > 0)
+                {
+                    <section class="vacation-guardado" aria-labelledby="vacationGuardadoTitle">
+                        <h3 id="vacationGuardadoTitle">Guardado distribuído entre os meses</h3>
+                        <p>Meses com mais Guardado contribuem mais. Pelo menos 30% de cada mês permanece no Guardado.</p>
+                        <div class="vacation-guardado-list">
+                            @foreach (var source in Model.Preview.AvailableGuardado)
+                            {
+                                var transfer = Model.Preview.GuardadoTransfers.FirstOrDefault(item => item.RowNumber == source.RowNumber);
+                                <div class="vacation-guardado-row">
+                                    <strong>@source.Person · @source.Period</strong>
+                                    <small>Guardado: @source.Available.ToString("C", culture) · separado: @((transfer?.VacationAmount + transfer?.IncomeAmount ?? 0m).ToString("C", culture)) · permanece: @((source.Available - (transfer?.VacationAmount + transfer?.IncomeAmount ?? 0m)).ToString("C", culture))</small>
+                                    <small>Viagem: @((transfer?.VacationAmount ?? 0m).ToString("C", culture)) · dias sem faturamento: @((transfer?.IncomeAmount ?? 0m).ToString("C", culture))</small>
+                                </div>
+                            }
+                        </div>
+                    </section>
+                }
+                <h3 class="vacation-breakdown-title">Impacto por pessoa</h3>
+                <p class="vacation-calculation-note">Cada pessoa cobre somente a própria receita não faturada. O percentual da viagem não divide essa perda.</p>
+                <div class="vacation-breakdown">
+                    @foreach (var person in selected.People)
+                    {
+                        var balanceWithIncomeCoverage = person.BalanceAfter + person.IncomeReserveFunded;
+                        var totalPersonGoal = person.BudgetShare + person.LostIncome;
+                        var monthlySavings = Model.BuildMonthlySavings(person);
+                        <article class="vacation-person-card">
+                            <div class="vacation-person-heading"><strong>@person.Person</strong><span>@person.Percent.ToString("0.#", culture)% da viagem</span></div>
+                            <p class="vacation-person-goal"><span>Total que @person.Person precisa guardar até as férias</span><strong>@totalPersonGoal.ToString("C", culture)</strong><small>@person.BudgetShare.ToString("C", culture) para a viagem + @person.LostIncome.ToString("C", culture) para cobrir a própria receita não faturada</small></p>
+                            <section class="vacation-person-section">
+                                <h4>@(oneAffectedPeriod ? $"Impacto no período · {person.TightestPeriod}" : "Impacto nos períodos afetados")</h4>
+                                <dl class="vacation-impact-list">
+                                    <div><dt>Sobra prevista sem férias</dt><dd>@person.BalanceBefore.ToString("C", culture)</dd></div>
+                                    <div><dt>Receita que não será faturada</dt><dd>−@person.LostIncome.ToString("C", culture)</dd></div>
+                                    <div class="vacation-impact-subtotal"><dt>Sobra após a perda de receita</dt><dd class="@(person.BalanceAfter < 0 ? "vacation-negative" : "")">@person.BalanceAfter.ToString("C", culture)</dd></div>
+                                    <div><dt>Cobertura planejada da renda</dt><dd>+@person.IncomeReserveFunded.ToString("C", culture)</dd></div>
+                                    <div class="vacation-impact-result"><dt>Sobra se a cobertura for cumprida</dt><dd class="@(balanceWithIncomeCoverage < 0 ? "vacation-negative" : "")">@balanceWithIncomeCoverage.ToString("C", culture)</dd></div>
+                                </dl>
+                                <p class="vacation-impact-help">A parte da viagem está nas metas abaixo e não é descontada novamente desta sobra.</p>
+                            </section>
+                            @if (!oneAffectedPeriod)
+                            {
+                                <p class="vacation-period-balance">Menor saldo mensal: <strong class="@(person.LowestPeriodBalanceAfter < 0 ? "vacation-negative" : "")">@person.LowestPeriodBalanceAfter.ToString("C", culture)</strong> em @person.TightestPeriod</p>
+                            }
+                            <section class="vacation-person-section">
+                                <h4>Como preparar as reservas</h4>
+                                <div class="vacation-goal-list">
+                                    <div class="vacation-goal-row">
+                                        <strong>Para gastar na viagem</strong>
+                                        <span>Meta <b>@person.BudgetShare.ToString("C", culture)</b></span>
+                                        <span>Do Guardado programado <b>@person.GuardadoAllocated.ToString("C", culture)</b></span>
+                                        <span>A programar além dele <b>@((person.BudgetShare - person.GuardadoAllocated).ToString("C", culture))</b></span>
+                                    </div>
+                                    <div class="vacation-goal-row">
+                                        <strong>Para cobrir a receita não faturada de @person.Person</strong>
+                                        <span>Meta <b>@person.LostIncome.ToString("C", culture)</b></span>
+                                        <span>Do Guardado programado <b>@person.IncomeGuardadoAllocated.ToString("C", culture)</b></span>
+                                        <span>A programar além dele <b>@((person.LostIncome - person.IncomeGuardadoAllocated).ToString("C", culture))</b></span>
+                                    </div>
+                                </div>
+                                @if (selected.SavingPeriods > 0)
+                                {
+                                    <p class="vacation-monthly-total"><span>Média a destinar por mês · @selected.SavingPeriods período(s)</span><strong>@(Math.Round(totalPersonGoal / selected.SavingPeriods, 2).ToString("C", culture))</strong></p>
+                                    <p class="vacation-monthly-detail">Inclui o Guardado já programado e qualquer valor novo necessário. O valor exato pode variar entre os meses.</p>
+                                    <details class="vacation-monthly-schedule">
+                                        <summary>Ver divisão mês a mês</summary>
+                                        <div class="vacation-monthly-list">
+                                            @foreach (var month in monthlySavings)
+                                            {
+                                                <div class="vacation-month-row">
+                                                    <div><strong>@month.Period</strong><strong>@month.Total.ToString("C", culture)</strong></div>
+                                                    <small>@month.ForVacation.ToString("C", culture) para viagem + @month.ForIncome.ToString("C", culture) para renda</small>
+                                                    <small>@month.FromGuardado.ToString("C", culture) do Guardado programado + @month.Additional.ToString("C", culture) de valor novo</small>
+                                                </div>
+                                            }
+                                        </div>
+                                    </details>
+                                }
+                                <p class="vacation-unpaid-note">@person.UnpaidHours h não faturadas</p>
+                                @if (person.LossByPeriod.Count > 1)
+                                {
+                                    var periodDetails = string.Join("; ", person.LossByPeriod.Select(loss => $"{loss.Key}: {loss.Value.ToString("C", culture)}"));
+                                    <p class="vacation-unpaid-note">Por período: @periodDetails</p>
+                                }
+                            </section>
+                        </article>
+                    }
+                </div>
+                <div class="vacation-total-balance" aria-label="Resumo conjunto das pessoas">
+                    <div><span>Sobra prevista sem férias · total</span><strong>@selected.BalanceBefore.ToString("C", culture)</strong></div>
+                    <div><span>Após a perda de receita</span><strong class="@(selected.BalanceAfter < 0 ? "vacation-negative" : "")">@selected.BalanceAfter.ToString("C", culture)</strong></div>
+                    <div><span>Se a cobertura da renda for cumprida</span><strong class="@(selected.BalanceAfter + selected.People.Sum(person => person.IncomeReserveFunded) < 0 ? "vacation-negative" : "")">@((selected.BalanceAfter + selected.People.Sum(person => person.IncomeReserveFunded)).ToString("C", culture))</strong></div>
+                </div>
+                @if (!oneAffectedPeriod)
+                {
+                    <p class="vacation-calculation-note">Menor saldo mensal = a menor sobra entre os períodos de salário afetados (dia 26 ao dia 25). Para o total das pessoas: <strong>@selected.LowestPeriodBalanceAfter.ToString("C", culture)</strong> em @selected.TightestPeriod.</p>
+                }
+                @if (selected.SavingPeriods == 0) { <p class="vacation-warning">Não há período anterior para distribuir as metas. Só o valor destinado de linhas “Guardado” poderá cobrir as férias e os dias sem faturamento.</p> }
+                <p class="vacation-note">Ao confirmar, se a opção estiver marcada, o portal distribuirá proporcionalmente os valores das linhas “Guardado” elegíveis, preservando pelo menos 30% de cada uma, sem aumentar o total reservado nesses meses. O restante das metas será provisionado nos meses anteriores às férias. No período afetado, o resumo mostrará a receita não faturada e a reserva usada para cobri-la em linhas separadas. Nenhum lançamento é feito nesta prévia.</p>
+                <button class="btn btn-success" type="submit" asp-page-handler="Confirm" id="vacationConfirmButton"><i class="bi bi-check-circle"></i> Confirmar planejamento</button>
+            </section>
+            @if (Model.Preview.Alternatives.Count > 0)
+            {
+                <section class="vacation-card" aria-labelledby="vacationAlternativesTitle">
+                    <div class="vacation-card-heading"><span class="vacation-icon"><i class="bi bi-stars"></i></span><div><h2 id="vacationAlternativesTitle">Outras datas possíveis</h2><p>Mesma duração; só períodos com salário cadastrado para todas as pessoas selecionadas.</p></div></div>
+                    <div class="vacation-alternatives">
+                        @foreach (var option in Model.Preview.Alternatives)
+                        {
+                            <button class="vacation-alternative" type="button" data-start="@option.StartDate.ToString("yyyy-MM-dd")" data-end="@option.EndDate.ToString("yyyy-MM-dd")">
+                                <span><strong>@option.StartDate.ToString("dd/MM")–@option.EndDate.ToString("dd/MM/yyyy")</strong><small>@option.BusinessDays dias úteis · receita não faturada total: @option.LostIncome.ToString("C", culture)</small></span>
+                                <span class="@(option.LowestPeriodBalanceAfter < 0 ? "vacation-negative" : "")">@option.LowestPeriodBalanceAfter.ToString("C", culture)<small>@(option.People.FirstOrDefault()?.LossByPeriod.Count == 1 ? "Sobra após perda de receita" : $"Menor saldo mensal · {option.TightestPeriod}")</small></span>
+                            </button>
+                        }
+                    </div>
+                </section>
+            }
+            else
+            {
+                <p class="vacation-calculation-note">Não há outras datas nos próximos seis meses com salário cadastrado para todas as pessoas selecionadas em todos os períodos afetados.</p>
+            }
+        }
+    </form>
+</main>
+<script src="~/js/planejar-ferias.js" asp-append-version="true" defer></script>

@@ -641,7 +641,7 @@ body.home-app-body {
         z-index: 1030;
         min-height: 64px;
         display: grid;
-        grid-template-columns: repeat(6, 1fr);
+        grid-template-columns: repeat(7, 1fr);
         padding: 0.35rem;
         border: 1px solid var(--line);
         border-radius: 18px;
