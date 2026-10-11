@@ -183,6 +183,8 @@ public class ResumoModel : PageModel
 
         TotalPaginas = (int)Math.Ceiling(Resumo.Compras.Count / (double)ItensPorPagina);
         PaginaAtual = Math.Clamp(PaginaAtual, 1, TotalPaginas);
+        var hoje = TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow,
+            TimeZoneInfo.FindSystemTimeZoneById("America/Sao_Paulo")).Date;
 
         Resumo.Compras = Resumo.Compras
             .Select((compra, indice) => new
@@ -192,7 +194,10 @@ public class ResumoModel : PageModel
                 Id = ObterIdLancamento(compra),
                 IndiceOriginal = indice
             })
-            .OrderByDescending(item => item.Data)
+            // Compras já ocorridas primeiro, da mais recente à mais antiga;
+            // parcelas com data futura vêm depois, na ordem em que acontecerão.
+            .OrderBy(item => item.Data.Date > hoje)
+            .ThenBy(item => item.Data.Date > hoje ? item.Data.Ticks : -item.Data.Ticks)
             .ThenByDescending(item => item.Id)
             .ThenBy(item => item.IndiceOriginal)
             .Skip((PaginaAtual - 1) * ItensPorPagina)
