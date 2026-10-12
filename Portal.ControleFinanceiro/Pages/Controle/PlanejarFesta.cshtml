@@ -1,0 +1,165 @@
+@page
+@model Portal.ControleFinanceiro.Pages.Controle.PlanejarFestaModel
+@using System.Globalization
+@{
+    ViewData["Title"] = "Planejar festa";
+    Layout = "_HomeLayout";
+    var culture = CultureInfo.GetCultureInfo("pt-BR");
+    var paidPercent = Model.KnownTotal > 0 ? Math.Clamp(Model.PaidTotal / Model.KnownTotal * 100, 0, 100) : 0;
+}
+<link rel="stylesheet" href="~/css/planejar-festa.css" asp-append-version="true" />
+
+<main class="party-page">
+    <header class="party-heading">
+        <span class="party-eyebrow">Planejamento</span>
+        <h1><i class="bi bi-balloon-heart" aria-hidden="true"></i> Festa da Lívia</h1>
+        @if (Model.Snapshot.Event != null)
+        {
+            <p>1º aniversário · @Model.Snapshot.Event.Date.ToString("dd/MM/yyyy")</p>
+        }
+    </header>
+
+    @if (!string.IsNullOrWhiteSpace(Model.Error)) { <div class="alert alert-warning" role="alert">@Model.Error</div> }
+    @if (!string.IsNullOrWhiteSpace(Model.Notice)) { <div class="alert alert-success" role="status">@Model.Notice</div> }
+
+    @if (Model.Snapshot.Event != null)
+    {
+        <section class="party-card party-summary" aria-labelledby="partySummaryTitle">
+            <div class="party-section-heading"><div><span class="party-eyebrow">Até a festa</span><h2 id="partySummaryTitle">Como está o planejamento</h2></div><i class="bi bi-gift" aria-hidden="true"></i></div>
+            <div class="party-progress" role="progressbar" aria-label="Percentual pago dos gastos com valor informado" aria-valuenow="@paidPercent.ToString("0", CultureInfo.InvariantCulture)" aria-valuemin="0" aria-valuemax="100"><span style="width:@paidPercent.ToString("0.##", CultureInfo.InvariantCulture)%"></span></div>
+            <div class="party-metrics">
+                <div><small>Valor informado</small><strong>@Model.KnownTotal.ToString("C", culture)</strong></div>
+                <div><small>Já pago</small><strong>@Model.PaidTotal.ToString("C", culture)</strong></div>
+                <div><small>Ainda falta</small><strong>@Model.Remaining.ToString("C", culture)</strong></div>
+            </div>
+            @if (Model.UnpricedCount > 0)
+            {
+                <p class="party-note"><i class="bi bi-info-circle" aria-hidden="true"></i> @Model.UnpricedCount item(ns) ainda sem valor. O total da festa pode aumentar.</p>
+            }
+            @if (Model.UnplannedKnown > 0)
+            {
+                <p class="party-note"><i class="bi bi-calendar-plus" aria-hidden="true"></i> @Model.UnplannedKnown.ToString("C", culture) ainda sem parcelas planejadas.</p>
+            }
+            <p class="party-footnote">Nesta etapa, as parcelas aparecem apenas aqui. Fixos e Guardado não são alterados.</p>
+        </section>
+
+        <section class="party-card" aria-labelledby="partyItemsTitle">
+            <div class="party-section-heading"><div><span class="party-eyebrow">Orçamento</span><h2 id="partyItemsTitle">Itens da festa</h2></div><i class="bi bi-list-check" aria-hidden="true"></i></div>
+            @foreach (var group in Model.Snapshot.Items.GroupBy(item => item.Category))
+            {
+                var groupTotal = group.Sum(item => item.Amount ?? 0);
+                var groupPaid = Model.CategoryPaid(group.Key);
+                <div class="party-category">
+                    <div class="party-category-heading"><h3>@group.Key</h3><span>@groupPaid.ToString("C", culture) pagos de @groupTotal.ToString("C", culture)</span></div>
+                    @foreach (var item in group)
+                    {
+                        <details class="party-item">
+                            <summary><span>@item.Name</span><strong>@(item.Amount?.ToString("C", culture) ?? "Sem valor")</strong><i class="bi bi-chevron-down" aria-hidden="true"></i></summary>
+                            <div class="party-item-body">
+                                @if (item.Amount.HasValue)
+                                {
+                                    <p>Pago diretamente neste item: @Model.PaidFor(item).ToString("C", culture). @if (item.Category == "Salão") { <span>Os R$ 400 já pagos ao salão estão associados à categoria, sem divisão entre os itens.</span> }</p>
+                                }
+                                <form method="post" asp-page-handler="EditItem" class="party-edit-form">
+                                    <input type="hidden" name="ItemId" value="@item.Id" />
+                                    <label>Categoria<input name="Category" value="@item.Category" required maxlength="80" /></label>
+                                    <label>Item<input name="ItemName" value="@item.Name" required maxlength="120" /></label>
+                                    <label>Valor (R$)<input name="AmountText" inputmode="decimal" value="@item.Amount?.ToString("0.00", culture)" placeholder="Ainda não sei" /></label>
+                                    <button type="submit" class="party-button party-button-secondary">Salvar item</button>
+                                </form>
+                            </div>
+                        </details>
+                    }
+                </div>
+            }
+            <details class="party-add-item">
+                <summary><i class="bi bi-plus-circle" aria-hidden="true"></i> Adicionar item</summary>
+                <form method="post" asp-page-handler="AddItem" class="party-edit-form">
+                    <label>Categoria<input name="Category" placeholder="Ex.: Comidas" required maxlength="80" /></label>
+                    <label>Item<input name="ItemName" placeholder="Ex.: Carrinho de crepe" required maxlength="120" /></label>
+                    <label>Valor (R$)<input name="AmountText" inputmode="decimal" placeholder="Pode preencher depois" /></label>
+                    <button type="submit" class="party-button">Adicionar à festa</button>
+                </form>
+            </details>
+        </section>
+
+        <section class="party-card" aria-labelledby="partyInstallmentsTitle">
+            <div class="party-section-heading"><div><span class="party-eyebrow">Até 27/03/2027</span><h2 id="partyInstallmentsTitle">Parcelas planejadas</h2></div><i class="bi bi-calendar3" aria-hidden="true"></i></div>
+            <p class="party-section-intro">Escolha em quais meses pagar cada item. O valor é dividido em centavos, sem perder nem acrescentar dinheiro.</p>
+            @if ((Model.UnscheduledItems.Any() || Model.CategoriesWithUnplannedBalance.Any()) && Model.AvailableMonths.Count > 0)
+            {
+                <details class="party-schedule-create">
+                    <summary><i class="bi bi-calendar-plus" aria-hidden="true"></i> Planejar parcelas de outro item</summary>
+                    <form method="post" asp-page-handler="Schedule" class="party-schedule-form">
+                        <label>Item
+                            <select name="ScheduleTarget" required>
+                                <option value="">Selecione</option>
+                                @foreach (var item in Model.UnscheduledItems)
+                                {
+                                    var remaining = item.Amount!.Value - Model.Snapshot.Payments.Where(payment => payment.ItemId == item.Id && payment.InstallmentId == null).Sum(payment => payment.Amount) - Model.Snapshot.Installments.Where(part => part.ItemId == item.Id).Sum(part => part.Amount);
+                                    <option value="item:@item.Id">@item.Name · faltam @remaining.ToString("C", culture)</option>
+                                }
+                                @foreach (var group in Model.CategoriesWithUnplannedBalance)
+                                {
+                                    <option value="category:@group.Category">Saldo adicional de @group.Category · @group.Amount.ToString("C", culture)</option>
+                                }
+                            </select>
+                        </label>
+                        <fieldset><legend>Meses escolhidos</legend><div class="party-months">
+                            @foreach (var month in Model.AvailableMonths)
+                            {
+                                <label><input type="checkbox" name="SelectedMonths" value="@month.ToString("yyyy-MM", CultureInfo.InvariantCulture)" /> @month.ToString("MMM/yy", culture)</label>
+                            }
+                        </div></fieldset>
+                        <label>Parcela mínima (R$)<input name="MinimumText" inputmode="decimal" value="100,00" required /><small>Para lembrancinhas, selecione até três meses: faltam R$ 397 e cada parcela deve ter pelo menos R$ 100.</small></label>
+                        <label>Dia previsto para pagar<input name="DueDay" type="number" min="1" max="31" value="15" required /><small>Em meses mais curtos, será usado o último dia do mês.</small></label>
+                        <button type="submit" class="party-button">Criar parcelas</button>
+                    </form>
+                </details>
+            }
+            <div class="party-month-overview" aria-label="Total planejado por mês">
+                @foreach (var monthGroup in Model.Snapshot.Installments.GroupBy(item => new DateTime(item.DueDate.Year, item.DueDate.Month, 1)).OrderBy(group => group.Key))
+                {
+                    var monthRemaining = monthGroup.Sum(item => Math.Max(0, item.Amount - Model.PaidFor(item)));
+                    <div><small>@monthGroup.Key.ToString("MMM/yy", culture)</small><strong>@monthRemaining.ToString("C", culture)</strong><span>a pagar</span></div>
+                }
+            </div>
+            <div class="party-installments">
+                @foreach (var installment in Model.Snapshot.Installments.OrderBy(item => item.DueDate))
+                {
+                    var paid = Model.PaidFor(installment);
+                    var remaining = Math.Max(0, installment.Amount - paid);
+                    var itemName = Model.Snapshot.Items.FirstOrDefault(item => item.Id == installment.ItemId)?.Name ?? installment.Category;
+                    <article class="party-installment @(remaining == 0 ? "is-paid" : "")">
+                        <div class="party-installment-main">
+                            <span class="party-date"><i class="bi bi-calendar-event" aria-hidden="true"></i> @installment.DueDate.ToString("MMM/yyyy", culture)</span>
+                            <div><strong>@itemName</strong><small>@(remaining == 0 ? "Quitada" : paid > 0 ? $"Pago {paid.ToString("C", culture)} · falta {remaining.ToString("C", culture)}" : "A pagar")</small></div>
+                            <strong class="party-installment-amount">@installment.Amount.ToString("C", culture)</strong>
+                        </div>
+                        @if (remaining > 0)
+                        {
+                            <details class="party-pay-details">
+                                <summary>Registrar pagamento</summary>
+                                <form method="post" asp-page-handler="Pay" class="party-pay-form">
+                                    <input type="hidden" name="InstallmentId" value="@installment.Id" />
+                                    <input type="hidden" name="PaymentId" value="@Guid.NewGuid().ToString("N")" />
+                                    <label>Valor pago (R$)<input name="AmountText" inputmode="decimal" placeholder="@remaining.ToString("0.00", culture)" /></label>
+                                    <label>Dia do pagamento<input name="PaidAt" type="date" value="@Model.TodayBrazil.ToString("yyyy-MM-dd")" required /></label>
+                                    <button type="submit" class="party-button">Confirmar pagamento</button>
+                                </form>
+                            </details>
+                        }
+                    </article>
+                }
+            </div>
+        </section>
+
+        <section class="party-card" aria-labelledby="partyHistoryTitle">
+            <div class="party-section-heading"><div><span class="party-eyebrow">Histórico</span><h2 id="partyHistoryTitle">O que já foi pago</h2></div><i class="bi bi-check2-circle" aria-hidden="true"></i></div>
+            @foreach (var payment in Model.Snapshot.Payments.OrderByDescending(item => item.PaidAt))
+            {
+                <div class="party-history-row"><div><strong>@payment.Description</strong><small>@payment.Category · @payment.PaidAt.ToString("dd/MM/yyyy")</small></div><strong>@payment.Amount.ToString("C", culture)</strong></div>
+            }
+        </section>
+    }
+</main>

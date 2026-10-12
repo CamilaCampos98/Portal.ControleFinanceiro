@@ -641,7 +641,9 @@ body.home-app-body {
         z-index: 1030;
         min-height: 64px;
         display: grid;
-        grid-template-columns: repeat(7, 1fr);
+        grid-template-columns: repeat(8, minmax(42px, 1fr));
+        overflow-x: auto;
+        scrollbar-width: none;
         padding: 0.35rem;
         border: 1px solid var(--line);
         border-radius: 18px;
@@ -663,6 +665,8 @@ body.home-app-body {
         font-weight: 700;
         text-decoration: none;
     }
+
+    .home-bottom-nav::-webkit-scrollbar { display: none; }
 
     .home-bottom-nav a i { font-size: 1.15rem; }
 
