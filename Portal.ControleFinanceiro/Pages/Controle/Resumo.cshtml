@@ -123,14 +123,16 @@
                 </div>
             </div>
 
-            @if (Model.FechamentoFerias?.HasPlannedVacation == true)
+            @if (Model.FechamentoFerias is { HasPlannedVacation: true } ||
+                Model.FechamentoFerias is { HasGuardado: true } ||
+                Model.FechamentoFerias is { IsClosed: true })
             {
                 <div class="insight-list mt-3">
                     <div class="insight insight-good d-flex flex-wrap align-items-center justify-content-between gap-3">
                         <div>
-                            <strong>Fechamento para férias</strong>
+                            <strong>Fechamento do período</strong>
                             <button type="button" class="btn btn-link btn-sm p-0 align-baseline" aria-label="Para que serve fechar o período?"
-                                    title="Depois de conferir as faturas, reduz o Guardado deste período somente se for necessário para preservar R$ 200 de saldo. Prioriza o Guardado livre e, se precisar usar reservas, ajusta primeiro as férias mais próximas. Não fecha automaticamente pela data do cartão.">
+                                    title="Depois de conferir as faturas, reduz o Guardado deste período somente se for necessário para preservar R$ 200 de saldo. Se houver férias, ajusta também as reservas planejadas. Não fecha automaticamente pela data do cartão.">
                                 <i class="bi bi-info-circle" aria-hidden="true"></i>
                             </button>
                             <div class="small">
@@ -154,12 +156,28 @@
                             </div>
                         </div>
                         <form method="post" asp-page-handler="FecharPeriodoFerias"
-                              onsubmit="return confirm('Você conferiu as faturas e deseja fechar este período para o planejamento das férias?');">
+                              id="formFechamentoPeriodo"
+                              onsubmit="return confirm('Você conferiu todas as faturas e deseja fechar este período?');">
                             <input type="hidden" name="pessoa" value="@Model.Resumo.Pessoa" />
                             <input type="hidden" name="periodo" value="@Model.Resumo.Periodo" />
                             <input type="hidden" name="saldoEsperado" value="@Model.FechamentoFerias.CurrentBalance.ToString(cultura)" />
                             <input type="hidden" name="reducaoEsperada" value="@Model.FechamentoFerias.ReductionNeeded.ToString(cultura)" />
-                            <button type="submit" class="btn btn-success" disabled="@(!Model.FechamentoFerias.CanClose)">
+                            @if (Model.FechamentoFerias.CanClose && Model.FechamentoFerias.CardsToReview.Count > 0)
+                            {
+                                <fieldset class="mb-2">
+                                    <legend class="fs-6 mb-1">Confira as faturas deste período</legend>
+                                    <p class="small text-muted mb-2">A data prevista não confirma que todos os lançamentos foram importados.</p>
+                                    @foreach (var card in Model.FechamentoFerias.CardsToReview)
+                                    {
+                                        <label class="d-flex align-items-center gap-2 mb-1">
+                                            <input type="checkbox" class="form-check-input m-0 closing-card-check"
+                                                   name="cartoesConferidos" value="@card.Name" required />
+                                            <span>@card.Name@if (card.ClosingDate.HasValue) { <small class="text-muted">· fechamento previsto @card.ClosingDate.Value.ToString("dd/MM/yyyy")</small> }</span>
+                                        </label>
+                                    }
+                                </fieldset>
+                            }
+                            <button type="submit" class="btn btn-success" disabled="@(!Model.FechamentoFerias.CanClose || Model.FechamentoFerias.CardsToReview.Count > 0)">
                                 <i class="bi bi-check2-circle" aria-hidden="true"></i> Fechar período
                             </button>
                         </form>
@@ -735,6 +753,18 @@
 
 @section Scripts {
     <script>
+        const closingForm = document.getElementById('formFechamentoPeriodo');
+        if (closingForm) {
+            const cardChecks = Array.from(closingForm.querySelectorAll('.closing-card-check'));
+            const closeButton = closingForm.querySelector('button[type="submit"]');
+            if (cardChecks.length && closeButton) {
+                const updateClosingButton = () => {
+                    closeButton.disabled = !cardChecks.every(input => input.checked);
+                };
+                cardChecks.forEach(input => input.addEventListener('change', updateClosingButton));
+                updateClosingButton();
+            }
+        }
         document.addEventListener('DOMContentLoaded', async function () {
             const modalElement = document.getElementById('modalRegistrarCompraResumo');
             const form = document.getElementById('formNovaCompraResumo');

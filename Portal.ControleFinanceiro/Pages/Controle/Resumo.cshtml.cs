@@ -105,7 +105,7 @@ public class ResumoModel : PageModel
     }
 
     public async Task<IActionResult> OnPostFecharPeriodoFeriasAsync(string pessoa, string periodo,
-        decimal saldoEsperado, decimal reducaoEsperada)
+        decimal saldoEsperado, decimal reducaoEsperada, List<string>? cartoesConferidos)
     {
         Filtro = new FiltroResumo { Pessoa = pessoa, Periodo = periodo };
         try
@@ -114,7 +114,7 @@ public class ResumoModel : PageModel
             var response = await client.PostAsJsonAsync($"{UrlApi}Compra/Ferias/FechamentoPeriodo", new
             {
                 Person = pessoa, Period = periodo, ExpectedBalance = saldoEsperado,
-                ExpectedReduction = reducaoEsperada
+                ExpectedReduction = reducaoEsperada, ReviewedCards = cartoesConferidos ?? new List<string>()
             });
             if (!response.IsSuccessStatusCode)
             {
@@ -126,7 +126,7 @@ public class ResumoModel : PageModel
             }
             else
             {
-                Mensagem = "Período fechado. O Guardado foi ajustado e as reservas de férias foram atualizadas.";
+                Mensagem = "Período fechado. O Guardado foi ajustado, se necessário.";
                 Sucesso = true;
             }
         }
@@ -162,6 +162,7 @@ public class ResumoModel : PageModel
     public sealed class FechamentoFeriasPreview
     {
         public bool HasPlannedVacation { get; set; }
+        public bool HasGuardado { get; set; }
         public bool IsClosed { get; set; }
         public bool CanClose { get; set; }
         public decimal CurrentBalance { get; set; }
@@ -170,7 +171,14 @@ public class ResumoModel : PageModel
         public decimal ProjectedBalance { get; set; }
         public decimal TripReserveShortfall { get; set; }
         public decimal IncomeReserveShortfall { get; set; }
+        public List<CartaoParaConferir> CardsToReview { get; set; } = new();
         public string? Message { get; set; }
+    }
+
+    public sealed class CartaoParaConferir
+    {
+        public string Name { get; set; } = string.Empty;
+        public DateTime? ClosingDate { get; set; }
     }
 
     private void OrdenarEPaginarCompras()
