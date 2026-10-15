@@ -111,7 +111,7 @@
                                 <label><input type="checkbox" name="SelectedMonths" value="@month.ToString("yyyy-MM", CultureInfo.InvariantCulture)" /> @month.ToString("MMM/yy", culture)</label>
                             }
                         </div></fieldset>
-                        <label>Parcela mínima (R$)<input name="MinimumText" inputmode="decimal" value="100,00" required /><small>Para lembrancinhas, selecione até três meses: faltam R$ 397 e cada parcela deve ter pelo menos R$ 100.</small></label>
+                        <label>Parcela mínima prevista (R$)<input name="MinimumText" inputmode="decimal" value="100,00" required /><small>É o piso do planejamento, não uma cobrança fixa. Para lembrancinhas, selecione até três meses: faltam R$ 397.</small></label>
                         <label>Dia previsto para pagar<input name="DueDay" type="number" min="1" max="31" value="15" required /><small>Em meses mais curtos, será usado o último dia do mês.</small></label>
                         <button type="submit" class="party-button">Criar parcelas</button>
                     </form>
@@ -143,7 +143,7 @@
                                 <form method="post" asp-page-handler="Pay" class="party-pay-form">
                                     <input type="hidden" name="InstallmentId" value="@installment.Id" />
                                     <input type="hidden" name="PaymentId" value="@Guid.NewGuid().ToString("N")" />
-                                    <label>Valor pago (R$)<input name="AmountText" inputmode="decimal" placeholder="@remaining.ToString("0.00", culture)" /><small>Pode pagar menos ou mais. O excedente abate as próximas parcelas deste item.</small></label>
+                                    <label>Valor pago (R$)<input name="AmountText" inputmode="decimal" placeholder="@remaining.ToString("0.00", culture)" /><small>Se pagar menos, a diferença passa à próxima parcela do item. Se pagar mais, o excedente a abate.</small></label>
                                     <label>Dia do pagamento<input name="PaidAt" type="date" value="@Model.TodayBrazil.ToString("yyyy-MM-dd")" required /></label>
                                     <button type="submit" class="party-button">Confirmar pagamento</button>
                                 </form>

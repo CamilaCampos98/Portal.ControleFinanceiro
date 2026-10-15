@@ -2,5 +2,5 @@ namespace Portal.ControleFinanceiro;
 
 public static class ApplicationVersion
 {
-    public const string Current = "20261012.v1";
+    public const string Current = "20261015.v1";
 }
