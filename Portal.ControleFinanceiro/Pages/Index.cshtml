@@ -66,6 +66,17 @@
             </div>
         </section>
     }
+    else if (Model.ResumoGeral?.Any() == true && Model.ResumoAtual == null)
+    {
+        <section class="home-state home-state--error" role="alert">
+            <i class="bi bi-exclamation-triangle" aria-hidden="true"></i>
+            <div>
+                <h1 id="homeTitle">Não foi possível carregar o período @Model.PeriodoAtual</h1>
+                <p>@(Model.Erro ?? "Os detalhes financeiros estão indisponíveis no momento. Os dados não foram alterados.")</p>
+                <a class="btn btn-outline-danger" asp-page="/Index"><i class="bi bi-arrow-clockwise" aria-hidden="true"></i> Tentar novamente</a>
+            </div>
+        </section>
+    }
     else if (Model.ResumoGeral?.Any() == true)
     {
         <header class="home-heading">

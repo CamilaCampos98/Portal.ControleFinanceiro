@@ -51,6 +51,7 @@ namespace Portal.ControleFinanceiro.Pages
 
                     ResumoGeral = JsonSerializer.Deserialize<List<ResumoPessoaMesDTO>>(content, options) ?? new();
                     Sucesso = true;
+                    PeriodoAtual = PeriodoDisponivel(ResumoGeral, User.Identity?.Name, DateTime.Today);
 
                     try
                     {
@@ -59,6 +60,7 @@ namespace Portal.ControleFinanceiro.Pages
                     catch (Exception ex)
                     {
                         _logger.LogWarning(ex, "Não foi possível carregar os detalhes do período atual da tela inicial.");
+                        Erro = "Os detalhes do período estão temporariamente indisponíveis. Os dados não foram alterados.";
                         ComprasRecentes = new List<UltimaCompraDTO>();
                     }
                 }
@@ -85,12 +87,14 @@ namespace Portal.ControleFinanceiro.Pages
             if (string.IsNullOrWhiteSpace(usuarioLogado) || string.IsNullOrWhiteSpace(urlApi))
                 return;
 
-            PeriodoAtual = await ObterPeriodoAtualItauAsync(httpClient, urlApi, usuarioLogado);
-            PeriodoAtual ??= ResumoGeral?
-                .Where(item => item.Pessoa.Equals(usuarioLogado, StringComparison.OrdinalIgnoreCase))
-                .Select(item => item.MesAno)
-                .OrderByDescending(ConverterPeriodo)
-                .FirstOrDefault();
+            try
+            {
+                PeriodoAtual = await ObterPeriodoAtualItauAsync(httpClient, urlApi, usuarioLogado) ?? PeriodoAtual;
+            }
+            catch (Exception exception) when (exception is HttpRequestException or TaskCanceledException or JsonException)
+            {
+                _logger.LogWarning(exception, "Não foi possível consultar o fechamento do cartão Itaú; usando o período disponível.");
+            }
 
             if (string.IsNullOrWhiteSpace(PeriodoAtual))
                 return;
@@ -103,7 +107,11 @@ namespace Portal.ControleFinanceiro.Pages
 
             var response = await httpClient.GetAsync(url);
             if (!response.IsSuccessStatusCode)
+            {
+                _logger.LogWarning("Resumo do período {Periodo} indisponível: HTTP {StatusCode}.",
+                    PeriodoAtual, (int)response.StatusCode);
                 return;
+            }
 
             var json = await response.Content.ReadAsStringAsync();
             var resumo = JsonSerializer.Deserialize<ResumoPeriodoDTO>(json, options);
@@ -159,6 +167,19 @@ namespace Portal.ControleFinanceiro.Pages
                 out var data)
                 ? data
                 : DateTime.MinValue;
+        }
+
+        private static string? PeriodoDisponivel(IEnumerable<ResumoPessoaMesDTO> resumos, string? pessoa,
+            DateTime hoje)
+        {
+            if (string.IsNullOrWhiteSpace(pessoa)) return null;
+            var inicioMes = new DateTime(hoje.Year, hoje.Month, 1);
+            var periodos = resumos.Where(item => string.Equals(item.Pessoa, pessoa,
+                    StringComparison.OrdinalIgnoreCase))
+                .Select(item => new { item.MesAno, Data = ConverterPeriodo(item.MesAno) })
+                .Where(item => item.Data != DateTime.MinValue)
+                .OrderBy(item => item.Data).ToList();
+            return periodos.LastOrDefault(item => item.Data <= inicioMes)?.MesAno ?? periodos.FirstOrDefault()?.MesAno;
         }
 
         private static async Task<string?> ObterPeriodoAtualItauAsync(
