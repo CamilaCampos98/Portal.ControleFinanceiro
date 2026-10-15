@@ -143,7 +143,7 @@
                                 <form method="post" asp-page-handler="Pay" class="party-pay-form">
                                     <input type="hidden" name="InstallmentId" value="@installment.Id" />
                                     <input type="hidden" name="PaymentId" value="@Guid.NewGuid().ToString("N")" />
-                                    <label>Valor pago (R$)<input name="AmountText" inputmode="decimal" placeholder="@remaining.ToString("0.00", culture)" /></label>
+                                    <label>Valor pago (R$)<input name="AmountText" inputmode="decimal" placeholder="@remaining.ToString("0.00", culture)" /><small>Pode pagar menos ou mais. O excedente abate as próximas parcelas deste item.</small></label>
                                     <label>Dia do pagamento<input name="PaidAt" type="date" value="@Model.TodayBrazil.ToString("yyyy-MM-dd")" required /></label>
                                     <button type="submit" class="party-button">Confirmar pagamento</button>
                                 </form>
