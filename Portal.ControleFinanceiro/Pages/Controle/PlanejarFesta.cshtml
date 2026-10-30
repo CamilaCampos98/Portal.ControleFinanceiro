@@ -6,17 +6,29 @@
     Layout = "_HomeLayout";
     var culture = CultureInfo.GetCultureInfo("pt-BR");
     var paidPercent = Model.KnownTotal > 0 ? Math.Clamp(Model.PaidTotal / Model.KnownTotal * 100, 0, 100) : 0;
+    ViewData["PartyHouses"] = Model.Snapshot.Houses;
 }
 <link rel="stylesheet" href="~/css/planejar-festa.css" asp-append-version="true" />
+<link rel="stylesheet" href="~/css/party-guests-theme.css" asp-append-version="true" />
 
 <main class="party-page">
     <header class="party-heading">
-        <span class="party-eyebrow">Planejamento</span>
-        <h1><i class="bi bi-balloon-heart" aria-hidden="true"></i> Festa da Lívia</h1>
-        @if (Model.Snapshot.Event != null)
-        {
-            <p>1º aniversário · @Model.Snapshot.Event.Date.ToString("dd/MM/yyyy")</p>
-        }
+        <div class="party-heading-row">
+            <div>
+                <span class="party-eyebrow">Planejamento</span>
+                <h1><i class="bi bi-balloon-heart" aria-hidden="true"></i> Festa da Lívia</h1>
+                @if (Model.Snapshot.Event != null)
+                {
+                    <p>1º aniversário · @Model.Snapshot.Event.Date.ToString("dd/MM/yyyy")</p>
+                }
+            </div>
+            @if (Model.Snapshot.Event != null)
+            {
+                <button type="button" class="party-button party-guests-trigger" data-bs-toggle="modal" data-bs-target="#partyGuestsModal" aria-controls="partyGuestsModal">
+                    <i class="bi bi-people" aria-hidden="true"></i> Convidados <span>@Model.Snapshot.Guests.Count</span>
+                </button>
+            }
+        </div>
     </header>
 
     @if (!string.IsNullOrWhiteSpace(Model.Error)) { <div class="alert alert-warning" role="alert">@Model.Error</div> }
@@ -163,3 +175,237 @@
         </section>
     }
 </main>
+
+@if (Model.Snapshot.Event != null)
+{
+    <div class="modal fade party-guests-modal" id="partyGuestsModal" tabindex="-1" aria-labelledby="partyGuestsTitle" aria-hidden="true">
+        <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable modal-fullscreen-md-down">
+            <div class="modal-content party-list-surface">
+                <div class="modal-header party-list-hero">
+                    <div><span class="party-list-eyebrow">✦ Festa de 1 ano ✦</span><h2 class="modal-title" id="partyGuestsTitle">Convidados da <em>Lívia</em></h2><p>Uma lista encantada para organizar adultos e crianças.</p></div>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+                </div>
+                <div class="modal-body party-list-body">
+                    @if (Model.GuestsOpen && !string.IsNullOrWhiteSpace(Model.Error)) { <div class="party-list-alert" role="alert">@Model.Error</div> }
+                    @if (ViewContext.HttpContext.Request.Query["guests"].Count > 0 && !string.IsNullOrWhiteSpace(Model.Notice)) { <div class="party-list-alert is-success" role="status">@Model.Notice</div> }
+                    @if (Model.BoysOverOrder > 0) { <div class="party-list-alert" role="alert">Atenção: faltam @Model.BoysOverOrder lembrancinha(s) masculina(s) para os meninos da lista.</div> }
+                    @if (Model.GirlsOverOrder > 0) { <div class="party-list-alert" role="alert">Atenção: faltam @Model.GirlsOverOrder lembrancinha(s) feminina(s) para as meninas da lista.</div> }
+                    @if (Model.AdultsOverOrder > 0) { <div class="party-list-alert" role="alert">Atenção: faltam @Model.AdultsOverOrder lembrancinha(s) para as casas com adultos.</div> }
+                    <nav class="party-list-tabs" aria-label="Áreas da lista">
+                        <button type="button" class="is-active" data-party-tab="guests" aria-selected="true">♛ Convidados</button>
+                        <button type="button" data-party-tab="houses" aria-selected="false">⌂ Casas e lembrancinhas</button>
+                    </nav>
+                    <section class="party-list-summary" aria-label="Resumo dos convidados">
+                        <div class="is-total"><span>✦</span><strong>@Model.Snapshot.Guests.Count</strong><small>Total</small></div>
+                        <div><span>♛</span><strong>@Model.Snapshot.Guests.Count(g => !g.IsChild)</strong><small>Adultos</small></div>
+                        <div class="is-child"><span>♥</span><strong>@Model.Snapshot.Guests.Count(g => g.IsChild)</strong><small>Crianças</small></div>
+                        <div><span>♜</span><strong>@Model.Snapshot.Guests.Count(g => g.IsChild && g.Gender == "Menino")</strong><small>Meninos</small></div>
+                        <div><span>♦</span><strong>@Model.Snapshot.Guests.Count(g => g.IsChild && g.Gender == "Menina")</strong><small>Meninas</small></div>
+                        <div><span>⌂</span><strong>@Model.TotalSouvenirCount</strong><small>Lembrancinhas</small></div>
+                    </section>
+
+                    <div class="party-list-pane" data-party-pane="guests">
+                        <div class="party-list-columns">
+                            <section class="party-list-panel party-list-form-panel" aria-labelledby="partyGuestFormTitle">
+                                <div class="party-list-panel-heading"><span class="party-list-heading-mark">✦</span><div><small id="partyGuestFormKicker">Novo cadastro</small><h3 id="partyGuestFormTitle">Adicionar convidado</h3></div></div>
+                                <form method="post" asp-page-handler="AddGuest" id="partyGuestForm" data-add-action="@Url.Page("/Controle/PlanejarFesta", "AddGuest")" data-edit-action="@Url.Page("/Controle/PlanejarFesta", "EditGuest")">
+                                    <input type="hidden" name="GuestId" value="@Model.GuestId" />
+                                    <label>Nome<input name="GuestName" value="@Model.GuestName" placeholder="Digite o nome completo" required maxlength="120" autocomplete="off" /></label>
+                                    <fieldset><legend>É criança?</legend><div class="party-list-choices">
+                                        <label><input type="radio" name="GuestIsChild" value="false" checked="@(!Model.GuestIsChild)" /><span>♛ Não</span></label>
+                                        <label><input type="radio" name="GuestIsChild" value="true" checked="@(Model.GuestIsChild)" /><span>♥ Sim</span></label>
+                                    </div></fieldset>
+                                    <fieldset id="partyGuestGenderGroup" hidden="@(!Model.GuestIsChild)"><legend>Menino ou menina?</legend><div class="party-list-choices">
+                                        <label><input type="radio" name="GuestGender" value="Menino" checked="@(Model.GuestGender == "Menino")" /><span>♜ Menino</span></label>
+                                        <label><input type="radio" name="GuestGender" value="Menina" checked="@(Model.GuestGender == "Menina")" /><span>♦ Menina</span></label>
+                                    </div></fieldset>
+                                    <label>Casa <small>(opcional)</small><select name="GuestHouseId"><option value="">Sem casa</option>@foreach (var house in Model.Snapshot.Houses.OrderBy(h => h.Name)) { <option value="@house.Id" selected="@(Model.GuestHouseId == house.Id)">@house.Name</option> }</select></label>
+                                    <label>Observações <small>(opcional)</small><textarea name="GuestNotes" maxlength="500" rows="3" placeholder="Ex.: cadeira infantil, restrição alimentar...">@Model.GuestNotes</textarea></label>
+                                    <div class="party-list-form-actions"><button type="button" id="partyGuestCancel" class="party-list-secondary" hidden>Cancelar</button><button type="submit" class="party-list-primary" id="partyGuestSubmit">Adicionar à lista</button></div>
+                                </form>
+                            </section>
+                            <section class="party-list-panel party-list-results" aria-labelledby="partyGuestListTitle">
+                                <div class="party-list-panel-heading is-spread"><div><small>Lista completa</small><h3 id="partyGuestListTitle">Quem vem para o baile?</h3></div><span>@Model.Snapshot.Guests.Count convidado(s)</span></div>
+                                @if (Model.Snapshot.Guests.Count == 0) { <p class="party-list-empty">A lista ainda está vazia. Cadastre a primeira pessoa.</p> }
+                                @foreach (var group in new[] { (Title: "Adultos", Icon: "♛", IsChild: false), (Title: "Crianças", Icon: "♥", IsChild: true) })
+                                {
+                                    var guests = Model.Snapshot.Guests.Where(g => g.IsChild == group.IsChild).OrderBy(g => g.Name).ToList();
+                                    <div class="party-list-group"><div class="party-list-group-heading"><span>@group.Icon</span><h4>@group.Title</h4><b>@guests.Count</b></div>
+                                        @if (guests.Count == 0) { <p class="party-list-empty">Nenhum cadastro nesta categoria.</p> }
+                                        @foreach (var guest in guests) { <partial name="_PartyGuestRow" model="guest" /> }
+                                    </div>
+                                }
+                            </section>
+                        </div>
+                    </div>
+
+                    <div class="party-list-pane" data-party-pane="houses" hidden>
+                        <div class="party-list-columns">
+                            <section class="party-list-panel party-list-form-panel" aria-labelledby="partyHouseFormTitle">
+                                <div class="party-list-panel-heading"><span class="party-list-heading-mark">⌂</span><div><small id="partyHouseFormKicker">Nova casa</small><h3 id="partyHouseFormTitle">Criar uma casa</h3></div></div>
+                                <form method="post" asp-page-handler="AddHouse" id="partyHouseForm" data-add-action="@Url.Page("/Controle/PlanejarFesta", "AddHouse")" data-edit-action="@Url.Page("/Controle/PlanejarFesta", "EditHouse")">
+                                    <input type="hidden" name="HouseId" value="@Model.HouseId" />
+                                    <label>Nome da casa<input name="HouseName" value="@Model.HouseName" placeholder="Ex.: Casa da Larissa" required maxlength="120" autocomplete="off" /></label>
+                                    <fieldset><legend>Moradores <small>selecione as pessoas desta casa</small></legend>
+                                        <div class="party-list-residents">
+                                            @foreach (var guest in Model.Snapshot.Guests.OrderBy(g => g.Name))
+                                            {
+                                                var currentHouse = Model.Snapshot.Houses.FirstOrDefault(h => h.Id == guest.HouseId)?.Name;
+                                                <label hidden="@(!string.IsNullOrEmpty(guest.HouseId) && guest.HouseId != Model.HouseId)"><input type="checkbox" name="HouseGuestIds" value="@guest.Id" data-current-house="@guest.HouseId" checked="@(Model.HouseGuestIds.Contains(guest.Id))" /><span><strong>@guest.Name</strong><small>@(guest.IsChild ? "Criança" : "Adulto")@(currentHouse == null ? "" : $" · atualmente em {currentHouse}")</small></span></label>
+                                            }
+                                        </div>
+                                        <p class="party-list-empty" id="partyNoResidents" hidden>Nenhum convidado sem casa disponível.</p>
+                                    </fieldset>
+                                    <p class="party-list-help">Aqui aparecem apenas pessoas sem casa. Ao editar, você também vê os moradores atuais desta casa.</p>
+                                    <div class="party-list-form-actions"><button type="button" id="partyHouseCancel" class="party-list-secondary" hidden>Cancelar</button><button type="submit" class="party-list-primary" id="partyHouseSubmit">Criar casa</button></div>
+                                </form>
+                            </section>
+                            <section class="party-list-panel party-list-results" aria-labelledby="partyHouseListTitle">
+                                <div class="party-list-souvenir"><span>🎁</span><strong>@Model.TotalSouvenirCount</strong><p>lembrancinhas no total</p></div>
+                                <div class="party-list-gift-breakdown" aria-label="Separação das lembrancinhas">
+                                    <div><strong>@Model.AdultSouvenirCount</strong><span>Para adultos</span><small>Pedido: @(Model.Snapshot.Event?.AdultsOrdered?.ToString() ?? "não informado") · 1 por casa</small></div>
+                                    <div><strong>@Model.BoySouvenirCount</strong><span>Infantil masculina</span><small>Pedido: @(Model.Snapshot.Event?.BoysOrdered?.ToString() ?? "não informado")</small></div>
+                                    <div><strong>@Model.GirlSouvenirCount</strong><span>Infantil feminina</span><small>Pedido: @(Model.Snapshot.Event?.GirlsOrdered?.ToString() ?? "não informado")</small></div>
+                                </div>
+                                <details class="party-list-order-editor" open="@(Model.HousesOpen && !string.IsNullOrWhiteSpace(Model.Error))">
+                                    <summary>Editar quantidades encomendadas</summary>
+                                    <form method="post" asp-page-handler="SaveSouvenirOrder">
+                                        <label>Adultos<input type="number" name="AdultsOrdered" min="0" max="10000" step="1" required value="@(Model.HousesOpen && Model.Error != null ? Model.AdultsOrdered : Model.Snapshot.Event?.AdultsOrdered)" /></label>
+                                        <label>Masculinas<input type="number" name="BoysOrdered" min="0" max="10000" step="1" required value="@(Model.HousesOpen && Model.Error != null ? Model.BoysOrdered : Model.Snapshot.Event?.BoysOrdered)" /></label>
+                                        <label>Femininas<input type="number" name="GirlsOrdered" min="0" max="10000" step="1" required value="@(Model.HousesOpen && Model.Error != null ? Model.GirlsOrdered : Model.Snapshot.Event?.GirlsOrdered)" /></label>
+                                        <button type="submit" class="party-list-primary">Salvar pedido</button>
+                                    </form>
+                                </details>
+                                @if (Model.UnassignedAdults > 0) { <p class="party-list-warning">@Model.UnassignedAdults adulto(s) sem casa não entram nessa conta.</p> }
+                                @if (Model.UnclassifiedChildSouvenirs > 0) { <p class="party-list-warning">@Model.UnclassifiedChildSouvenirs criança(s) sem gênero definido entram no total, mas ainda precisam ser classificadas como lembrancinha masculina ou feminina.</p> }
+                                <div class="party-list-panel-heading is-spread"><div><small>Casas cadastradas</small><h3 id="partyHouseListTitle">Famílias do baile</h3></div><span>@Model.Snapshot.Houses.Count casa(s)</span></div>
+                                @if (Model.Snapshot.Houses.Count == 0) { <p class="party-list-empty">Nenhuma casa cadastrada ainda.</p> }
+                                <div class="party-list-house-list">
+                                    @foreach (var house in Model.Snapshot.Houses.OrderBy(h => h.Name))
+                                    {
+                                        var members = Model.Snapshot.Guests.Where(g => g.HouseId == house.Id).OrderBy(g => g.Name).ToList();
+                                        <article class="party-list-house"><div class="party-list-house-title"><span>⌂</span><div><h4>@house.Name</h4><small>@members.Count pessoa(s) · @(members.Any(g => !g.IsChild) ? "1 para adultos" : "0 para adultos") · @members.Count(g => g.IsChild) para crianças</small></div></div>
+                                            <div class="party-list-house-members">@if (members.Count == 0) { <em>Sem moradores</em> }@foreach (var member in members) { <span>@member.Name</span> }</div>
+                                            <div class="party-list-house-actions"><button type="button" data-party-edit-house data-id="@house.Id" data-name="@house.Name">Editar</button><form method="post" asp-page-handler="DeleteHouse" onsubmit="return confirm('Excluir esta casa? Os convidados ficarão sem casa.');"><input type="hidden" name="HouseId" value="@house.Id" /><button type="submit">Excluir</button></form></div>
+                                        </article>
+                                    }
+                                </div>
+                            </section>
+                        </div>
+                    </div>
+                    <p class="party-list-footer">🌹 <span>Era uma vez, o primeiro aniversário da Lívia</span> 🌹</p>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        const modal = document.getElementById('partyGuestsModal');
+        if (!modal) return;
+        const tabs = modal.querySelectorAll('[data-party-tab]');
+        const panes = modal.querySelectorAll('[data-party-pane]');
+        function showTab(name) {
+            tabs.forEach(tab => { const active = tab.dataset.partyTab === name; tab.classList.toggle('is-active', active); tab.setAttribute('aria-selected', String(active)); });
+            panes.forEach(pane => { pane.hidden = pane.dataset.partyPane !== name; });
+        }
+        tabs.forEach(tab => tab.addEventListener('click', () => showTab(tab.dataset.partyTab)));
+        const guestForm = document.getElementById('partyGuestForm');
+        const houseForm = document.getElementById('partyHouseForm');
+        const genderGroup = document.getElementById('partyGuestGenderGroup');
+        function syncGender() {
+            const isChild = guestForm.querySelector('[name="GuestIsChild"][value="true"]').checked;
+            genderGroup.hidden = !isChild;
+            genderGroup.querySelectorAll('input').forEach(input => { input.required = isChild; if (!isChild) input.checked = false; });
+        }
+        guestForm.querySelectorAll('[name="GuestIsChild"]').forEach(input => input.addEventListener('change', syncGender));
+        syncGender();
+        function resetGuest() {
+            guestForm.action = guestForm.dataset.addAction;
+            guestForm.querySelector('[name="GuestId"]').value = '';
+            guestForm.querySelector('[name="GuestName"]').value = '';
+            guestForm.querySelector('[name="GuestIsChild"][value="false"]').checked = true;
+            guestForm.querySelector('[name="GuestHouseId"]').value = '';
+            guestForm.querySelector('[name="GuestNotes"]').value = '';
+            syncGender();
+            document.getElementById('partyGuestFormKicker').textContent = 'Novo cadastro';
+            document.getElementById('partyGuestFormTitle').textContent = 'Adicionar convidado';
+            document.getElementById('partyGuestSubmit').textContent = 'Adicionar à lista';
+            document.getElementById('partyGuestCancel').hidden = true;
+        }
+        modal.querySelectorAll('[data-party-edit-guest]').forEach(button => button.addEventListener('click', () => {
+            showTab('guests');
+            guestForm.action = guestForm.dataset.editAction;
+            guestForm.querySelector('[name="GuestId"]').value = button.dataset.id;
+            guestForm.querySelector('[name="GuestName"]').value = button.dataset.name;
+            guestForm.querySelector('[name="GuestIsChild"][value="' + button.dataset.child + '"]').checked = true;
+            syncGender();
+            const gender = guestForm.querySelector('[name="GuestGender"][value="' + button.dataset.gender + '"]');
+            if (gender) gender.checked = true;
+            guestForm.querySelector('[name="GuestHouseId"]').value = button.dataset.house;
+            guestForm.querySelector('[name="GuestNotes"]').value = button.dataset.notes;
+            document.getElementById('partyGuestFormKicker').textContent = 'Editar cadastro';
+            document.getElementById('partyGuestFormTitle').textContent = 'Atualizar convidado';
+            document.getElementById('partyGuestSubmit').textContent = 'Salvar alterações';
+            document.getElementById('partyGuestCancel').hidden = false;
+            guestForm.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }));
+        document.getElementById('partyGuestCancel').addEventListener('click', resetGuest);
+        function updateResidentOptions(houseId) {
+            let visible = 0;
+            houseForm.querySelectorAll('.party-list-residents label').forEach(row => {
+                const input = row.querySelector('[name="HouseGuestIds"]');
+                const eligible = !input.dataset.currentHouse || input.dataset.currentHouse === houseId;
+                row.hidden = !eligible;
+                if (!eligible) input.checked = false;
+                if (eligible) visible++;
+            });
+            document.getElementById('partyNoResidents').hidden = visible > 0;
+        }
+        function resetHouse() {
+            houseForm.action = houseForm.dataset.addAction;
+            houseForm.querySelector('[name="HouseId"]').value = '';
+            houseForm.querySelector('[name="HouseName"]').value = '';
+            houseForm.querySelectorAll('[name="HouseGuestIds"]').forEach(input => input.checked = false);
+            updateResidentOptions('');
+            document.getElementById('partyHouseFormKicker').textContent = 'Nova casa';
+            document.getElementById('partyHouseFormTitle').textContent = 'Criar uma casa';
+            document.getElementById('partyHouseSubmit').textContent = 'Criar casa';
+            document.getElementById('partyHouseCancel').hidden = true;
+        }
+        modal.querySelectorAll('[data-party-edit-house]').forEach(button => button.addEventListener('click', () => {
+            showTab('houses');
+            houseForm.action = houseForm.dataset.editAction;
+            houseForm.querySelector('[name="HouseId"]').value = button.dataset.id;
+            houseForm.querySelector('[name="HouseName"]').value = button.dataset.name;
+            houseForm.querySelectorAll('[name="HouseGuestIds"]').forEach(input => input.checked = input.dataset.currentHouse === button.dataset.id);
+            updateResidentOptions(button.dataset.id);
+            document.getElementById('partyHouseFormKicker').textContent = 'Editar casa';
+            document.getElementById('partyHouseFormTitle').textContent = 'Atualizar moradores';
+            document.getElementById('partyHouseSubmit').textContent = 'Salvar alterações';
+            document.getElementById('partyHouseCancel').hidden = false;
+            houseForm.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }));
+        document.getElementById('partyHouseCancel').addEventListener('click', resetHouse);
+        if (guestForm.querySelector('[name="GuestId"]').value) {
+            guestForm.action = guestForm.dataset.editAction;
+            document.getElementById('partyGuestFormKicker').textContent = 'Editar cadastro';
+            document.getElementById('partyGuestFormTitle').textContent = 'Atualizar convidado';
+            document.getElementById('partyGuestSubmit').textContent = 'Salvar alterações';
+            document.getElementById('partyGuestCancel').hidden = false;
+        }
+        if (houseForm.querySelector('[name="HouseId"]').value) {
+            houseForm.action = houseForm.dataset.editAction;
+            document.getElementById('partyHouseFormKicker').textContent = 'Editar casa';
+            document.getElementById('partyHouseFormTitle').textContent = 'Atualizar moradores';
+            document.getElementById('partyHouseSubmit').textContent = 'Salvar alterações';
+            document.getElementById('partyHouseCancel').hidden = false;
+        }
+        updateResidentOptions(houseForm.querySelector('[name="HouseId"]').value);
+        const requestedTab = new URLSearchParams(location.search).get('guests');
+        showTab(requestedTab === 'houses' || @(Model.HousesOpen ? "true" : "false") ? 'houses' : 'guests');
+        if (requestedTab || @(Model.GuestsOpen ? "true" : "false")) {
+            if (window.bootstrap) bootstrap.Modal.getOrCreateInstance(modal).show();
+        }
+    });
+</script>

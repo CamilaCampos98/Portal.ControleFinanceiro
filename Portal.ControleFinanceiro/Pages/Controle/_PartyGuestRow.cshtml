@@ -1,0 +1,14 @@
+@model Portal.ControleFinanceiro.Pages.Controle.PlanejarFestaModel.PartyGuest
+@{
+    var houses = ViewData["PartyHouses"] as List<Portal.ControleFinanceiro.Pages.Controle.PlanejarFestaModel.PartyHouse>
+        ?? new List<Portal.ControleFinanceiro.Pages.Controle.PlanejarFestaModel.PartyHouse>();
+    var houseName = houses.FirstOrDefault(house => house.Id == Model.HouseId)?.Name;
+}
+<div class="party-list-guest">
+    <span class="party-list-avatar" aria-hidden="true">@Model.Name.FirstOrDefault()</span>
+    <div class="party-list-guest-info"><strong>@Model.Name</strong><small>@string.Join(" · ", new[] { Model.IsChild ? Model.Gender : "", Model.Notes, houseName }.Where(value => !string.IsNullOrWhiteSpace(value)))</small></div>
+    <div class="party-list-guest-actions">
+        <button type="button" data-party-edit-guest data-id="@Model.Id" data-name="@Model.Name" data-child="@(Model.IsChild ? "true" : "false")" data-gender="@Model.Gender" data-notes="@Model.Notes" data-house="@Model.HouseId">Editar</button>
+        <form method="post" asp-page-handler="DeleteGuest" onsubmit="return confirm('Excluir este convidado?');"><input type="hidden" name="GuestId" value="@Model.Id" /><button type="submit">Excluir</button></form>
+    </div>
+</div>

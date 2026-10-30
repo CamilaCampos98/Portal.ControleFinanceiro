@@ -18,6 +18,8 @@ public sealed class PlanejarFestaModel : PageModel
 
     public PartySnapshot Snapshot { get; private set; } = new();
     public string? Error { get; private set; }
+    public bool GuestsOpen { get; private set; }
+    public bool HousesOpen { get; private set; }
     [TempData] public string? Notice { get; set; }
 
     [BindProperty] public string Category { get; set; } = "";
@@ -31,6 +33,18 @@ public sealed class PlanejarFestaModel : PageModel
     [BindProperty] public string InstallmentId { get; set; } = "";
     [BindProperty] public string PaymentId { get; set; } = "";
     [BindProperty] public DateTime PaidAt { get; set; } = BrazilToday();
+    [BindProperty] public string GuestId { get; set; } = "";
+    [BindProperty] public string GuestName { get; set; } = "";
+    [BindProperty] public bool GuestIsChild { get; set; }
+    [BindProperty] public string GuestGender { get; set; } = "";
+    [BindProperty] public string GuestNotes { get; set; } = "";
+    [BindProperty] public string GuestHouseId { get; set; } = "";
+    [BindProperty] public string HouseId { get; set; } = "";
+    [BindProperty] public string HouseName { get; set; } = "";
+    [BindProperty] public List<string> HouseGuestIds { get; set; } = new();
+    [BindProperty] public int? BoysOrdered { get; set; }
+    [BindProperty] public int? GirlsOrdered { get; set; }
+    [BindProperty] public int? AdultsOrdered { get; set; }
     public DateTime TodayBrazil => BrazilToday();
 
     public decimal KnownTotal => Snapshot.Items.Sum(item => item.Amount ?? 0);
@@ -40,6 +54,20 @@ public sealed class PlanejarFestaModel : PageModel
         .Where(payment => payment.InstallmentId == null).Sum(payment => payment.Amount) -
         Snapshot.Installments.Sum(item => item.Amount));
     public int UnpricedCount => Snapshot.Items.Count(item => !item.Amount.HasValue);
+    public int AdultSouvenirCount => Snapshot.Houses.Count(house => Snapshot.Guests.Any(guest =>
+        guest.HouseId == house.Id && !guest.IsChild));
+    public int BoySouvenirCount => Snapshot.Guests.Count(guest => guest.IsChild &&
+        string.Equals(guest.Gender, "Menino", StringComparison.OrdinalIgnoreCase));
+    public int GirlSouvenirCount => Snapshot.Guests.Count(guest => guest.IsChild &&
+        string.Equals(guest.Gender, "Menina", StringComparison.OrdinalIgnoreCase));
+    public int ChildSouvenirCount => Snapshot.Guests.Count(guest => guest.IsChild);
+    public int UnclassifiedChildSouvenirs => ChildSouvenirCount - BoySouvenirCount - GirlSouvenirCount;
+    public int TotalSouvenirCount => AdultSouvenirCount + ChildSouvenirCount;
+    public int BoysOverOrder => Math.Max(0, BoySouvenirCount - (Snapshot.Event?.BoysOrdered ?? int.MaxValue));
+    public int GirlsOverOrder => Math.Max(0, GirlSouvenirCount - (Snapshot.Event?.GirlsOrdered ?? int.MaxValue));
+    public int AdultsOverOrder => Math.Max(0, AdultSouvenirCount - (Snapshot.Event?.AdultsOrdered ?? int.MaxValue));
+    public int UnassignedAdults => Snapshot.Guests.Count(guest => !guest.IsChild &&
+        string.IsNullOrWhiteSpace(guest.HouseId));
 
     public IReadOnlyList<DateTime> AvailableMonths
     {
@@ -135,25 +163,53 @@ public sealed class PlanejarFestaModel : PageModel
             new { paymentId = PaymentId, paidAt = PaidAt.Date, amount });
     }
 
-    private async Task<IActionResult> SendAsync(HttpMethod method, string path, object payload)
+    public Task<IActionResult> OnPostAddGuestAsync() => SendAsync(HttpMethod.Post, "Convidados", GuestPayload(), guests: true);
+    public Task<IActionResult> OnPostEditGuestAsync() => SendAsync(HttpMethod.Put,
+        $"Convidados/{Uri.EscapeDataString(GuestId)}", GuestPayload(), guests: true);
+    public Task<IActionResult> OnPostDeleteGuestAsync() => SendAsync(HttpMethod.Delete,
+        $"Convidados/{Uri.EscapeDataString(GuestId)}", null, guests: true);
+    public Task<IActionResult> OnPostAddHouseAsync() => SendAsync(HttpMethod.Post, "Casas",
+        new { name = HouseName, guestIds = HouseGuestIds }, guests: true, houses: true);
+    public Task<IActionResult> OnPostEditHouseAsync() => SendAsync(HttpMethod.Put,
+        $"Casas/{Uri.EscapeDataString(HouseId)}", new { name = HouseName, guestIds = HouseGuestIds }, guests: true, houses: true);
+    public Task<IActionResult> OnPostDeleteHouseAsync() => SendAsync(HttpMethod.Delete,
+        $"Casas/{Uri.EscapeDataString(HouseId)}", null, guests: true, houses: true);
+    public async Task<IActionResult> OnPostSaveSouvenirOrderAsync()
+    {
+        if (BoysOrdered is < 0 or > 10000 || GirlsOrdered is < 0 or > 10000 ||
+            AdultsOrdered is < 0 or > 10000 || BoysOrdered == null || GirlsOrdered == null || AdultsOrdered == null)
+            return await InvalidAsync("Informe as quantidades encomendadas para adultos, meninos e meninas.", guests: true, houses: true);
+        return await SendAsync(HttpMethod.Put, "Lembrancinhas",
+            new { boysOrdered = BoysOrdered.Value, girlsOrdered = GirlsOrdered.Value, adultsOrdered = AdultsOrdered.Value },
+            guests: true, houses: true);
+    }
+
+    private object GuestPayload() => new { name = GuestName, isChild = GuestIsChild,
+        gender = GuestGender, notes = GuestNotes, houseId = GuestHouseId };
+
+    private async Task<IActionResult> SendAsync(HttpMethod method, string path, object? payload,
+        bool guests = false, bool houses = false)
     {
         try
         {
             using var http = new HttpClient();
-            using var request = new HttpRequestMessage(method, ApiUrl(path)) { Content = JsonContent.Create(payload) };
+            using var request = new HttpRequestMessage(method, ApiUrl(path));
+            if (payload != null) request.Content = JsonContent.Create(payload);
             using var response = await http.SendAsync(request);
             if (!response.IsSuccessStatusCode)
-                return await InvalidAsync(await ReadErrorAsync(response));
-            Notice = "Festa atualizada.";
-            return RedirectToPage();
+                return await InvalidAsync(await ReadErrorAsync(response), guests, houses);
+            Notice = guests ? "Lista de convidados atualizada." : "Festa atualizada.";
+            return guests ? RedirectToPage(new { guests = houses ? "houses" : "guests" }) : RedirectToPage();
         }
         catch (Exception exception) when (exception is HttpRequestException or TaskCanceledException)
-        { return await InvalidAsync("Não foi possível conectar ao financeiro. Tente novamente."); }
+        { return await InvalidAsync("Não foi possível conectar ao financeiro. Tente novamente.", guests, houses); }
     }
 
-    private async Task<IActionResult> InvalidAsync(string message)
+    private async Task<IActionResult> InvalidAsync(string message, bool guests = false, bool houses = false)
     {
         Error = message;
+        GuestsOpen = guests;
+        HousesOpen = houses;
         await LoadAsync();
         return Page();
     }
@@ -210,8 +266,18 @@ public sealed class PlanejarFestaModel : PageModel
         public List<PartyItem> Items { get; set; } = new();
         public List<PartyInstallment> Installments { get; set; } = new();
         public List<PartyPayment> Payments { get; set; } = new();
+        public List<PartyGuest> Guests { get; set; } = new();
+        public List<PartyHouse> Houses { get; set; } = new();
     }
-    public sealed class PartyEvent { public string Id { get; set; } = ""; public string Name { get; set; } = ""; public DateTime Date { get; set; } }
+    public sealed class PartyEvent
+    {
+        public string Id { get; set; } = "";
+        public string Name { get; set; } = "";
+        public DateTime Date { get; set; }
+        public int? BoysOrdered { get; set; }
+        public int? GirlsOrdered { get; set; }
+        public int? AdultsOrdered { get; set; }
+    }
     public sealed class PartyItem
     {
         public string Id { get; set; } = "";
@@ -239,6 +305,22 @@ public sealed class PlanejarFestaModel : PageModel
         public string Description { get; set; } = "";
         public DateTime PaidAt { get; set; }
         public decimal Amount { get; set; }
+    }
+    public sealed class PartyGuest
+    {
+        public string Id { get; set; } = "";
+        public string EventId { get; set; } = "";
+        public string HouseId { get; set; } = "";
+        public string Name { get; set; } = "";
+        public bool IsChild { get; set; }
+        public string Gender { get; set; } = "";
+        public string Notes { get; set; } = "";
+    }
+    public sealed class PartyHouse
+    {
+        public string Id { get; set; } = "";
+        public string EventId { get; set; } = "";
+        public string Name { get; set; } = "";
     }
     private sealed class ApiError { public string Message { get; set; } = ""; }
 }
