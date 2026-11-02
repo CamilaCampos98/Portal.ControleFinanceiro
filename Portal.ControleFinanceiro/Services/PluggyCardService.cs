@@ -58,6 +58,10 @@ public sealed class PluggyCardService
                 var dateText = ReadString(transaction, "date");
                 if (dateText.Length < 10 || !DateTime.TryParseExact(dateText[..10], "yyyy-MM-dd",
                         CultureInfo.InvariantCulture, DateTimeStyles.None, out var date)) continue;
+                var purchaseDateText = ReadString(metadata, "purchaseDate");
+                DateTime? purchaseDate = purchaseDateText.Length >= 10 &&
+                    DateTime.TryParseExact(purchaseDateText[..10], "yyyy-MM-dd", CultureInfo.InvariantCulture,
+                        DateTimeStyles.None, out var parsedPurchaseDate) ? parsedPurchaseDate : null;
                 var billMonth = ReadString(metadata, "billForecastDate");
                 if (billMonth.Length != 7)
                     billMonth = billMonths.GetValueOrDefault(ReadString(metadata, "billId")) ?? "";
@@ -66,7 +70,7 @@ public sealed class PluggyCardService
                 result.Add(new PluggyCardTransaction(
                     id, date, ReadString(transaction, "description"), amount,
                     ReadString(metadata, "cardNumber"), Math.Max(1, ReadInt(metadata, "installmentNumber")),
-                    Math.Max(1, ReadInt(metadata, "totalInstallments")), billMonth));
+                    Math.Max(1, ReadInt(metadata, "totalInstallments")), billMonth, purchaseDate));
             }
             next = ReadString(document.RootElement, "next");
             if (next.Length > 0 && (!next.StartsWith('?') || next.Contains("//", StringComparison.Ordinal)))
@@ -145,10 +149,14 @@ public sealed class PluggyCardService
 }
 
 public sealed record PluggyCardTransaction(string Id, DateTime Date, string Description, decimal Amount,
-    string CardNumber, int InstallmentNumber, int TotalInstallments, string BillMonth)
+    string CardNumber, int InstallmentNumber, int TotalInstallments, string BillMonth, DateTime? PurchaseDate)
 {
     public string Person => CardNumber.EndsWith("8930", StringComparison.Ordinal) ||
         CardNumber.EndsWith("6235", StringComparison.Ordinal) ? "Camila" :
         CardNumber.EndsWith("5169", StringComparison.Ordinal) ||
         CardNumber.EndsWith("3008", StringComparison.Ordinal) ? "Diego" : "";
+
+    public DateTime InstallmentDate => PurchaseDate is { } purchaseDate
+        ? purchaseDate.AddMonths(TotalInstallments > 1 ? InstallmentNumber - 1 : 0)
+        : Date;
 };

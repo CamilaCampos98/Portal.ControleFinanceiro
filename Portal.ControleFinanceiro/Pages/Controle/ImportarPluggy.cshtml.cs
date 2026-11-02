@@ -12,6 +12,9 @@ namespace Portal.ControleFinanceiro.Pages.Controle;
 [Authorize]
 public sealed class ImportarPluggyModel : PageModel
 {
+    private const string CartaoCamila = "Itau Titular";
+    private const string CartaoDiego = "Itau Adicional";
+    private const string FonteFixa = "Salario";
     private static readonly JsonSerializerOptions JsonOptions = new() { PropertyNameCaseInsensitive = true };
     private readonly PluggyCardService _pluggy;
     private readonly IConfiguration _configuration;
@@ -26,14 +29,10 @@ public sealed class ImportarPluggyModel : PageModel
 
     [BindProperty(SupportsGet = true)] public string Mes { get; set; } = DateTime.Now.ToString("yyyy-MM", CultureInfo.InvariantCulture);
     [BindProperty] public List<string> Selecionados { get; set; } = new();
-    [BindProperty] public string CartaoCamila { get; set; } = "";
-    [BindProperty] public string CartaoDiego { get; set; } = "";
-    [BindProperty] public string Fonte { get; set; } = "Salario";
     [TempData] public string? Aviso { get; set; }
     public string? Erro { get; private set; }
     public bool Configurado => _pluggy.IsConfigured;
     public IReadOnlyList<PluggyCardTransaction> Compras { get; private set; } = Array.Empty<PluggyCardTransaction>();
-    public IReadOnlyList<string> Cartoes { get; private set; } = Array.Empty<string>();
 
     public async Task OnGetAsync(CancellationToken cancellationToken)
     {
@@ -60,10 +59,31 @@ public sealed class ImportarPluggyModel : PageModel
             var available = ForMonth(all, month).ToDictionary(item => item.Id);
             using var api = _httpClientFactory.CreateClient();
             var apiUrl = _configuration["UrlApi"] ?? throw new InvalidOperationException("API financeira não configurada.");
+            using var compatibility = await api.GetAsync($"{apiUrl}Compra/ImportacaoPluggyDisponivel", cancellationToken);
+            if (!compatibility.IsSuccessStatusCode)
+            {
+                await CarregarAsync(cancellationToken);
+                Erro = "A API financeira ainda não recebeu a atualização das datas. Nenhuma compra foi importada; tente novamente após a atualização do servidor.";
+                return Page();
+            }
             var cardResponse = await api.GetAsync($"{apiUrl}Compra/GetCartoes", cancellationToken);
             cardResponse.EnsureSuccessStatusCode();
             var allowedCards = await cardResponse.Content.ReadFromJsonAsync<List<string>>(JsonOptions, cancellationToken) ?? new();
-            var known = new Dictionary<string, HashSet<string>>(StringComparer.OrdinalIgnoreCase);
+            var registeredCards = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+            foreach (var person in Selecionados.Where(available.ContainsKey)
+                         .Select(id => available[id].Person).Where(person => person is "Camila" or "Diego").Distinct())
+            {
+                var expectedCard = person == "Camila" ? CartaoCamila : CartaoDiego;
+                var registeredCard = allowedCards.FirstOrDefault(card =>
+                    string.Equals(card?.Trim(), expectedCard, StringComparison.OrdinalIgnoreCase));
+                if (registeredCard is null)
+                {
+                    await CarregarAsync(cancellationToken);
+                    Erro = $"O cartão {expectedCard} não está cadastrado no financeiro. Nenhuma compra foi importada.";
+                    return Page();
+                }
+                registeredCards[person] = registeredCard;
+            }
             var imported = 0;
             var skipped = 0;
             var failed = 0;
@@ -73,17 +93,8 @@ public sealed class ImportarPluggyModel : PageModel
                 if (!available.TryGetValue(id, out var transaction)) { skipped++; continue; }
                 var person = transaction.Person;
                 if (person is not ("Camila" or "Diego")) { skipped++; continue; }
-                var card = person == "Camila" ? CartaoCamila : CartaoDiego;
-                if (!allowedCards.Contains(card, StringComparer.OrdinalIgnoreCase)) { skipped++; continue; }
-                if (!known.TryGetValue(person, out var existing))
-                {
-                    using var existingResponse = await api.GetAsync(
-                        $"{apiUrl}Compra/GetCompras?pessoa={Uri.EscapeDataString(person)}", cancellationToken);
-                    existingResponse.EnsureSuccessStatusCode();
-                    existing = await existingResponse.Content.ReadFromJsonAsync<HashSet<string>>(JsonOptions, cancellationToken) ?? new();
-                    known[person] = existing;
-                }
-
+                var card = registeredCards[person];
+                var firstDate = transaction.InstallmentDate;
                 var periodUrl = $"{apiUrl}Compra/PeriodoFatura?pessoa={Uri.EscapeDataString(person)}" +
                     $"&mesAno={Uri.EscapeDataString(month.ToString("MM/yyyy", CultureInfo.InvariantCulture))}" +
                     $"&cartao={Uri.EscapeDataString(card)}";
@@ -93,16 +104,10 @@ public sealed class ImportarPluggyModel : PageModel
                     cancellationToken: cancellationToken);
                 var start = period.RootElement.GetProperty("inicio").GetDateTime().Date;
                 var end = period.RootElement.GetProperty("fim").GetDateTime().Date;
-                var firstDate = transaction.Date;
-                while (firstDate < start) firstDate = firstDate.AddMonths(1);
-                if (firstDate > end) { skipped++; continue; }
+                if (firstDate < start || firstDate > end) { skipped++; continue; }
 
                 var remaining = transaction.TotalInstallments - transaction.InstallmentNumber + 1;
                 if (remaining < 1) { skipped++; continue; }
-                var projectedKeys = Enumerable.Range(0, remaining).Select(index =>
-                    PurchaseKey(person, firstDate.AddMonths(index), transaction.Amount)).ToList();
-                if (projectedKeys.Any(existing.Contains)) { skipped++; continue; }
-
                 var purchase = new CompraModel
                 {
                     Pessoa = person,
@@ -112,16 +117,18 @@ public sealed class ImportarPluggyModel : PageModel
                     FormaPgto = "C",
                     TotalParcelas = transaction.TotalInstallments,
                     ParcelaInicial = transaction.InstallmentNumber,
-                    Fonte = string.IsNullOrWhiteSpace(Fonte) ? "Salario" : Fonte.Trim(),
-                    Cartao = card
+                    Fonte = FonteFixa,
+                    Cartao = card,
+                    ImportacaoPluggy = true,
+                    DataCompraOriginal = transaction.PurchaseDate
                 };
                 using var response = await api.PostAsJsonAsync($"{apiUrl}Compra/RegistrarCompra", purchase, cancellationToken);
+                if (response.StatusCode == System.Net.HttpStatusCode.Conflict) { skipped++; continue; }
                 if (!response.IsSuccessStatusCode) { failed++; continue; }
                 imported++;
-                foreach (var key in projectedKeys) existing.Add(key);
             }
 
-            Aviso = $"Importadas: {imported}. Ignoradas (já existentes ou sem dados completos): {skipped}. Falhas: {failed}.";
+            Aviso = $"Importadas: {imported}. Ignoradas (já existentes, sem dados completos ou em outra fatura): {skipped}. Falhas: {failed}.";
             return RedirectToPage(new { mes = Mes });
         }
         catch (Exception)
@@ -143,11 +150,7 @@ public sealed class ImportarPluggyModel : PageModel
         try
         {
             var all = await _pluggy.ReadInfiniteTransactionsAsync(cancellationToken);
-            Compras = ForMonth(all, month).OrderByDescending(item => item.Date).ToList();
-            using var api = _httpClientFactory.CreateClient();
-            using var response = await api.GetAsync($"{_configuration["UrlApi"]}Compra/GetCartoes", cancellationToken);
-            if (response.IsSuccessStatusCode)
-                Cartoes = await response.Content.ReadFromJsonAsync<List<string>>(JsonOptions, cancellationToken) ?? new();
+            Compras = ForMonth(all, month).OrderByDescending(item => item.InstallmentDate).ToList();
         }
         catch (Exception)
         {
@@ -160,9 +163,6 @@ public sealed class ImportarPluggyModel : PageModel
 
     private static IEnumerable<PluggyCardTransaction> ForMonth(IEnumerable<PluggyCardTransaction> transactions, DateTime month) =>
         transactions.Where(item => item.BillMonth == month.ToString("yyyy-MM", CultureInfo.InvariantCulture) ||
-            string.IsNullOrEmpty(item.BillMonth) && item.Date >= month.AddMonths(-1) &&
-            item.Date < month.AddMonths(1));
+            string.IsNullOrEmpty(item.BillMonth) && item.Date.Year == month.Year && item.Date.Month == month.Month);
 
-    private static string PurchaseKey(string person, DateTime date, decimal amount) =>
-        $"{person.Trim().ToUpperInvariant()}|{date:yyyy-MM-dd}|{amount.ToString(CultureInfo.InvariantCulture)}";
 }

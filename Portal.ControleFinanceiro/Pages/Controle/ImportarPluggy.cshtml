@@ -35,22 +35,28 @@
                 <input type="hidden" asp-for="Mes" />
                 <div class="card-body border-bottom">
                     <h2 class="h5">Revise antes de importar</h2>
-                    <p class="text-muted small mb-3">Cartões finais 8930 e 6235 são da Camila; 5169 e 3008 são do Diego. Compras sem um desses finais não podem ser importadas. Compras parceladas terão as parcelas restantes projetadas. Se uma parcela com a mesma pessoa, data e valor já existir, a importação a ignorará para evitar duplicação.</p>
-                    <div class="row g-3">
-                        <div class="col-md-4"><label class="form-label" for="cartaoCamila">Cartão no financeiro — Camila</label><select id="cartaoCamila" asp-for="CartaoCamila" class="form-select"><option value="">Selecione</option>@foreach (var cartao in Model.Cartoes) { <option value="@cartao">@cartao</option> }</select></div>
-                        <div class="col-md-4"><label class="form-label" for="cartaoDiego">Cartão no financeiro — Diego</label><select id="cartaoDiego" asp-for="CartaoDiego" class="form-select"><option value="">Selecione</option>@foreach (var cartao in Model.Cartoes) { <option value="@cartao">@cartao</option> }</select></div>
-                        <div class="col-md-4"><label class="form-label" for="fonte">Fonte</label><input id="fonte" asp-for="Fonte" class="form-control" required /></div>
-                    </div>
+                    <p class="text-muted small mb-0">Cartões finais 8930 e 6235: Camila, Itaú Titular. Finais 5169 e 3008: Diego, Itaú Adicional. Fonte fixa: Salário. A data de cada parcela segue a data da compra original; o fechamento do cartão determina a fatura. Sem data original, usamos a data informada pela Pluggy para você conferir. Compras parceladas terão as restantes projetadas. Compras sem um desses finais não podem ser importadas. A duplicidade considera data, valor, pessoa e cartão, mesmo se a descrição for diferente; compras distintas com os quatro dados iguais serão tratadas como duplicatas.</p>
                 </div>
                 <div class="table-responsive">
                     <table class="table table-hover align-middle mb-0">
-                        <thead><tr><th scope="col">Importar</th><th scope="col">Data</th><th scope="col">Compra</th><th scope="col">Cartão físico</th><th scope="col">Pessoa</th><th scope="col" class="text-end">Parcela</th><th scope="col" class="text-end">Valor</th></tr></thead>
+                        <thead><tr><th scope="col">Importar</th><th scope="col">Data da parcela</th><th scope="col">Compra</th><th scope="col">Cartão físico</th><th scope="col">Pessoa</th><th scope="col" class="text-end">Parcela</th><th scope="col" class="text-end">Valor</th></tr></thead>
                         <tbody>
                         @foreach (var compra in Model.Compras)
                         {
                             <tr>
                                 <td><input class="form-check-input" type="checkbox" name="Selecionados" value="@compra.Id" aria-label="Importar @compra.Description" disabled="@(compra.Person == "")" /></td>
-                                <td class="text-nowrap">@compra.Date.ToString("dd/MM/yyyy", br)</td>
+                                <td class="text-nowrap">
+                                    @compra.InstallmentDate.ToString("dd/MM/yyyy", br)
+                                    @if (compra.PurchaseDate.HasValue && compra.InstallmentDate != compra.Date)
+                                    {
+                                        <small class="d-block text-muted">Compra original: @compra.PurchaseDate.Value.ToString("dd/MM/yyyy", br)</small>
+                                        <small class="d-block text-muted">Pluggy: @compra.Date.ToString("dd/MM/yyyy", br)</small>
+                                    }
+                                    else if (!compra.PurchaseDate.HasValue)
+                                    {
+                                        <small class="d-block text-muted">Data informada pela Pluggy</small>
+                                    }
+                                </td>
                                 <td>@compra.Description@if (string.IsNullOrEmpty(compra.BillMonth)) { <small class="d-block text-warning">Fatura não identificada pela Pluggy; confira o período.</small> }</td>
                                 <td>@(string.IsNullOrWhiteSpace(compra.CardNumber) ? "Não informado" : "Final " + compra.CardNumber[^Math.Min(4, compra.CardNumber.Length)..])</td>
                                 <td>@(compra.Person == "" ? "Não identificada" : compra.Person)</td>
