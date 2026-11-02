@@ -33,6 +33,9 @@ public sealed class ImportarPluggyModel : PageModel
     public string? Erro { get; private set; }
     public bool Configurado => _pluggy.IsConfigured;
     public IReadOnlyList<PluggyCardTransaction> Compras { get; private set; } = Array.Empty<PluggyCardTransaction>();
+    public IReadOnlyList<PluggyCardTransaction> ComprasVisiveis => Compras
+        .Where(compra => !Conferencia.TryGetValue(compra.Id, out var resultado) || resultado.Status != "Existente")
+        .ToList();
     public IReadOnlyDictionary<string, ResultadoConferencia> Conferencia { get; private set; } =
         new Dictionary<string, ResultadoConferencia>();
     public bool ConferenciaDisponivel { get; private set; }

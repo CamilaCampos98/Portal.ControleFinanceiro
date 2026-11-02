@@ -29,6 +29,10 @@
         {
             <div class="card card-body">Nenhuma compra foi encontrada para esse mês. Se a fatura ainda estiver aberta, algumas compras podem aparecer após a próxima sincronização da Pluggy.</div>
         }
+        else if (Model.ConferenciaDisponivel && Model.ComprasVisiveis.Count == 0)
+        {
+            <div class="card card-body">Nenhuma compra pendente de conferência neste mês.</div>
+        }
         else
         {
             <form method="post" class="card">
@@ -39,7 +43,6 @@
                     @if (Model.ConferenciaDisponivel)
                     {
                         <div class="d-flex flex-wrap gap-2 mt-3" role="status">
-                            <span class="badge bg-secondary">Já lançadas: @Model.Conferencia.Values.Count(item => item.Status == "Existente")</span>
                             <span class="badge bg-warning text-dark">Revisar: @Model.Conferencia.Values.Count(item => item.Status is "Revisar" or "CartaoDivergente")</span>
                             <span class="badge bg-success">Sem correspondente: @Model.Conferencia.Values.Count(item => item.Status == "NaoEncontrada")</span>
                         </div>
@@ -50,7 +53,7 @@
                     <table class="table table-hover align-middle mb-0">
                         <thead><tr><th scope="col">Importar</th><th scope="col">Data da parcela</th><th scope="col">Compra</th><th scope="col">Cartão físico</th><th scope="col">Pessoa</th><th scope="col" class="text-end">Parcela</th><th scope="col" class="text-end">Valor</th><th scope="col">Conferência</th></tr></thead>
                         <tbody>
-                        @foreach (var compra in Model.Compras)
+                        @foreach (var compra in Model.ComprasVisiveis)
                         {
                             Model.Conferencia.TryGetValue(compra.Id, out var resultado);
                             var status = resultado?.Status ?? "Indisponivel";
@@ -74,12 +77,7 @@
                                 <td class="text-end text-nowrap">@compra.InstallmentNumber/@compra.TotalInstallments</td>
                                 <td class="text-end text-nowrap fw-bold">@compra.Amount.ToString("C", br)</td>
                                 <td>
-                                    @if (status == "Existente")
-                                    {
-                                        <span class="badge bg-secondary">Já lançada</span>
-                                        @if (resultado!.QuantidadeCorrespondencias > 1) { <small class="d-block text-warning">@resultado.QuantidadeCorrespondencias lançamentos iguais na planilha</small> }
-                                    }
-                                    else if (status == "NaoEncontrada") { <span class="badge bg-success">Sem correspondente</span> }
+                                    @if (status == "NaoEncontrada") { <span class="badge bg-success">Sem correspondente</span> }
                                     else if (status is "Revisar" or "CartaoDivergente")
                                     {
                                         <span class="badge bg-warning text-dark">Revisar @(status == "CartaoDivergente" ? "cartão" : "data/valor")</span>
