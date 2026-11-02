@@ -147,6 +147,8 @@ public sealed class PluggyCardService
 public sealed record PluggyCardTransaction(string Id, DateTime Date, string Description, decimal Amount,
     string CardNumber, int InstallmentNumber, int TotalInstallments, string BillMonth)
 {
-    public string SuggestedPerson => CardNumber.EndsWith("8930", StringComparison.Ordinal) ? "Camila" :
-        CardNumber.EndsWith("5169", StringComparison.Ordinal) ? "Diego" : "";
+    public string Person => CardNumber.EndsWith("8930", StringComparison.Ordinal) ||
+        CardNumber.EndsWith("6235", StringComparison.Ordinal) ? "Camila" :
+        CardNumber.EndsWith("5169", StringComparison.Ordinal) ||
+        CardNumber.EndsWith("3008", StringComparison.Ordinal) ? "Diego" : "";
 };

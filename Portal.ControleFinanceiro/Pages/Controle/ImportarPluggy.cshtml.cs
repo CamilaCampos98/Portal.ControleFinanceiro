@@ -71,7 +71,7 @@ public sealed class ImportarPluggyModel : PageModel
             foreach (var id in Selecionados.Distinct())
             {
                 if (!available.TryGetValue(id, out var transaction)) { skipped++; continue; }
-                var person = Request.Form[$"Pessoa_{id}"].ToString();
+                var person = transaction.Person;
                 if (person is not ("Camila" or "Diego")) { skipped++; continue; }
                 var card = person == "Camila" ? CartaoCamila : CartaoDiego;
                 if (!allowedCards.Contains(card, StringComparer.OrdinalIgnoreCase)) { skipped++; continue; }
