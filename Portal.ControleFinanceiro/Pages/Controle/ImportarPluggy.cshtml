@@ -36,15 +36,26 @@
                 <div class="card-body border-bottom">
                     <h2 class="h5">Revise antes de importar</h2>
                     <p class="text-muted small mb-0">Cartões finais 8930 e 6235: Camila, Itaú Titular. Finais 5169 e 3008: Diego, Itaú Adicional. Fonte fixa: Salário. A data de cada parcela segue a data da compra original; o fechamento do cartão determina a fatura. Sem data original, usamos a data informada pela Pluggy para você conferir. Compras parceladas terão as restantes projetadas. Compras sem um desses finais não podem ser importadas. A duplicidade considera data, valor, pessoa e cartão, mesmo se a descrição for diferente; compras distintas com os quatro dados iguais serão tratadas como duplicatas.</p>
+                    @if (Model.ConferenciaDisponivel)
+                    {
+                        <div class="d-flex flex-wrap gap-2 mt-3" role="status">
+                            <span class="badge bg-secondary">Já lançadas: @Model.Conferencia.Values.Count(item => item.Status == "Existente")</span>
+                            <span class="badge bg-warning text-dark">Revisar: @Model.Conferencia.Values.Count(item => item.Status is "Revisar" or "CartaoDivergente")</span>
+                            <span class="badge bg-success">Sem correspondente: @Model.Conferencia.Values.Count(item => item.Status == "NaoEncontrada")</span>
+                        </div>
+                        <p class="text-muted small mt-2 mb-0">“Revisar” indica uma possível correspondência com data, valor ou cartão diferente; confirme antes de cadastrar. Só as compras sem correspondente podem ser selecionadas.</p>
+                    }
                 </div>
                 <div class="table-responsive">
                     <table class="table table-hover align-middle mb-0">
-                        <thead><tr><th scope="col">Importar</th><th scope="col">Data da parcela</th><th scope="col">Compra</th><th scope="col">Cartão físico</th><th scope="col">Pessoa</th><th scope="col" class="text-end">Parcela</th><th scope="col" class="text-end">Valor</th></tr></thead>
+                        <thead><tr><th scope="col">Importar</th><th scope="col">Data da parcela</th><th scope="col">Compra</th><th scope="col">Cartão físico</th><th scope="col">Pessoa</th><th scope="col" class="text-end">Parcela</th><th scope="col" class="text-end">Valor</th><th scope="col">Conferência</th></tr></thead>
                         <tbody>
                         @foreach (var compra in Model.Compras)
                         {
+                            Model.Conferencia.TryGetValue(compra.Id, out var resultado);
+                            var status = resultado?.Status ?? "Indisponivel";
                             <tr>
-                                <td><input class="form-check-input" type="checkbox" name="Selecionados" value="@compra.Id" aria-label="Importar @compra.Description" disabled="@(compra.Person == "")" /></td>
+                                <td><input class="form-check-input" type="checkbox" name="Selecionados" value="@compra.Id" aria-label="Importar @compra.Description" disabled="@(status != "NaoEncontrada")" /></td>
                                 <td class="text-nowrap">
                                     @compra.InstallmentDate.ToString("dd/MM/yyyy", br)
                                     @if (compra.PurchaseDate.HasValue && compra.InstallmentDate != compra.Date)
@@ -62,12 +73,29 @@
                                 <td>@(compra.Person == "" ? "Não identificada" : compra.Person)</td>
                                 <td class="text-end text-nowrap">@compra.InstallmentNumber/@compra.TotalInstallments</td>
                                 <td class="text-end text-nowrap fw-bold">@compra.Amount.ToString("C", br)</td>
+                                <td>
+                                    @if (status == "Existente")
+                                    {
+                                        <span class="badge bg-secondary">Já lançada</span>
+                                        @if (resultado!.QuantidadeCorrespondencias > 1) { <small class="d-block text-warning">@resultado.QuantidadeCorrespondencias lançamentos iguais na planilha</small> }
+                                    }
+                                    else if (status == "NaoEncontrada") { <span class="badge bg-success">Sem correspondente</span> }
+                                    else if (status is "Revisar" or "CartaoDivergente")
+                                    {
+                                        <span class="badge bg-warning text-dark">Revisar @(status == "CartaoDivergente" ? "cartão" : "data/valor")</span>
+                                        @if (resultado?.Correspondente is { } candidato)
+                                        {
+                                            <small class="d-block text-muted">Planilha, linha @candidato.Linha: @candidato.Data.ToString("dd/MM/yyyy", br), @candidato.Valor.ToString("C", br), @candidato.Pessoa, @candidato.Cartao — @candidato.Descricao</small>
+                                        }
+                                    }
+                                    else { <span class="badge bg-secondary">Conferência indisponível</span> }
+                                </td>
                             </tr>
                         }
                         </tbody>
                     </table>
                 </div>
-                <div class="card-body border-top d-flex justify-content-end"><button class="btn btn-success" type="submit">Confirmar compras selecionadas</button></div>
+                <div class="card-body border-top d-flex justify-content-end"><button class="btn btn-success" type="submit" disabled="@(!Model.Conferencia.Values.Any(item => item.Status == "NaoEncontrada"))">Confirmar compras selecionadas</button></div>
             </form>
         }
     }

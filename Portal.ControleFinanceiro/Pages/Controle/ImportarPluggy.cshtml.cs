@@ -33,6 +33,14 @@ public sealed class ImportarPluggyModel : PageModel
     public string? Erro { get; private set; }
     public bool Configurado => _pluggy.IsConfigured;
     public IReadOnlyList<PluggyCardTransaction> Compras { get; private set; } = Array.Empty<PluggyCardTransaction>();
+    public IReadOnlyDictionary<string, ResultadoConferencia> Conferencia { get; private set; } =
+        new Dictionary<string, ResultadoConferencia>();
+    public bool ConferenciaDisponivel { get; private set; }
+
+    public sealed record LancamentoConferencia(int Linha, DateTime Data, decimal Valor, string Pessoa,
+        string Cartao, string Parcela, string Descricao);
+    public sealed record ResultadoConferencia(string Id, string Status,
+        LancamentoConferencia? Correspondente, int QuantidadeCorrespondencias);
 
     public async Task OnGetAsync(CancellationToken cancellationToken)
     {
@@ -64,6 +72,20 @@ public sealed class ImportarPluggyModel : PageModel
             {
                 await CarregarAsync(cancellationToken);
                 Erro = "A API financeira ainda não recebeu a atualização das datas. Nenhuma compra foi importada; tente novamente após a atualização do servidor.";
+                return Page();
+            }
+            var conferencia = await ConferirAsync(api, apiUrl, available.Values.ToList(), cancellationToken);
+            if (conferencia is null)
+            {
+                await CarregarAsync(cancellationToken);
+                Erro = "Não foi possível conferir as compras com a planilha. Nenhuma compra foi importada.";
+                return Page();
+            }
+            if (Selecionados.Any(id => !conferencia.TryGetValue(id, out var resultado) ||
+                resultado.Status != "NaoEncontrada"))
+            {
+                await CarregarAsync(cancellationToken);
+                Erro = "A seleção contém compras já lançadas ou que precisam de revisão. Nenhuma compra foi importada.";
                 return Page();
             }
             var cardResponse = await api.GetAsync($"{apiUrl}Compra/GetCartoes", cancellationToken);
@@ -151,6 +173,20 @@ public sealed class ImportarPluggyModel : PageModel
         {
             var all = await _pluggy.ReadInfiniteTransactionsAsync(cancellationToken);
             Compras = ForMonth(all, month).OrderByDescending(item => item.InstallmentDate).ToList();
+            using var api = _httpClientFactory.CreateClient();
+            var apiUrl = _configuration["UrlApi"] ?? throw new InvalidOperationException("API financeira não configurada.");
+            Dictionary<string, ResultadoConferencia>? conferencia;
+            try { conferencia = await ConferirAsync(api, apiUrl, Compras, cancellationToken); }
+            catch (HttpRequestException) { conferencia = null; }
+            catch (TaskCanceledException) { conferencia = null; }
+            catch (JsonException) { conferencia = null; }
+            if (conferencia is null)
+            {
+                Erro = "Não foi possível conferir com a planilha. A importação está desabilitada até a API financeira ser atualizada ou a conexão voltar.";
+                return;
+            }
+            Conferencia = conferencia;
+            ConferenciaDisponivel = true;
         }
         catch (Exception)
         {
@@ -164,5 +200,28 @@ public sealed class ImportarPluggyModel : PageModel
     private static IEnumerable<PluggyCardTransaction> ForMonth(IEnumerable<PluggyCardTransaction> transactions, DateTime month) =>
         transactions.Where(item => item.BillMonth == month.ToString("yyyy-MM", CultureInfo.InvariantCulture) ||
             string.IsNullOrEmpty(item.BillMonth) && item.Date.Year == month.Year && item.Date.Month == month.Month);
+
+    private static async Task<Dictionary<string, ResultadoConferencia>?> ConferirAsync(HttpClient api, string apiUrl,
+        IEnumerable<PluggyCardTransaction> compras, CancellationToken cancellationToken)
+    {
+        var parcelas = compras.Where(compra => compra.Person.Length > 0).Select(compra => new
+        {
+            compra.Id,
+            Data = compra.InstallmentDate,
+            Valor = compra.Amount,
+            Pessoa = compra.Person,
+            Cartao = compra.Person == "Camila" ? CartaoCamila : CartaoDiego,
+            Parcela = $"{compra.InstallmentNumber}/{compra.TotalInstallments}",
+            Descricao = compra.Description
+        }).ToList();
+        using var response = await api.PostAsJsonAsync($"{apiUrl}Compra/ConferirImportacaoPluggy", parcelas,
+            cancellationToken);
+        if (!response.IsSuccessStatusCode) return null;
+        var resultados = await response.Content.ReadFromJsonAsync<List<ResultadoConferencia>>(JsonOptions, cancellationToken);
+        if (resultados is null || resultados.Count != parcelas.Count ||
+            resultados.Select(resultado => resultado.Id).Distinct().Count() != parcelas.Count)
+            return null;
+        return resultados.ToDictionary(resultado => resultado.Id);
+    }
 
 }
