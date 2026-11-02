@@ -117,17 +117,6 @@ public sealed class ImportarPluggyModel : PageModel
                 if (person is not ("Camila" or "Diego")) { skipped++; continue; }
                 var card = registeredCards[person];
                 var firstDate = transaction.InstallmentDate;
-                var periodUrl = $"{apiUrl}Compra/PeriodoFatura?pessoa={Uri.EscapeDataString(person)}" +
-                    $"&mesAno={Uri.EscapeDataString(month.ToString("MM/yyyy", CultureInfo.InvariantCulture))}" +
-                    $"&cartao={Uri.EscapeDataString(card)}";
-                using var periodResponse = await api.GetAsync(periodUrl, cancellationToken);
-                if (!periodResponse.IsSuccessStatusCode) { failed++; continue; }
-                using var period = await JsonDocument.ParseAsync(await periodResponse.Content.ReadAsStreamAsync(cancellationToken),
-                    cancellationToken: cancellationToken);
-                var start = period.RootElement.GetProperty("inicio").GetDateTime().Date;
-                var end = period.RootElement.GetProperty("fim").GetDateTime().Date;
-                if (firstDate < start || firstDate > end) { skipped++; continue; }
-
                 var remaining = transaction.TotalInstallments - transaction.InstallmentNumber + 1;
                 if (remaining < 1) { skipped++; continue; }
                 var purchase = new CompraModel
@@ -150,7 +139,7 @@ public sealed class ImportarPluggyModel : PageModel
                 imported++;
             }
 
-            Aviso = $"Importadas: {imported}. Ignoradas (já existentes, sem dados completos ou em outra fatura): {skipped}. Falhas: {failed}.";
+            Aviso = $"Importadas: {imported}. Ignoradas (já existentes ou sem dados completos): {skipped}. Falhas: {failed}.";
             return RedirectToPage(new { mes = Mes });
         }
         catch (Exception)
