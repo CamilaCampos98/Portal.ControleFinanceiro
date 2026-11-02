@@ -15,6 +15,8 @@ if (!string.IsNullOrWhiteSpace(dataProtectionKeysPath))
 
 // Add services to the container.
 builder.Services.AddRazorPages();
+builder.Services.AddMemoryCache();
+builder.Services.AddHttpClient<Portal.ControleFinanceiro.Services.PluggyCardService>();
 
 builder.Services.AddSession(options =>
 {
