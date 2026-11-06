@@ -28,24 +28,30 @@ public sealed class ImportarPluggyModel : PageModel
         _httpClientFactory = httpClientFactory;
     }
 
-    [BindProperty(SupportsGet = true)] public string Mes { get; set; } = DateTime.Now.ToString("yyyy-MM", CultureInfo.InvariantCulture);
-    [BindProperty(SupportsGet = true)] public string Origem { get; set; } = "itau";
+    [BindProperty(SupportsGet = true)] public string? Pessoa { get; set; }
+    [BindProperty(SupportsGet = true)] public string? Cartao { get; set; }
+    [BindProperty(SupportsGet = true)] public string? Origem { get; set; }
     [BindProperty] public List<string> Selecionados { get; set; } = new();
     [TempData] public string? Aviso { get; set; }
     public string? Erro { get; private set; }
-    public bool Configurado => TrySource(out var source) && _pluggy.IsConfiguredFor(source);
-    public string Titulo => Origem?.ToLowerInvariant() switch
+    public bool SelecaoValida => TrySelection(out _, out _);
+    public bool Configurado => TrySelection(out var source, out _) && _pluggy.IsConfiguredFor(source);
+    public string Titulo => "Conferir compras Open Finance";
+    public string PessoaSelecionada => TrySelection(out _, out var person) ? person : "Camila";
+    public string CartaoSelecionado => TrySelection(out var source, out _) && source != PluggyCardSource.Itau
+        ? "bradesco" : "itau";
+    public string CartoesInformados => (CartaoSelecionado, PessoaSelecionada) switch
     {
-        "bradesco-camila" => "Conferir Bradesco da Camila",
-        "bradesco-diego" => "Conferir Bradesco do Diego",
-        _ => "Conferir fatura do Itaú"
+        ("bradesco", "Camila") => "Finais 6311 e 0442: Camila, Bradesco Titular.",
+        ("bradesco", "Diego") => "Finais 7937 e 2243: Diego, Bradesco Titular.",
+        ("itau", "Diego") => "Finais 5169 e 3008: Diego, Itaú Adicional.",
+        _ => "Finais 8930 e 6235: Camila, Itaú Titular."
     };
-    public string CartoesInformados => Origem?.ToLowerInvariant() switch
-    {
-        "bradesco-camila" => "Finais 6311 e 0442: Camila, Bradesco Titular.",
-        "bradesco-diego" => "Finais 7937 e 2243: Diego, Bradesco Titular.",
-        _ => "Finais 8930 e 6235: Camila, Itaú Titular. Finais 5169 e 3008: Diego, Itaú Adicional."
-    };
+    public string? FaturaAberta { get; private set; }
+    public bool FaturaCalculadaPelaPlanilha { get; private set; }
+    public string FaturaAbertaTexto => FaturaAberta is null ? "" :
+        DateTime.ParseExact(FaturaAberta, "yyyy-MM", CultureInfo.InvariantCulture)
+            .ToString("MMMM 'de' yyyy", CultureInfo.GetCultureInfo("pt-BR"));
     public IReadOnlyList<PluggyCardTransaction> Compras { get; private set; } = Array.Empty<PluggyCardTransaction>();
     public IReadOnlyList<PluggyCardTransaction> ComprasVisiveis => Compras
         .Where(compra => !Conferencia.TryGetValue(compra.Id, out var resultado) || resultado.Status != "Existente")
@@ -66,14 +72,9 @@ public sealed class ImportarPluggyModel : PageModel
 
     public async Task<IActionResult> OnPostAsync(CancellationToken cancellationToken)
     {
-        if (!TrySource(out var source))
+        if (!TrySelection(out var source, out var selectedPerson))
         {
-            Erro = "Escolha uma conexão válida.";
-            return Page();
-        }
-        if (!TryMonth(out var month))
-        {
-            Erro = "Escolha um mês válido da fatura.";
+            Erro = "Escolha uma pessoa e um cartão válidos.";
             return Page();
         }
         if (Selecionados.Count == 0)
@@ -86,9 +87,17 @@ public sealed class ImportarPluggyModel : PageModel
         try
         {
             var all = await _pluggy.ReadTransactionsAsync(source, cancellationToken);
-            var available = ForMonth(all, month).ToDictionary(item => item.Id);
             using var api = _httpClientFactory.CreateClient();
             var apiUrl = _configuration["UrlApi"] ?? throw new InvalidOperationException("API financeira não configurada.");
+            var openBill = await ResolveOpenBillAsync(api, apiUrl, all, source, selectedPerson, cancellationToken);
+            if (openBill is null)
+            {
+                await CarregarAsync(cancellationToken);
+                Erro = "Não foi possível identificar a fatura aberta. Nenhuma compra foi importada.";
+                return Page();
+            }
+            var available = ForOpenBill(all, openBill).Where(item => item.Person == selectedPerson)
+                .ToDictionary(item => item.Id);
             using var compatibility = await api.GetAsync($"{apiUrl}Compra/ImportacaoPluggyDisponivel", cancellationToken);
             if (!compatibility.IsSuccessStatusCode)
             {
@@ -109,7 +118,7 @@ public sealed class ImportarPluggyModel : PageModel
             if (jaLancadas == selecao.Count)
             {
                 Aviso = $"Compras já lançadas na planilha: {jaLancadas}. Nenhuma duplicata foi criada.";
-                return RedirectToPage(new { mes = Mes, origem = Origem });
+                return RedirectToPage(new { pessoa = selectedPerson, cartao = CartaoSelecionado });
             }
             if (selecao.Any(status => status != "NaoEncontrada"))
             {
@@ -174,7 +183,7 @@ public sealed class ImportarPluggyModel : PageModel
             }
 
             Aviso = $"Importadas: {imported}. Ignoradas (já existentes ou sem dados completos): {skipped}. Falhas: {failed}.";
-            return RedirectToPage(new { mes = Mes, origem = Origem });
+            return RedirectToPage(new { pessoa = selectedPerson, cartao = CartaoSelecionado });
         }
         catch (Exception)
         {
@@ -186,23 +195,27 @@ public sealed class ImportarPluggyModel : PageModel
 
     private async Task CarregarAsync(CancellationToken cancellationToken)
     {
-        if (!TrySource(out var source))
+        if (!TrySelection(out var source, out var person))
         {
-            Erro = "Escolha uma conexão válida.";
-            return;
-        }
-        if (!TryMonth(out var month))
-        {
-            Erro = "Escolha um mês válido da fatura.";
+            Erro = "Escolha uma pessoa e um cartão válidos.";
             return;
         }
         if (!Configurado) return;
         try
         {
             var all = await _pluggy.ReadTransactionsAsync(source, cancellationToken);
-            Compras = ForMonth(all, month).OrderByDescending(item => item.InstallmentDate).ToList();
             using var api = _httpClientFactory.CreateClient();
             var apiUrl = _configuration["UrlApi"] ?? throw new InvalidOperationException("API financeira não configurada.");
+            var openBill = await ResolveOpenBillAsync(api, apiUrl, all, source, person, cancellationToken);
+            if (openBill is null)
+            {
+                Erro = "Não foi possível identificar a fatura aberta pela Pluggy nem pelo fechamento da planilha. A importação está desabilitada.";
+                return;
+            }
+            FaturaAberta = openBill.Month;
+            FaturaCalculadaPelaPlanilha = openBill.FromConfig;
+            Compras = ForOpenBill(all, openBill).Where(item => item.Person == person || item.Person.Length == 0)
+                .OrderByDescending(item => item.InstallmentDate).ToList();
             Dictionary<string, ResultadoConferencia>? conferencia;
             try { conferencia = await ConferirAsync(api, apiUrl, Compras, source, cancellationToken); }
             catch (HttpRequestException) { conferencia = null; }
@@ -218,21 +231,31 @@ public sealed class ImportarPluggyModel : PageModel
         }
         catch (Exception)
         {
-            Erro = $"Não foi possível consultar {Titulo} na Pluggy. Confira a conexão e tente novamente.";
+            Erro = "Não foi possível consultar o cartão selecionado na Pluggy. Confira a conexão e tente novamente.";
         }
     }
 
-    private bool TryMonth(out DateTime month) => DateTime.TryParseExact(Mes, "yyyy-MM", CultureInfo.InvariantCulture,
-        DateTimeStyles.None, out month);
-
-    private bool TrySource(out PluggyCardSource source)
+    private bool TrySelection(out PluggyCardSource source, out string person)
     {
-        source = Origem?.ToLowerInvariant() switch
+        person = Pessoa?.Trim() ?? "";
+        if (Pessoa is not null || Cartao is not null)
         {
-            "itau" => PluggyCardSource.Itau,
-            "bradesco-camila" => PluggyCardSource.BradescoCamila,
-            "bradesco-diego" => PluggyCardSource.BradescoDiego,
-            _ => (PluggyCardSource)(-1)
+            source = Cartao?.Trim().ToLowerInvariant() switch
+            {
+                "itau" => PluggyCardSource.Itau,
+                "bradesco" when person == "Camila" => PluggyCardSource.BradescoCamila,
+                "bradesco" when person == "Diego" => PluggyCardSource.BradescoDiego,
+                _ => (PluggyCardSource)(-1)
+            };
+            return person is "Camila" or "Diego" && Enum.IsDefined(source);
+        }
+
+        (source, person) = Origem?.ToLowerInvariant() switch
+        {
+            null or "itau" => (PluggyCardSource.Itau, "Camila"),
+            "bradesco-camila" => (PluggyCardSource.BradescoCamila, "Camila"),
+            "bradesco-diego" => (PluggyCardSource.BradescoDiego, "Diego"),
+            _ => ((PluggyCardSource)(-1), "")
         };
         return Enum.IsDefined(source);
     }
@@ -246,10 +269,52 @@ public sealed class ImportarPluggyModel : PageModel
         _ => throw new InvalidOperationException("A pessoa não corresponde à conexão do cartão.")
     };
 
-    private static IEnumerable<PluggyCardTransaction> ForMonth(IEnumerable<PluggyCardTransaction> transactions, DateTime month) =>
-        transactions.Where(item => item.BillMonth == month.ToString("yyyy-MM", CultureInfo.InvariantCulture) ||
-            string.IsNullOrEmpty(item.BillMonth) && (item.ReportedDate ?? item.Date).Year == month.Year &&
-            (item.ReportedDate ?? item.Date).Month == month.Month);
+    private sealed record OpenBill(string Month, DateTime? Start, DateTime? End, bool FromConfig);
+
+    private sealed record CardPeriod(DateTime Inicio, DateTime Fim);
+
+    private static IEnumerable<PluggyCardTransaction> ForOpenBill(
+        IEnumerable<PluggyCardTransaction> transactions, OpenBill bill) =>
+        transactions.Where(item => item.Status != "POSTED" &&
+            (item.BillMonth == bill.Month ||
+             string.IsNullOrEmpty(item.BillMonth) && bill.Start.HasValue && bill.End.HasValue &&
+             item.InstallmentDate.Date >= bill.Start.Value.Date && item.InstallmentDate.Date <= bill.End.Value.Date));
+
+    private static async Task<OpenBill?> ResolveOpenBillAsync(HttpClient api, string apiUrl,
+        IReadOnlyList<PluggyCardTransaction> transactions, PluggyCardSource source, string person,
+        CancellationToken cancellationToken)
+    {
+        var today = DateTimeOffset.UtcNow.ToOffset(TimeSpan.FromHours(-3)).Date;
+        var forecastMonth = PluggyCardService.FindOpenBillMonth(transactions, today);
+        var card = CardFor(source, person);
+        CardPeriod? period = null;
+        try
+        {
+            foreach (var referenceMonth in new[] { today.AddMonths(-1), today })
+            {
+                var url = $"{apiUrl}Compra/PeriodoFatura?pessoa={Uri.EscapeDataString(person)}" +
+                    $"&mesAno={Uri.EscapeDataString(referenceMonth.ToString("MM/yyyy", CultureInfo.InvariantCulture))}" +
+                    $"&cartao={Uri.EscapeDataString(card)}";
+                using var response = await api.GetAsync(url, cancellationToken);
+                if (!response.IsSuccessStatusCode) continue;
+                var candidate = await response.Content.ReadFromJsonAsync<CardPeriod>(JsonOptions, cancellationToken);
+                if (candidate is not null && today >= candidate.Inicio.Date && today <= candidate.Fim.Date)
+                {
+                    period = candidate;
+                    break;
+                }
+            }
+        }
+        catch (HttpRequestException) { /* O mês previsto pela Pluggy ainda pode ser usado. */ }
+        catch (TaskCanceledException) when (!cancellationToken.IsCancellationRequested) { }
+        catch (JsonException) { }
+
+        var configuredMonth = period?.Fim.ToString("yyyy-MM", CultureInfo.InvariantCulture);
+        var month = forecastMonth ?? configuredMonth;
+        if (month is null) return null;
+        return new OpenBill(month, month == configuredMonth ? period?.Inicio : null,
+            month == configuredMonth ? period?.Fim : null, forecastMonth is null);
+    }
 
     private static async Task<Dictionary<string, ResultadoConferencia>?> ConferirAsync(HttpClient api, string apiUrl,
         IEnumerable<PluggyCardTransaction> compras, PluggyCardSource source, CancellationToken cancellationToken)

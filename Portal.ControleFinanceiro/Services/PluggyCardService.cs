@@ -95,7 +95,7 @@ public sealed class PluggyCardService
                     id, reportedDate, ReadString(transaction, "description"), amount,
                     ReadString(metadata, "cardNumber"), Math.Max(1, ReadInt(metadata, "installmentNumber")),
                     Math.Max(1, ReadInt(metadata, "totalInstallments")), billMonth, purchaseDate,
-                    Source: source);
+                    Source: source, Status: ReadString(transaction, "status"));
                 var corrected = source == PluggyCardSource.Itau
                     ? PluggyTransactionCorrection.Apply(transactionRecord) : transactionRecord;
                 if (corrected is not null)
@@ -108,6 +108,17 @@ public sealed class PluggyCardService
         if (!string.IsNullOrEmpty(next))
             throw new InvalidOperationException("A fatura retornou mais páginas do que o limite de segurança. Tente novamente mais tarde.");
         return result;
+    }
+
+    public static string? FindOpenBillMonth(IEnumerable<PluggyCardTransaction> transactions, DateTime today)
+    {
+        var firstPossibleMonth = new DateTime(today.Year, today.Month, 1);
+        var lastPossibleMonth = firstPossibleMonth.AddMonths(1);
+        return transactions.Where(item => item.Status == "PENDING" &&
+                DateTime.TryParseExact(item.BillMonth, "yyyy-MM", CultureInfo.InvariantCulture,
+                    DateTimeStyles.None, out var month) &&
+                month >= firstPossibleMonth && month <= lastPossibleMonth)
+            .Select(item => item.BillMonth).Distinct().Order(StringComparer.Ordinal).FirstOrDefault();
     }
 
     private PluggyConnection GetConnection(PluggyCardSource source) => source switch
@@ -207,7 +218,7 @@ public sealed class PluggyCardService
 public sealed record PluggyCardTransaction(string Id, DateTime Date, string Description, decimal Amount,
     string CardNumber, int InstallmentNumber, int TotalInstallments, string BillMonth, DateTime? PurchaseDate,
     string? ReportedCardNumber = null, DateTime? ReportedDate = null,
-    PluggyCardSource Source = PluggyCardSource.Itau)
+    PluggyCardSource Source = PluggyCardSource.Itau, string Status = "")
 {
     public string Person => Source switch
     {

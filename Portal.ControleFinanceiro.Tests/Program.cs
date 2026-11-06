@@ -70,26 +70,71 @@ Equal("", diegoBradesco.Single(item => item.Id == "final-desconhecido").Person,
 Equal("", new PluggyCardTransaction("outra-pessoa", new DateTime(2026, 11, 6), "Compra", 10m,
     "7937", 1, 1, "2026-11", null, Source: PluggyCardSource.BradescoCamila).Person,
     "final do Diego não pode ser atribuído à conexão da Camila");
+var billCandidate = new PluggyCardTransaction("fatura-atual", new DateTime(2026, 11, 6),
+    "Compra", 10m, "7937", 1, 1, "2026-11", null, Status: "PENDING");
+Equal("2026-11", PluggyCardService.FindOpenBillMonth(
+    [billCandidate, billCandidate with { Id = "futura", BillMonth = "2026-12" }],
+    new DateTime(2026, 11, 6)), "a fatura aberta deve preceder parcelas futuras");
+Equal<string?>(null, PluggyCardService.FindOpenBillMonth(
+    [billCandidate with { Status = "POSTED" }], new DateTime(2026, 11, 6)),
+    "fatura fechada não pode ser tratada como aberta");
 
 var bradescoApi = new ConferenciaHandler(allExisting: true);
 var bradescoPage = new ImportarPluggyModel(service, configuration, new ApiClientFactory(bradescoApi))
-{ Mes = "2026-11", Origem = "bradesco-diego" };
+{ Origem = "bradesco-diego" };
 await bradescoPage.OnGetAsync(CancellationToken.None);
 Equal(true, bradescoPage.Configurado, "conexão do Diego configurada");
 Equal(3, bradescoPage.Compras.Count, "cartão do Diego deve ser lido pela conexão separada");
+Equal(false, bradescoPage.FaturaCalculadaPelaPlanilha,
+    "o mês previsto pela Pluggy deve ter prioridade quando disponível");
 Equal(true, bradescoApi.LastCards.SequenceEqual(["Bradesco Titular", "Bradesco Titular"]),
     "conferência deve usar Bradesco Titular para as duas formas do cartão do Diego");
 
+var itauDiegoPage = new ImportarPluggyModel(service, configuration,
+    new ApiClientFactory(new ConferenciaHandler(allExisting: true)))
+{ Pessoa = "Diego", Cartao = "itau" };
+await itauDiegoPage.OnGetAsync(CancellationToken.None);
+Equal("outra", itauDiegoPage.Compras.Single().Id,
+    "filtro de pessoa no Itaú não deve mostrar compras da Camila");
+
+var wrongPersonSelection = new ImportarPluggyModel(service, configuration,
+    new ApiClientFactory(new ConferenciaHandler(allExisting: true)))
+{ Pessoa = "Camila", Cartao = "itau", Selecionados = ["outra"] };
+await wrongPersonSelection.OnPostAsync(CancellationToken.None);
+Equal(true, wrongPersonSelection.Erro?.Contains("indisponíveis: 1", StringComparison.Ordinal) == true,
+    "POST não pode importar compra de outra pessoa mesmo com ID conhecido");
+
+using var fallbackHttp = new HttpClient(new PluggyHandler(omitForecast: true));
+using var fallbackCache = new MemoryCache(new MemoryCacheOptions());
+var fallbackService = new PluggyCardService(fallbackHttp, configuration, fallbackCache);
+var fallbackPage = new ImportarPluggyModel(fallbackService, configuration,
+    new ApiClientFactory(new ConferenciaHandler(allExisting: true)))
+{ Pessoa = "Camila", Cartao = "bradesco" };
+await fallbackPage.OnGetAsync(CancellationToken.None);
+Equal(1, fallbackPage.Compras.Count,
+    "sem mês previsto pela Pluggy, a conferência deve usar o período do cartão na planilha");
+Equal(true, fallbackPage.FaturaAberta is not null,
+    "o mês da fatura aberta deve vir do fim do período configurado");
+Equal(true, fallbackPage.FaturaCalculadaPelaPlanilha,
+    "a tela deve sinalizar quando a fatura foi estimada pelo fechamento da planilha");
+
+var noPeriodPage = new ImportarPluggyModel(fallbackService, configuration,
+    new ApiClientFactory(new ConferenciaHandler(allExisting: true, providePeriod: false)))
+{ Pessoa = "Camila", Cartao = "bradesco" };
+await noPeriodPage.OnGetAsync(CancellationToken.None);
+Equal<string?>(null, noPeriodPage.FaturaAberta,
+    "sem mês da Pluggy e sem fechamento configurado, a importação deve ficar bloqueada");
+
 var alreadyImported = new ImportarPluggyModel(service, configuration,
     new ApiClientFactory(new ConferenciaHandler(allExisting: true)))
-{ Mes = "2026-11", Selecionados = ["parcela", "outra"] };
+{ Selecionados = ["parcela", "food"] };
 await alreadyImported.OnPostAsync(CancellationToken.None);
 Equal(true, alreadyImported.Aviso?.Contains("Já lançadas na planilha: 2", StringComparison.OrdinalIgnoreCase) == true,
     "reenvio de compras já lançadas deve informar o resultado sem tratar como erro");
 
 var mixedSelection = new ImportarPluggyModel(service, configuration,
     new ApiClientFactory(new ConferenciaHandler(allExisting: false)))
-{ Mes = "2026-11", Selecionados = ["parcela", "outra"] };
+{ Selecionados = ["parcela", "food"] };
 await mixedSelection.OnPostAsync(CancellationToken.None);
 Equal(true, mixedSelection.Erro?.Contains("Já lançadas: 1", StringComparison.OrdinalIgnoreCase) == true,
     "seleção mista deve indicar quantas compras já constam na planilha");
@@ -107,14 +152,23 @@ sealed class ApiClientFactory : IHttpClientFactory
 sealed class ConferenciaHandler : HttpMessageHandler
 {
     private readonly bool _allExisting;
-    public ConferenciaHandler(bool allExisting) => _allExisting = allExisting;
+    private readonly bool _providePeriod;
+    public ConferenciaHandler(bool allExisting, bool providePeriod = true)
+    {
+        _allExisting = allExisting;
+        _providePeriod = providePeriod;
+    }
     public List<string> LastCards { get; private set; } = new();
 
     protected override async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request,
         CancellationToken cancellationToken)
     {
+        if (!_providePeriod && request.RequestUri!.AbsolutePath == "/Compra/PeriodoFatura")
+            return new HttpResponseMessage(HttpStatusCode.NotFound);
         object body = request.RequestUri!.AbsolutePath switch
         {
+            "/Compra/PeriodoFatura" => new { Inicio = BrazilToday().AddDays(-1),
+                Fim = BrazilToday().AddDays(1) },
             "/Compra/ImportacaoPluggyDisponivel" => new { },
             "/Compra/ConferirImportacaoPluggy" => BuildConferencia((await request.Content!
                 .ReadFromJsonAsync<List<ParcelaId>>(cancellationToken: cancellationToken))!),
@@ -135,10 +189,15 @@ sealed class ConferenciaHandler : HttpMessageHandler
     }
 
     private sealed record ParcelaId(string Id, string Cartao);
+
+    private static DateTime BrazilToday() => DateTimeOffset.UtcNow.ToOffset(TimeSpan.FromHours(-3)).Date;
 }
 
 sealed class PluggyHandler : HttpMessageHandler
 {
+    private readonly bool _omitForecast;
+    public PluggyHandler(bool omitForecast = false) => _omitForecast = omitForecast;
+
     protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
     {
         var path = request.RequestUri!.AbsolutePath;
@@ -155,7 +214,8 @@ sealed class PluggyHandler : HttpMessageHandler
                 name = "LATAM PASS INFINITE", type = "CREDIT", subtype = "CREDIT_CARD" } } },
             "/bills" => new { results = Array.Empty<object>(), totalPages = 0 },
             "/v2/transactions" when request.RequestUri.Query.Contains("bradesco-camila", StringComparison.Ordinal) =>
-                new { results = new[] { Transaction("camila-virtual", "DEBIT", "2026-11-06",
+                new { results = new[] { Transaction("camila-virtual", "DEBIT",
+                    _omitForecast ? DateTimeOffset.UtcNow.ToOffset(TimeSpan.FromHours(-3)).ToString("yyyy-MM-dd") : "2026-11-06",
                     "Compra Camila", 20m, "0442", 1, 1) }, next = "" },
             "/v2/transactions" when request.RequestUri.Query.Contains("bradesco-diego", StringComparison.Ordinal) =>
                 new { results = new[]
@@ -185,10 +245,12 @@ sealed class PluggyHandler : HttpMessageHandler
         });
     }
 
-    private static object Transaction(string id, string type, string date, string description,
+    private object Transaction(string id, string type, string date, string description,
         decimal amount, string cardNumber, int installment, int total) =>
-        new { id, type, date, description, amount, currencyCode = "BRL",
+        new { id, type, date, description, amount, currencyCode = "BRL", status = "PENDING",
             creditCardMetadata = new { cardNumber, installmentNumber = installment,
-                totalInstallments = total, billForecastDate = "2026-11",
+                totalInstallments = total,
+                billForecastDate = _omitForecast ? null :
+                    DateTimeOffset.UtcNow.ToOffset(TimeSpan.FromHours(-3)).ToString("yyyy-MM"),
                 purchaseDate = total > 1 ? "2026-11-02" : null } };
 }

@@ -14,33 +14,58 @@
 
     @if (!string.IsNullOrWhiteSpace(Model.Aviso)) { <div class="alert alert-success" role="status">@Model.Aviso</div> }
     @if (!string.IsNullOrWhiteSpace(Model.Erro)) { <div class="alert alert-danger" role="alert">@Model.Erro</div> }
-    @if (!Model.Configurado)
+    <form method="get" class="card card-body mb-4">
+        <div class="row g-3 align-items-end">
+            <div class="col-sm-4 col-lg-3">
+                <label class="form-label" for="pessoa">Pessoa</label>
+                <select id="pessoa" name="Pessoa" class="form-select">
+                    <option value="Camila" selected="@(Model.PessoaSelecionada == "Camila")">Camila</option>
+                    <option value="Diego" selected="@(Model.PessoaSelecionada == "Diego")">Diego</option>
+                </select>
+            </div>
+            <div class="col-sm-4 col-lg-3">
+                <label class="form-label" for="cartao">Cartão</label>
+                <select id="cartao" name="Cartao" class="form-select">
+                    <option value="itau" selected="@(Model.CartaoSelecionado == "itau")">Itaú</option>
+                    <option value="bradesco" selected="@(Model.CartaoSelecionado == "bradesco")">Bradesco</option>
+                </select>
+            </div>
+            <div class="col-sm-4 col-lg-3"><button class="btn btn-outline-primary w-100" type="submit">Ver conferência</button></div>
+        </div>
+    </form>
+    @if (!Model.SelecaoValida)
     {
-        <div class="alert alert-info">A conexão com a Pluggy ainda precisa ser configurada no servidor. Nenhuma compra foi alterada.</div>
+        <div class="alert alert-warning">Escolha uma pessoa e um cartão válidos.</div>
+    }
+    else if (!Model.Configurado)
+    {
+        <div class="alert alert-info">A conexão selecionada ainda precisa ser configurada no servidor. Nenhuma compra foi alterada.</div>
     }
     else
     {
-        <form method="get" class="card card-body mb-4">
-            <input type="hidden" asp-for="Origem" />
-            <label class="form-label" for="mes">Mês da fatura</label>
-            <div class="d-flex gap-2"><input id="mes" name="Mes" type="month" class="form-control" style="max-width:220px" value="@Model.Mes" required /><button class="btn btn-outline-primary" type="submit">Buscar compras</button></div>
-        </form>
-
-        @if (Model.Compras.Count == 0)
+        @if (Model.FaturaAberta is null)
         {
-            <div class="card card-body">Nenhuma compra foi encontrada para esse mês. Se a fatura ainda estiver aberta, algumas compras podem aparecer após a próxima sincronização da Pluggy.</div>
+            <div class="card card-body">Não foi possível identificar a fatura aberta. Nenhuma compra pode ser importada nesta seleção.</div>
+        }
+        else if (Model.Compras.Count == 0)
+        {
+            <div class="card card-body">Fatura aberta de @Model.FaturaAbertaTexto: nenhuma compra encontrada. Algumas compras podem aparecer após a próxima sincronização da Pluggy.</div>
         }
         else if (Model.ConferenciaDisponivel && Model.ComprasVisiveis.Count == 0)
         {
-            <div class="card card-body">Nenhuma compra pendente de conferência neste mês.</div>
+            <div class="card card-body">Fatura aberta de @Model.FaturaAbertaTexto: nenhuma compra pendente de conferência.</div>
         }
         else
         {
             <form method="post" class="card">
-                <input type="hidden" asp-for="Mes" />
-                <input type="hidden" asp-for="Origem" />
+                <input type="hidden" name="Pessoa" value="@Model.PessoaSelecionada" />
+                <input type="hidden" name="Cartao" value="@Model.CartaoSelecionado" />
                 <div class="card-body border-bottom">
-                    <h2 class="h5">Revise antes de importar</h2>
+                    <h2 class="h5">Fatura aberta de @Model.FaturaAbertaTexto</h2>
+                    @if (Model.FaturaCalculadaPelaPlanilha)
+                    {
+                        <p class="text-warning small">Mês calculado pelo fechamento cadastrado na planilha, pois a Pluggy não informou a fatura prevista. Confira os lançamentos antes de importar.</p>
+                    }
                     <p class="text-muted small mb-0">@Model.CartoesInformados Fonte fixa: Salário. A data de cada parcela segue a data da compra original; o fechamento do cartão determina a fatura. Sem data original, convertemos a data UTC da Pluggy para Brasília. Compras parceladas terão as restantes projetadas. Compras sem um desses finais não podem ser importadas. A conferência exata usa data, valor, pessoa e cartão; quando há um dia de diferença, só reconhece um lançamento único com mesmo valor, pessoa, cartão, parcela e estabelecimento. Em caso de dúvida, a data da planilha prevalece.</p>
                     @if (Model.ConferenciaDisponivel)
                     {
