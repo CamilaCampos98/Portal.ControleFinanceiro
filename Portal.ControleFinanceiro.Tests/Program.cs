@@ -1,8 +1,10 @@
 using System.Net;
+using System.Net.Http.Json;
 using System.Text;
 using System.Text.Json;
 using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Configuration;
+using Portal.ControleFinanceiro.Pages.Controle;
 using Portal.ControleFinanceiro.Services;
 
 static void Equal<T>(T expected, T actual, string description)
@@ -35,7 +37,8 @@ var configuration = new ConfigurationBuilder().AddInMemoryCollection(new Diction
 {
     ["Pluggy:ClientId"] = "test-client",
     ["Pluggy:ClientSecret"] = "test-secret",
-    ["Pluggy:ItemId"] = "test-item"
+    ["Pluggy:ItemId"] = "test-item",
+    ["UrlApi"] = "https://api.test/"
 }).Build();
 using var http = new HttpClient(new PluggyHandler());
 using var cache = new MemoryCache(new MemoryCacheOptions());
@@ -50,7 +53,57 @@ Equal(new DateTime(2026, 10, 31), transactions.Single(item => item.Id == "food")
     "data UTC à meia-noite deve ser interpretada no horário de Brasília");
 Equal(new DateTime(2026, 11, 1), transactions.Single(item => item.Id == "food").ReportedDate,
     "data original da Pluggy permanece auditável");
+
+var alreadyImported = new ImportarPluggyModel(service, configuration,
+    new ApiClientFactory(new ConferenciaHandler(allExisting: true)))
+{ Mes = "2026-11", Selecionados = ["parcela", "outra"] };
+await alreadyImported.OnPostAsync(CancellationToken.None);
+Equal(true, alreadyImported.Aviso?.Contains("Já lançadas na planilha: 2", StringComparison.OrdinalIgnoreCase) == true,
+    "reenvio de compras já lançadas deve informar o resultado sem tratar como erro");
+
+var mixedSelection = new ImportarPluggyModel(service, configuration,
+    new ApiClientFactory(new ConferenciaHandler(allExisting: false)))
+{ Mes = "2026-11", Selecionados = ["parcela", "outra"] };
+await mixedSelection.OnPostAsync(CancellationToken.None);
+Equal(true, mixedSelection.Erro?.Contains("Já lançadas: 1", StringComparison.OrdinalIgnoreCase) == true,
+    "seleção mista deve indicar quantas compras já constam na planilha");
+Equal(true, mixedSelection.Erro?.Contains("Nenhuma nova compra", StringComparison.Ordinal) == true,
+    "seleção mista deve deixar claro que o bloqueio vale apenas para esta tentativa");
 Console.WriteLine("Conferência da Pluggy passou.");
+
+sealed class ApiClientFactory : IHttpClientFactory
+{
+    private readonly HttpMessageHandler _handler;
+    public ApiClientFactory(HttpMessageHandler handler) => _handler = handler;
+    public HttpClient CreateClient(string name) => new(_handler, disposeHandler: false);
+}
+
+sealed class ConferenciaHandler : HttpMessageHandler
+{
+    private readonly bool _allExisting;
+    public ConferenciaHandler(bool allExisting) => _allExisting = allExisting;
+
+    protected override async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request,
+        CancellationToken cancellationToken)
+    {
+        object body = request.RequestUri!.AbsolutePath switch
+        {
+            "/Compra/ImportacaoPluggyDisponivel" => new { },
+            "/Compra/ConferirImportacaoPluggy" => (await request.Content!
+                .ReadFromJsonAsync<List<ParcelaId>>(cancellationToken: cancellationToken))!
+                .Select(item => new { item.Id, Status = _allExisting || item.Id == "parcela"
+                    ? "Existente" : "NaoEncontrada", Correspondente = (object?)null,
+                    QuantidadeCorrespondencias = 0 }).ToList(),
+            _ => throw new Exception($"Rota inesperada: {request.RequestUri.AbsolutePath}")
+        };
+        return new HttpResponseMessage(HttpStatusCode.OK)
+        {
+            Content = new StringContent(JsonSerializer.Serialize(body), Encoding.UTF8, "application/json")
+        };
+    }
+
+    private sealed record ParcelaId(string Id);
+}
 
 sealed class PluggyHandler : HttpMessageHandler
 {

@@ -84,11 +84,23 @@ public sealed class ImportarPluggyModel : PageModel
                 Erro = "Não foi possível conferir as compras com a planilha. Nenhuma compra foi importada.";
                 return Page();
             }
-            if (Selecionados.Any(id => !conferencia.TryGetValue(id, out var resultado) ||
-                resultado.Status != "NaoEncontrada"))
+            var selecao = Selecionados.Distinct().Select(id =>
+                conferencia.TryGetValue(id, out var resultado) ? resultado.Status : "Indisponivel").ToList();
+            var jaLancadas = selecao.Count(status => status == "Existente");
+            if (jaLancadas == selecao.Count)
+            {
+                Aviso = $"Compras já lançadas na planilha: {jaLancadas}. Nenhuma duplicata foi criada.";
+                return RedirectToPage(new { mes = Mes });
+            }
+            if (selecao.Any(status => status != "NaoEncontrada"))
             {
                 await CarregarAsync(cancellationToken);
-                Erro = "A seleção contém compras já lançadas ou que precisam de revisão. Nenhuma compra foi importada.";
+                var revisar = selecao.Count(status => status is "Revisar" or "CartaoDivergente");
+                var indisponiveis = selecao.Count - jaLancadas - revisar -
+                    selecao.Count(status => status == "NaoEncontrada");
+                Erro = $"A seleção mudou desde que a página foi aberta. Já lançadas: {jaLancadas}; " +
+                    $"precisam de revisão: {revisar}; indisponíveis: {indisponiveis}. " +
+                    "Nenhuma nova compra foi importada nesta tentativa. Atualize a página e selecione apenas as pendentes.";
                 return Page();
             }
             var cardResponse = await api.GetAsync($"{apiUrl}Compra/GetCartoes", cancellationToken);
