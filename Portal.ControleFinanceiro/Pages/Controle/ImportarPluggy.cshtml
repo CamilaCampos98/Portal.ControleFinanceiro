@@ -2,13 +2,13 @@
 @model Portal.ControleFinanceiro.Pages.Controle.ImportarPluggyModel
 @using System.Globalization
 @{
-    ViewData["Title"] = "Conferir fatura do Itaú";
+    ViewData["Title"] = Model.Titulo;
     Layout = "_HomeLayout";
     var br = CultureInfo.GetCultureInfo("pt-BR");
 }
 <main class="container py-4">
     <div class="d-flex flex-wrap align-items-center justify-content-between gap-3 mb-4">
-        <div><span class="text-success text-uppercase small fw-bold">Open Finance</span><h1 class="h3 mb-1">Conferir fatura do Itaú</h1><p class="text-muted mb-0">LATAM Pass Visa Infinite. Nada será cadastrado até você selecionar e confirmar.</p></div>
+        <div><span class="text-success text-uppercase small fw-bold">Open Finance</span><h1 class="h3 mb-1">@Model.Titulo</h1><p class="text-muted mb-0">Nada será cadastrado até você selecionar e confirmar.</p></div>
         <a class="btn btn-outline-secondary" asp-page="/Controle/RegistrarCompra">Voltar às compras</a>
     </div>
 
@@ -21,6 +21,7 @@
     else
     {
         <form method="get" class="card card-body mb-4">
+            <input type="hidden" asp-for="Origem" />
             <label class="form-label" for="mes">Mês da fatura</label>
             <div class="d-flex gap-2"><input id="mes" name="Mes" type="month" class="form-control" style="max-width:220px" value="@Model.Mes" required /><button class="btn btn-outline-primary" type="submit">Buscar compras</button></div>
         </form>
@@ -37,9 +38,10 @@
         {
             <form method="post" class="card">
                 <input type="hidden" asp-for="Mes" />
+                <input type="hidden" asp-for="Origem" />
                 <div class="card-body border-bottom">
                     <h2 class="h5">Revise antes de importar</h2>
-                    <p class="text-muted small mb-0">Cartões finais 8930 e 6235: Camila, Itaú Titular. Finais 5169 e 3008: Diego, Itaú Adicional. Fonte fixa: Salário. A data de cada parcela segue a data da compra original; o fechamento do cartão determina a fatura. Sem data original, convertemos a data UTC da Pluggy para Brasília. Compras parceladas terão as restantes projetadas. Compras sem um desses finais não podem ser importadas. A conferência exata usa data, valor, pessoa e cartão; quando há um dia de diferença, só reconhece um lançamento único com mesmo valor, pessoa, cartão, parcela e estabelecimento. Em caso de dúvida, a data da planilha prevalece.</p>
+                    <p class="text-muted small mb-0">@Model.CartoesInformados Fonte fixa: Salário. A data de cada parcela segue a data da compra original; o fechamento do cartão determina a fatura. Sem data original, convertemos a data UTC da Pluggy para Brasília. Compras parceladas terão as restantes projetadas. Compras sem um desses finais não podem ser importadas. A conferência exata usa data, valor, pessoa e cartão; quando há um dia de diferença, só reconhece um lançamento único com mesmo valor, pessoa, cartão, parcela e estabelecimento. Em caso de dúvida, a data da planilha prevalece.</p>
                     @if (Model.ConferenciaDisponivel)
                     {
                         <div class="d-flex flex-wrap gap-2 mt-3" role="status">
@@ -51,7 +53,7 @@
                 </div>
                 <div class="table-responsive">
                     <table class="table table-hover align-middle mb-0">
-                        <thead><tr><th scope="col">Importar</th><th scope="col">Data da parcela</th><th scope="col">Compra</th><th scope="col">Cartão físico</th><th scope="col">Pessoa</th><th scope="col" class="text-end">Parcela</th><th scope="col" class="text-end">Valor</th><th scope="col">Conferência</th></tr></thead>
+                        <thead><tr><th scope="col">Importar</th><th scope="col">Data da parcela</th><th scope="col">Compra</th><th scope="col">Final do cartão</th><th scope="col">Pessoa</th><th scope="col" class="text-end">Parcela</th><th scope="col" class="text-end">Valor</th><th scope="col">Conferência</th></tr></thead>
                         <tbody>
                         @foreach (var compra in Model.ComprasVisiveis)
                         {

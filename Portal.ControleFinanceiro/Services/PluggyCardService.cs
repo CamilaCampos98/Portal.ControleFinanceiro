@@ -5,6 +5,8 @@ using Microsoft.Extensions.Caching.Memory;
 
 namespace Portal.ControleFinanceiro.Services;
 
+public enum PluggyCardSource { Itau, BradescoCamila, BradescoDiego }
+
 public sealed class PluggyCardService
 {
     private readonly HttpClient _http;
@@ -19,28 +21,47 @@ public sealed class PluggyCardService
         _cache = cache;
     }
 
-    public bool IsConfigured => !string.IsNullOrWhiteSpace(_configuration["Pluggy:ClientId"]) &&
-        !string.IsNullOrWhiteSpace(_configuration["Pluggy:ClientSecret"]) &&
-        !string.IsNullOrWhiteSpace(_configuration["Pluggy:ItemId"]);
+    public bool IsConfigured => IsConfiguredFor(PluggyCardSource.Itau);
+
+    public bool IsConfiguredFor(PluggyCardSource source)
+    {
+        var connection = GetConnection(source);
+        return !string.IsNullOrWhiteSpace(connection.ClientId) &&
+            !string.IsNullOrWhiteSpace(connection.ClientSecret) &&
+            !string.IsNullOrWhiteSpace(connection.ItemId);
+    }
 
     public async Task<IReadOnlyList<PluggyCardTransaction>> ReadInfiniteTransactionsAsync(CancellationToken cancellationToken)
+        => await ReadTransactionsAsync(PluggyCardSource.Itau, cancellationToken);
+
+    public async Task<IReadOnlyList<PluggyCardTransaction>> ReadTransactionsAsync(
+        PluggyCardSource source, CancellationToken cancellationToken)
     {
-        if (!IsConfigured)
+        if (!IsConfiguredFor(source))
             throw new InvalidOperationException("A conexão Pluggy ainda não foi configurada no servidor.");
 
-        var key = await GetApiKeyAsync(cancellationToken);
-        using var accounts = await GetAsync($"accounts?itemId={Uri.EscapeDataString(_configuration["Pluggy:ItemId"]!)}", key, cancellationToken);
+        var connection = GetConnection(source);
+        var key = await GetApiKeyAsync(connection, cancellationToken);
+        using var accounts = await GetAsync($"accounts?itemId={Uri.EscapeDataString(connection.ItemId!)}", key, cancellationToken);
         var creditAccounts = accounts.RootElement.GetProperty("results").EnumerateArray()
             .Where(account => ReadString(account, "type") == "CREDIT" && ReadString(account, "subtype") == "CREDIT_CARD")
             .ToList();
-        var infinite = creditAccounts.Where(account =>
-                ReadString(account, "number") == "5808" &&
-                ReadString(account, "name").Contains("INFINITE", StringComparison.OrdinalIgnoreCase))
+        var expectedFinal = source switch
+        {
+            PluggyCardSource.Itau => "5808",
+            PluggyCardSource.BradescoCamila => "6311",
+            PluggyCardSource.BradescoDiego => "7937",
+            _ => throw new ArgumentOutOfRangeException(nameof(source))
+        };
+        var selectedAccounts = creditAccounts.Where(account =>
+                ReadString(account, "number").EndsWith(expectedFinal, StringComparison.Ordinal) &&
+                (source != PluggyCardSource.Itau ||
+                 ReadString(account, "name").Contains("INFINITE", StringComparison.OrdinalIgnoreCase)))
             .ToList();
-        if (infinite.Count != 1)
-            throw new InvalidOperationException("Não foi possível identificar com segurança o LATAM Pass Infinite final 5808 na Pluggy.");
+        if (selectedAccounts.Count != 1)
+            throw new InvalidOperationException($"Não foi possível identificar com segurança o cartão final {expectedFinal} na Pluggy.");
 
-        var accountId = ReadString(infinite[0], "id");
+        var accountId = ReadString(selectedAccounts[0], "id");
         var billMonths = await ReadBillMonthsAsync(accountId, key, cancellationToken);
         var result = new List<PluggyCardTransaction>();
         var next = $"?accountId={Uri.EscapeDataString(accountId)}";
@@ -70,10 +91,13 @@ public sealed class PluggyCardService
                     billMonth = billMonths.GetValueOrDefault(ReadString(metadata, "billId")) ?? "";
                 var id = ReadString(transaction, "id");
                 if (string.IsNullOrWhiteSpace(id)) continue;
-                var corrected = PluggyTransactionCorrection.Apply(new PluggyCardTransaction(
+                var transactionRecord = new PluggyCardTransaction(
                     id, reportedDate, ReadString(transaction, "description"), amount,
                     ReadString(metadata, "cardNumber"), Math.Max(1, ReadInt(metadata, "installmentNumber")),
-                    Math.Max(1, ReadInt(metadata, "totalInstallments")), billMonth, purchaseDate));
+                    Math.Max(1, ReadInt(metadata, "totalInstallments")), billMonth, purchaseDate,
+                    Source: source);
+                var corrected = source == PluggyCardSource.Itau
+                    ? PluggyTransactionCorrection.Apply(transactionRecord) : transactionRecord;
                 if (corrected is not null)
                     result.Add(corrected with { Date = date, ReportedDate = date != reportedDate ? reportedDate : null });
             }
@@ -85,6 +109,20 @@ public sealed class PluggyCardService
             throw new InvalidOperationException("A fatura retornou mais páginas do que o limite de segurança. Tente novamente mais tarde.");
         return result;
     }
+
+    private PluggyConnection GetConnection(PluggyCardSource source) => source switch
+    {
+        PluggyCardSource.Itau => new(_configuration["Pluggy:ClientId"],
+            _configuration["Pluggy:ClientSecret"], _configuration["Pluggy:ItemId"]),
+        PluggyCardSource.BradescoCamila => new(_configuration["Pluggy:ClientId"],
+            _configuration["Pluggy:ClientSecret"], _configuration["Pluggy:BradescoCamila:ItemId"]),
+        PluggyCardSource.BradescoDiego => new(_configuration["Pluggy:BradescoDiego:ClientId"],
+            _configuration["Pluggy:BradescoDiego:ClientSecret"],
+            _configuration["Pluggy:BradescoDiego:ItemId"]),
+        _ => throw new ArgumentOutOfRangeException(nameof(source))
+    };
+
+    private sealed record PluggyConnection(string? ClientId, string? ClientSecret, string? ItemId);
 
     private async Task<Dictionary<string, string>> ReadBillMonthsAsync(string accountId, string key,
         CancellationToken cancellationToken)
@@ -110,14 +148,14 @@ public sealed class PluggyCardService
         return result;
     }
 
-    private async Task<string> GetApiKeyAsync(CancellationToken cancellationToken)
+    private async Task<string> GetApiKeyAsync(PluggyConnection connection, CancellationToken cancellationToken)
     {
-        var clientId = _configuration["Pluggy:ClientId"]!;
+        var clientId = connection.ClientId!;
         var cacheKey = $"pluggy-api-key:{clientId}";
         if (_cache.TryGetValue(cacheKey, out string? cached) && !string.IsNullOrEmpty(cached)) return cached;
         using var response = await _http.PostAsJsonAsync("auth", new
         {
-            clientId, clientSecret = _configuration["Pluggy:ClientSecret"]
+            clientId, clientSecret = connection.ClientSecret
         }, cancellationToken);
         if (!response.IsSuccessStatusCode)
             throw new InvalidOperationException("A Pluggy recusou a autenticação. Confira as credenciais no servidor.");
@@ -168,12 +206,19 @@ public sealed class PluggyCardService
 
 public sealed record PluggyCardTransaction(string Id, DateTime Date, string Description, decimal Amount,
     string CardNumber, int InstallmentNumber, int TotalInstallments, string BillMonth, DateTime? PurchaseDate,
-    string? ReportedCardNumber = null, DateTime? ReportedDate = null)
+    string? ReportedCardNumber = null, DateTime? ReportedDate = null,
+    PluggyCardSource Source = PluggyCardSource.Itau)
 {
-    public string Person => CardNumber.EndsWith("8930", StringComparison.Ordinal) ||
-        CardNumber.EndsWith("6235", StringComparison.Ordinal) ? "Camila" :
-        CardNumber.EndsWith("5169", StringComparison.Ordinal) ||
-        CardNumber.EndsWith("3008", StringComparison.Ordinal) ? "Diego" : "";
+    public string Person => Source switch
+    {
+        PluggyCardSource.BradescoCamila when HasFinal("6311") || HasFinal("0442") => "Camila",
+        PluggyCardSource.BradescoDiego when HasFinal("7937") || HasFinal("2243") => "Diego",
+        PluggyCardSource.Itau when HasFinal("8930") || HasFinal("6235") => "Camila",
+        PluggyCardSource.Itau when HasFinal("5169") || HasFinal("3008") => "Diego",
+        _ => ""
+    };
+
+    private bool HasFinal(string final) => CardNumber.Trim().EndsWith(final, StringComparison.Ordinal);
 
     public DateTime InstallmentDate => PurchaseDate is { } purchaseDate
         ? purchaseDate.AddMonths(TotalInstallments > 1 ? InstallmentNumber - 1 : 0)

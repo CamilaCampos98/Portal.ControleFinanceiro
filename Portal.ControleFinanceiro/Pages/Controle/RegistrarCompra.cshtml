@@ -106,6 +106,17 @@
                 <a class="btn btn-outline-primary" asp-page="/Controle/ImportarPluggy">Abrir conferência</a>
             </section>
 
+            <section class="purchase-import-card">
+                <span class="purchase-import-icon" aria-hidden="true"><i class="bi bi-bank"></i></span>
+                <span class="eyebrow">Open Finance</span>
+                <h2>Conferir Bradesco</h2>
+                <p>Revise separadamente as compras da Camila e do Diego antes de cadastrá-las.</p>
+                <div class="d-flex flex-wrap gap-2">
+                    <a class="btn btn-outline-primary" asp-page="/Controle/ImportarPluggy" asp-route-origem="bradesco-camila">Camila</a>
+                    <a class="btn btn-outline-primary" asp-page="/Controle/ImportarPluggy" asp-route-origem="bradesco-diego">Diego</a>
+                </div>
+            </section>
+
             <section class="purchase-help-card" aria-labelledby="compraSeguraTitulo">
                 <h2 id="compraSeguraTitulo"><i class="bi bi-shield-check" aria-hidden="true"></i> Registro seguro</h2>
                 <ul>
