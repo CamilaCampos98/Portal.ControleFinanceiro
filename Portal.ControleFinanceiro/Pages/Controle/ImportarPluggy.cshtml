@@ -39,14 +39,14 @@
                 <input type="hidden" asp-for="Mes" />
                 <div class="card-body border-bottom">
                     <h2 class="h5">Revise antes de importar</h2>
-                    <p class="text-muted small mb-0">Cartões finais 8930 e 6235: Camila, Itaú Titular. Finais 5169 e 3008: Diego, Itaú Adicional. Fonte fixa: Salário. A data de cada parcela segue a data da compra original; o fechamento do cartão determina a fatura. Sem data original, usamos a data informada pela Pluggy para você conferir. Compras parceladas terão as restantes projetadas. Compras sem um desses finais não podem ser importadas. A duplicidade considera data, valor, pessoa e cartão, mesmo se a descrição for diferente; compras distintas com os quatro dados iguais serão tratadas como duplicatas.</p>
+                    <p class="text-muted small mb-0">Cartões finais 8930 e 6235: Camila, Itaú Titular. Finais 5169 e 3008: Diego, Itaú Adicional. Fonte fixa: Salário. A data de cada parcela segue a data da compra original; o fechamento do cartão determina a fatura. Sem data original, convertemos a data UTC da Pluggy para Brasília. Compras parceladas terão as restantes projetadas. Compras sem um desses finais não podem ser importadas. A conferência exata usa data, valor, pessoa e cartão; quando há um dia de diferença, só reconhece um lançamento único com mesmo valor, pessoa, cartão, parcela e estabelecimento. Em caso de dúvida, a data da planilha prevalece.</p>
                     @if (Model.ConferenciaDisponivel)
                     {
                         <div class="d-flex flex-wrap gap-2 mt-3" role="status">
                             <span class="badge bg-warning text-dark">Revisar: @Model.Conferencia.Values.Count(item => item.Status is "Revisar" or "CartaoDivergente")</span>
                             <span class="badge bg-success">Sem correspondente: @Model.Conferencia.Values.Count(item => item.Status == "NaoEncontrada")</span>
                         </div>
-                        <p class="text-muted small mt-2 mb-0">“Revisar” indica uma possível correspondência com data, valor ou cartão diferente; confirme antes de cadastrar. Só as compras sem correspondente podem ser selecionadas.</p>
+                        <p class="text-muted small mt-2 mb-0">“Revisar” indica mais de uma possível correspondência ou cartão divergente. Só as compras sem correspondente podem ser selecionadas.</p>
                     }
                 </div>
                 <div class="table-responsive">
@@ -68,11 +68,24 @@
                                     }
                                     else if (!compra.PurchaseDate.HasValue)
                                     {
-                                        <small class="d-block text-muted">Data informada pela Pluggy</small>
+                                        @if (compra.ReportedDate.HasValue)
+                                        {
+                                            <small class="d-block text-muted">Pluggy em UTC: @compra.ReportedDate.Value.ToString("dd/MM/yyyy", br) · ajustada para Brasília</small>
+                                        }
+                                        else
+                                        {
+                                            <small class="d-block text-muted">Data informada pela Pluggy</small>
+                                        }
                                     }
                                 </td>
                                 <td>@compra.Description@if (string.IsNullOrEmpty(compra.BillMonth)) { <small class="d-block text-warning">Fatura não identificada pela Pluggy; confira o período.</small> }</td>
-                                <td>@(string.IsNullOrWhiteSpace(compra.CardNumber) ? "Não informado" : "Final " + compra.CardNumber[^Math.Min(4, compra.CardNumber.Length)..])</td>
+                                <td>
+                                    @(string.IsNullOrWhiteSpace(compra.CardNumber) ? "Não informado" : "Final " + compra.CardNumber[^Math.Min(4, compra.CardNumber.Length)..])
+                                    @if (!string.IsNullOrWhiteSpace(compra.ReportedCardNumber))
+                                    {
+                                        <small class="d-block text-warning">Corrigido: Pluggy informou final @compra.ReportedCardNumber[^Math.Min(4, compra.ReportedCardNumber.Length)..]</small>
+                                    }
+                                </td>
                                 <td>@(compra.Person == "" ? "Não identificada" : compra.Person)</td>
                                 <td class="text-end text-nowrap">@compra.InstallmentNumber/@compra.TotalInstallments</td>
                                 <td class="text-end text-nowrap fw-bold">@compra.Amount.ToString("C", br)</td>
@@ -80,7 +93,7 @@
                                     @if (status == "NaoEncontrada") { <span class="badge bg-success">Sem correspondente</span> }
                                     else if (status is "Revisar" or "CartaoDivergente")
                                     {
-                                        <span class="badge bg-warning text-dark">Revisar @(status == "CartaoDivergente" ? "cartão" : "data/valor")</span>
+                                        <span class="badge bg-warning text-dark">Revisar @(status == "CartaoDivergente" ? "cartão" : "data")</span>
                                         @if (resultado?.Correspondente is { } candidato)
                                         {
                                             <small class="d-block text-muted">Planilha, linha @candidato.Linha: @candidato.Data.ToString("dd/MM/yyyy", br), @candidato.Valor.ToString("C", br), @candidato.Pessoa, @candidato.Cartao — @candidato.Descricao</small>

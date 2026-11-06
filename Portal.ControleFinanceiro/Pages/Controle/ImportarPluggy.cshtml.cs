@@ -191,7 +191,8 @@ public sealed class ImportarPluggyModel : PageModel
 
     private static IEnumerable<PluggyCardTransaction> ForMonth(IEnumerable<PluggyCardTransaction> transactions, DateTime month) =>
         transactions.Where(item => item.BillMonth == month.ToString("yyyy-MM", CultureInfo.InvariantCulture) ||
-            string.IsNullOrEmpty(item.BillMonth) && item.Date.Year == month.Year && item.Date.Month == month.Month);
+            string.IsNullOrEmpty(item.BillMonth) && (item.ReportedDate ?? item.Date).Year == month.Year &&
+            (item.ReportedDate ?? item.Date).Month == month.Month);
 
     private static async Task<Dictionary<string, ResultadoConferencia>?> ConferirAsync(HttpClient api, string apiUrl,
         IEnumerable<PluggyCardTransaction> compras, CancellationToken cancellationToken)
@@ -204,7 +205,8 @@ public sealed class ImportarPluggyModel : PageModel
             Pessoa = compra.Person,
             Cartao = compra.Person == "Camila" ? CartaoCamila : CartaoDiego,
             Parcela = $"{compra.InstallmentNumber}/{compra.TotalInstallments}",
-            Descricao = compra.Description
+            Descricao = compra.Description,
+            DataInformadaPluggy = compra.ReportedDate
         }).ToList();
         using var response = await api.PostAsJsonAsync($"{apiUrl}Compra/ConferirImportacaoPluggy", parcelas,
             cancellationToken);

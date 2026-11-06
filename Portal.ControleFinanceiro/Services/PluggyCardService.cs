@@ -49,6 +49,8 @@ public sealed class PluggyCardService
             using var document = await GetAsync("v2/transactions" + next, key, cancellationToken);
             foreach (var transaction in document.RootElement.GetProperty("results").EnumerateArray())
             {
+                // A Pluggy normaliza estornos e pagamentos da fatura como CREDIT, não como compras.
+                if (ReadString(transaction, "type") == "CREDIT") continue;
                 var amount = ReadDecimal(transaction, "amount");
                 if (ReadString(transaction, "currencyCode") != "BRL")
                     amount = ReadDecimal(transaction, "amountInAccountCurrency");
@@ -57,7 +59,8 @@ public sealed class PluggyCardService
                     ? card : default;
                 var dateText = ReadString(transaction, "date");
                 if (dateText.Length < 10 || !DateTime.TryParseExact(dateText[..10], "yyyy-MM-dd",
-                        CultureInfo.InvariantCulture, DateTimeStyles.None, out var date)) continue;
+                        CultureInfo.InvariantCulture, DateTimeStyles.None, out var reportedDate) ||
+                    !TryReadBrazilianDate(dateText, out var date)) continue;
                 var purchaseDateText = ReadString(metadata, "purchaseDate");
                 DateTime? purchaseDate = purchaseDateText.Length >= 10 &&
                     DateTime.TryParseExact(purchaseDateText[..10], "yyyy-MM-dd", CultureInfo.InvariantCulture,
@@ -67,10 +70,12 @@ public sealed class PluggyCardService
                     billMonth = billMonths.GetValueOrDefault(ReadString(metadata, "billId")) ?? "";
                 var id = ReadString(transaction, "id");
                 if (string.IsNullOrWhiteSpace(id)) continue;
-                result.Add(new PluggyCardTransaction(
-                    id, date, ReadString(transaction, "description"), amount,
+                var corrected = PluggyTransactionCorrection.Apply(new PluggyCardTransaction(
+                    id, reportedDate, ReadString(transaction, "description"), amount,
                     ReadString(metadata, "cardNumber"), Math.Max(1, ReadInt(metadata, "installmentNumber")),
                     Math.Max(1, ReadInt(metadata, "totalInstallments")), billMonth, purchaseDate));
+                if (corrected is not null)
+                    result.Add(corrected with { Date = date, ReportedDate = date != reportedDate ? reportedDate : null });
             }
             next = ReadString(document.RootElement, "next");
             if (next.Length > 0 && (!next.StartsWith('?') || next.Contains("//", StringComparison.Ordinal)))
@@ -146,10 +151,24 @@ public sealed class PluggyCardService
     private static decimal ReadDecimal(JsonElement element, string name) =>
         element.ValueKind == JsonValueKind.Object && element.TryGetProperty(name, out var value) &&
         value.ValueKind == JsonValueKind.Number && value.TryGetDecimal(out var result) ? result : 0;
+
+    private static bool TryReadBrazilianDate(string value, out DateTime date)
+    {
+        date = default;
+        if (value.Length < 10 || !DateTime.TryParseExact(value[..10], "yyyy-MM-dd",
+                CultureInfo.InvariantCulture, DateTimeStyles.None, out var reportedDate)) return false;
+        var hasOffset = value.EndsWith('Z') || value.Length >= 6 &&
+            (value[^6] is '+' or '-') && value[^3] == ':';
+        date = hasOffset && DateTimeOffset.TryParse(value, CultureInfo.InvariantCulture,
+            DateTimeStyles.None, out var instant)
+            ? instant.ToOffset(TimeSpan.FromHours(-3)).Date : reportedDate;
+        return true;
+    }
 }
 
 public sealed record PluggyCardTransaction(string Id, DateTime Date, string Description, decimal Amount,
-    string CardNumber, int InstallmentNumber, int TotalInstallments, string BillMonth, DateTime? PurchaseDate)
+    string CardNumber, int InstallmentNumber, int TotalInstallments, string BillMonth, DateTime? PurchaseDate,
+    string? ReportedCardNumber = null, DateTime? ReportedDate = null)
 {
     public string Person => CardNumber.EndsWith("8930", StringComparison.Ordinal) ||
         CardNumber.EndsWith("6235", StringComparison.Ordinal) ? "Camila" :
