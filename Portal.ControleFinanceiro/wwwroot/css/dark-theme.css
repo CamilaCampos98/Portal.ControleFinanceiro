@@ -1,0 +1,208 @@
+/* Preferência única para todas as telas do portal. */
+.theme-toggle {
+    display: inline-flex;
+    align-items: center;
+    gap: .7rem;
+    min-height: 42px;
+    padding: .55rem .8rem;
+    border: 1px solid transparent;
+    border-radius: 10px;
+    background: transparent;
+    color: var(--muted, #66777d);
+    font: inherit;
+    font-weight: 650;
+    text-align: left;
+    cursor: pointer;
+}
+.theme-toggle:hover, .theme-toggle:focus-visible { background: var(--surface-muted, #edf3ef); color: var(--ink, #1f2a2e); }
+.theme-toggle:focus-visible { outline: 2px solid var(--accent, #2f9c85); outline-offset: 2px; }
+.home-mobile-actions { display: flex; align-items: center; gap: .2rem; }
+.theme-toggle--icon { width: 42px; height: 42px; justify-content: center; padding: 0; font-size: 1.1rem; }
+.theme-toggle--header { color: #e0f1ed; border-color: rgba(255,255,255,.28); }
+.theme-toggle--header:hover, .theme-toggle--header:focus-visible { color: #fff; background: rgba(255,255,255,.12); }
+.login-theme-toggle { display: flex; margin: 0 0 .75rem auto; }
+
+html[data-theme="dark"] {
+    color-scheme: dark;
+    --bg: #101a20;
+    --surface: #1b2a31;
+    --surface-muted: #253840;
+    --ink: #e8f2f0;
+    --muted: #a9c0c2;
+    --line: #3a5056;
+    --brand: #88d5c4;
+    --brand-strong: #a6e5d5;
+    --accent: #65c8b2;
+    --accent-soft: #284e4b;
+    --warning: #f3c86c;
+    --danger: #f07871;
+    --shadow: 0 18px 45px rgba(0,0,0,.22);
+}
+html[data-theme="dark"] body,
+html[data-theme="dark"] body.home-app-body,
+html[data-theme="dark"] body.app-body { background: var(--bg); color: var(--ink); }
+html[data-theme="dark"] .home-sidebar,
+html[data-theme="dark"] .home-mobile-header,
+html[data-theme="dark"] .home-bottom-nav,
+html[data-theme="dark"] .app-nav { background: var(--surface); border-color: var(--line); }
+html[data-theme="dark"] .app-header { background: #14272c; }
+html[data-theme="dark"] .card-header,
+html[data-theme="dark"] .card-header.card-header-custom,
+html[data-theme="dark"] .table thead th,
+html[data-theme="dark"] .table thead td,
+html[data-theme="dark"] #gridFixos th { background: #27675e !important; color: #fff !important; }
+html[data-theme="dark"] .nav-action.active,
+html[data-theme="dark"] .home-shortcut--primary,
+html[data-theme="dark"] .fixed-page-heading-icon,
+html[data-theme="dark"] .purchase-entry-heading-icon { background: #27675e; color: #fff; }
+html[data-theme="dark"] .btn-primary,
+html[data-theme="dark"] .btn-success { background: #287d6b; border-color: #287d6b; color: #fff; }
+html[data-theme="dark"] .btn-outline-success:hover,
+html[data-theme="dark"] .btn-outline-success.active { background: #287d6b; border-color: #287d6b; color: #fff; }
+html[data-theme="dark"] .home-brand,
+html[data-theme="dark"] .home-heading h1,
+html[data-theme="dark"] .summary-page-heading h1 { color: var(--ink); }
+html[data-theme="dark"] .home-sidebar-nav a.active,
+html[data-theme="dark"] .home-bottom-nav a.active { color: var(--brand); }
+html[data-theme="dark"] .home-mobile-logout { color: var(--muted); }
+
+html[data-theme="dark"] .card,
+html[data-theme="dark"] .modal-content,
+html[data-theme="dark"] .dropdown-menu,
+html[data-theme="dark"] .offcanvas,
+html[data-theme="dark"] .home-panel,
+html[data-theme="dark"] .home-metric:not(.home-metric--balance):not(.home-metric--negative),
+html[data-theme="dark"] .home-inline-empty,
+html[data-theme="dark"] .home-section,
+html[data-theme="dark"] .home-state,
+html[data-theme="dark"] .summary-search-panel,
+html[data-theme="dark"] .summary-purchases-panel,
+html[data-theme="dark"] .fixed-control-panel,
+html[data-theme="dark"] .fixed-table-shell,
+html[data-theme="dark"] .finance-calculator-shell,
+html[data-theme="dark"] .income-form-card,
+html[data-theme="dark"] .income-info-card,
+html[data-theme="dark"] .balance-card,
+html[data-theme="dark"] .latest-purchase-card,
+html[data-theme="dark"] .holiday-item,
+html[data-theme="dark"] .vacation-card,
+html[data-theme="dark"] .party-card,
+html[data-theme="dark"] .party-guests-modal .modal-content { background: var(--surface); border-color: var(--line); color: var(--ink); }
+html[data-theme="dark"] .card-header,
+html[data-theme="dark"] .card-footer,
+html[data-theme="dark"] .modal-header,
+html[data-theme="dark"] .modal-footer,
+html[data-theme="dark"] .border-top,
+html[data-theme="dark"] .border-bottom { border-color: var(--line) !important; }
+html[data-theme="dark"] .bg-white,
+html[data-theme="dark"] .bg-light,
+html[data-theme="dark"] .table-light,
+html[data-theme="dark"] .home-shortcut:not(.home-shortcut--primary),
+html[data-theme="dark"] .metric-card,
+html[data-theme="dark"] .insight,
+html[data-theme="dark"] .reconcile-total,
+html[data-theme="dark"] .summary-card-modal .card-reconcile-modal,
+html[data-theme="dark"] .fixed-summary-grid .metric-card,
+html[data-theme="dark"] .income-period-example,
+html[data-theme="dark"] .income-salary-plan,
+html[data-theme="dark"] .party-metrics > div,
+html[data-theme="dark"] .party-month-overview > div,
+html[data-theme="dark"] .party-guest-totals > div,
+html[data-theme="dark"] .party-guest-house,
+html[data-theme="dark"] .party-guest-editor,
+html[data-theme="dark"] .party-months label,
+html[data-theme="dark"] .party-installment,
+html[data-theme="dark"] .party-add-item,
+html[data-theme="dark"] .party-schedule-create,
+html[data-theme="dark"] .vacation-split,
+html[data-theme="dark"] .vacation-multi-split,
+html[data-theme="dark"] .vacation-metrics > div { background: var(--surface-muted) !important; border-color: var(--line); color: var(--ink); }
+html[data-theme="dark"] .party-page,
+html[data-theme="dark"] .party-heading h1,
+html[data-theme="dark"] .party-guests-modal .modal-content { color: var(--ink); }
+html[data-theme="dark"] .party-guests-modal { --paper: #1b2a31; --ivory: #253840; --ink: #e8f2f0; --muted: #a9c0c2; --line: #3a5056; --wine: #f0a7ac; --gold: #f3c86c; }
+html[data-theme="dark"] .party-guests-modal .party-list-surface,
+html[data-theme="dark"] .party-guests-modal .party-list-panel,
+html[data-theme="dark"] .party-guests-modal .party-list-summary > div,
+html[data-theme="dark"] .party-guests-modal .party-list-guest,
+html[data-theme="dark"] .party-guests-modal .party-list-house,
+html[data-theme="dark"] .party-guests-modal .party-list-residents label,
+html[data-theme="dark"] .party-guests-modal .party-list-gift-breakdown > div,
+html[data-theme="dark"] .party-guests-modal .party-list-order-editor,
+html[data-theme="dark"] .party-guests-modal .party-list-tabs { background: var(--surface); border-color: var(--line); color: var(--ink); }
+html[data-theme="dark"] .party-guests-modal .party-list-hero,
+html[data-theme="dark"] .party-guests-modal .party-list-body,
+html[data-theme="dark"] .party-guests-modal .party-list-choices span,
+html[data-theme="dark"] .party-guests-modal .party-list-house-members span { background: var(--surface-muted); color: var(--ink); }
+html[data-theme="dark"] .party-guests-modal .party-list-form-panel input:not([type=radio]):not([type=checkbox]),
+html[data-theme="dark"] .party-guests-modal .party-list-form-panel select,
+html[data-theme="dark"] .party-guests-modal .party-list-form-panel textarea,
+html[data-theme="dark"] .party-guests-modal .party-list-order-editor input { background: var(--surface-muted); border-color: var(--line); color: var(--ink); }
+html[data-theme="dark"] .party-heading p,
+html[data-theme="dark"] .party-metrics small,
+html[data-theme="dark"] .party-footnote,
+html[data-theme="dark"] .party-section-intro,
+html[data-theme="dark"] .party-item-body,
+html[data-theme="dark"] .party-category-heading span,
+html[data-theme="dark"] .party-guest-house li small,
+html[data-theme="dark"] .party-installment-main small { color: var(--muted); }
+
+html[data-theme="dark"] .form-control,
+html[data-theme="dark"] .form-select,
+html[data-theme="dark"] .input-group-text,
+html[data-theme="dark"] .party-page input:not([type="checkbox"]),
+html[data-theme="dark"] .party-page select,
+html[data-theme="dark"] .party-guests-modal input:not([type="checkbox"]),
+html[data-theme="dark"] .party-guests-modal select { background: var(--surface-muted); border-color: var(--line); color: var(--ink); }
+html[data-theme="dark"] .form-control:focus,
+html[data-theme="dark"] .form-select:focus { background: var(--surface-muted); color: var(--ink); border-color: var(--accent); }
+html[data-theme="dark"] .form-control::placeholder { color: var(--muted); }
+html[data-theme="dark"] .form-control:disabled,
+html[data-theme="dark"] .form-select:disabled { background: #19272d; color: var(--muted); }
+html[data-theme="dark"] .form-label,
+html[data-theme="dark"] .party-page label,
+html[data-theme="dark"] .party-guests-modal label { color: var(--ink); }
+html[data-theme="dark"] .text-muted,
+html[data-theme="dark"] .text-secondary,
+html[data-theme="dark"] .small.text-muted { color: var(--muted) !important; }
+html[data-theme="dark"] .text-dark { color: #17232b !important; }
+html[data-theme="dark"] .text-success { color: var(--accent) !important; }
+html[data-theme="dark"] .period-preview--warning { background: #443820; color: #ffe1a0; }
+html[data-theme="dark"] .home-heading h1,
+html[data-theme="dark"] .home-section h2,
+html[data-theme="dark"] .home-state h1,
+html[data-theme="dark"] .metric-card strong { color: var(--ink); }
+
+html[data-theme="dark"] .table { color: var(--ink); border-color: var(--line); --bs-table-bg: var(--surface); --bs-table-color: var(--ink); --bs-table-border-color: var(--line); --bs-table-hover-bg: var(--surface-muted); --bs-table-hover-color: var(--ink); }
+html[data-theme="dark"] .table > :not(caption) > * > * { background: var(--surface); border-color: var(--line); color: var(--ink); box-shadow: none; }
+html[data-theme="dark"] .table > tbody > tr:hover > * { background: var(--surface-muted); }
+html[data-theme="dark"] .table-primary > * { background: var(--accent-soft) !important; }
+html[data-theme="dark"] .list-group-item { background: var(--surface); border-color: var(--line); color: var(--ink); }
+html[data-theme="dark"] .nav-tabs { border-color: var(--line); }
+html[data-theme="dark"] .nav-tabs .nav-link:not(.active) { color: var(--muted); }
+html[data-theme="dark"] .nav-tabs .nav-link.active { background: var(--surface); border-color: var(--line); color: var(--ink); }
+html[data-theme="dark"] .btn-outline-secondary,
+html[data-theme="dark"] .btn-outline-primary { color: var(--ink); border-color: var(--muted); }
+html[data-theme="dark"] .btn-outline-secondary:hover,
+html[data-theme="dark"] .btn-outline-primary:hover { color: #102321; background: var(--accent); border-color: var(--accent); }
+html[data-theme="dark"] .alert-info { background: #183c4a; border-color: #37687a; color: #d9f1f7; }
+html[data-theme="dark"] .alert-warning { background: #443820; border-color: #866c35; color: #ffe1a0; }
+html[data-theme="dark"] .alert-danger { background: #492827; border-color: #874943; color: #ffd2ce; }
+html[data-theme="dark"] .alert-success { background: #1c4039; border-color: #397968; color: #d7f7e8; }
+html[data-theme="dark"] .loading-overlay { background: rgba(10, 20, 24, .84); }
+
+.open-finance-loading__content { display: grid; justify-items: center; gap: .75rem; padding: 2rem; border: 1px solid var(--line); border-radius: 16px; background: var(--surface); color: var(--ink); text-align: center; box-shadow: var(--shadow); }
+.open-finance-loading__content strong { font-size: 1.1rem; }
+.open-finance-loading__content span { color: var(--muted); font-size: .9rem; }
+
+html[data-theme="dark"] .login-access { background: var(--bg); }
+html[data-theme="dark"] .login-card { background: var(--surface); border-color: var(--line); color: var(--ink); }
+html[data-theme="dark"] .login-heading h2,
+html[data-theme="dark"] .login-field label,
+html[data-theme="dark"] .login-mobile-brand { color: var(--ink); }
+html[data-theme="dark"] .login-heading p,
+html[data-theme="dark"] .login-security,
+html[data-theme="dark"] .login-input i,
+html[data-theme="dark"] .app-version { color: var(--muted); }
+html[data-theme="dark"] .login-input .form-control { background: var(--surface-muted); border-color: var(--line); color: var(--ink); }
+html[data-theme="dark"] .login-input .form-control:focus { background: var(--surface-muted); }

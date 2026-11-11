@@ -14,7 +14,7 @@
 
     @if (!string.IsNullOrWhiteSpace(Model.Aviso)) { <div class="alert alert-success" role="status">@Model.Aviso</div> }
     @if (!string.IsNullOrWhiteSpace(Model.Erro)) { <div class="alert alert-danger" role="alert">@Model.Erro</div> }
-    <form method="get" class="card card-body mb-4">
+    <form method="get" class="card card-body mb-4" data-loading-message="Buscando a fatura aberta...">
         <div class="row g-3 align-items-end">
             <div class="col-sm-4 col-lg-3">
                 <label class="form-label" for="pessoa">Pessoa</label>
@@ -57,7 +57,7 @@
         }
         else
         {
-            <form method="post" class="card">
+            <form method="post" class="card" data-loading-message="Conferindo e importando as compras...">
                 <input type="hidden" name="Pessoa" value="@Model.PessoaSelecionada" />
                 <input type="hidden" name="Cartao" value="@Model.CartaoSelecionado" />
                 <div class="card-body border-bottom">
@@ -138,3 +138,10 @@
         }
     }
 </main>
+<div class="loading-overlay open-finance-loading" id="loadingOverlay" role="status" aria-live="polite" aria-label="Processando Open Finance">
+    <div class="open-finance-loading__content">
+        <div class="spinner-border text-success" aria-hidden="true"></div>
+        <strong data-loading-text>Processando Open Finance...</strong>
+        <span>Aguarde, sem fechar esta página.</span>
+    </div>
+</div>

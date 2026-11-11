@@ -11,9 +11,11 @@
     <link rel="icon" type="image/png" sizes="32x32" href="~/images/grana-icon-32.png" asp-append-version="true" />
     <link rel="shortcut icon" href="~/favicon.ico" asp-append-version="true" />
     <link rel="apple-touch-icon" href="~/images/grana-icon-180.png" asp-append-version="true" />
+    <script src="~/js/theme.js" asp-append-version="true"></script>
     <link rel="stylesheet" href="~/lib/bootstrap/dist/css/bootstrap.min.css" />
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet" />
     <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/css/dark-theme.css" asp-append-version="true" />
     <link rel="stylesheet" href="~/Portal.ControleFinanceiro.styles.css" asp-append-version="true" />
 </head>
 <body class="home-app-body">
@@ -36,6 +38,7 @@
             </nav>
 
             <div class="home-sidebar-footer">
+                <button class="theme-toggle" type="button" data-theme-toggle><i class="bi bi-moon-stars" aria-hidden="true"></i><span data-theme-label>Modo escuro</span></button>
                 <a asp-page="/Shared/Logout"><i class="bi bi-box-arrow-left" aria-hidden="true"></i><span>Sair</span></a>
                 <span class="app-version" aria-label="Versão do aplicativo">@ApplicationVersion.Current</span>
             </div>
@@ -43,7 +46,7 @@
 
         <div class="home-mobile-header">
             <a class="home-brand" asp-page="/Index"><img src="~/images/grana-icon.svg" asp-append-version="true" alt="" /><strong>GRANA</strong></a>
-            <a class="home-mobile-logout" asp-page="/Shared/Logout" aria-label="Sair"><i class="bi bi-box-arrow-right" aria-hidden="true"></i></a>
+            <div class="home-mobile-actions"><button class="theme-toggle theme-toggle--icon" type="button" data-theme-toggle><i class="bi bi-moon-stars" aria-hidden="true"></i></button><a class="home-mobile-logout" asp-page="/Shared/Logout" aria-label="Sair"><i class="bi bi-box-arrow-right" aria-hidden="true"></i></a></div>
         </div>
 
         <div class="home-shell-content">
