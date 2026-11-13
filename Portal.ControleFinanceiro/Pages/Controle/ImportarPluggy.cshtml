@@ -73,7 +73,7 @@
                             <span class="badge bg-warning text-dark">Revisar: @Model.Conferencia.Values.Count(item => item.Status is "Revisar" or "CartaoDivergente")</span>
                             <span class="badge bg-success">Sem correspondente: @Model.Conferencia.Values.Count(item => item.Status == "NaoEncontrada")</span>
                         </div>
-                        <p class="text-muted small mt-2 mb-0">“Revisar” indica mais de uma possível correspondência ou cartão divergente. Só as compras sem correspondente podem ser selecionadas.</p>
+                        <p class="text-muted small mt-2 mb-0">Parcelas de uma compra já lançada são conferidas como série: se todas estiverem na planilha, não aparecem aqui. “Revisar” indica série incompleta, correspondência ambígua ou cartão divergente. Só compras sem correspondente podem ser selecionadas.</p>
                     }
                 </div>
                 <div class="table-responsive">
@@ -120,7 +120,7 @@
                                     @if (status == "NaoEncontrada") { <span class="badge bg-success">Sem correspondente</span> }
                                     else if (status is "Revisar" or "CartaoDivergente")
                                     {
-                                        <span class="badge bg-warning text-dark">Revisar @(status == "CartaoDivergente" ? "cartão" : "data")</span>
+                                        <span class="badge bg-warning text-dark">Revisar @(status == "CartaoDivergente" ? "cartão" : resultado?.Correspondente?.Parcela != $"{compra.InstallmentNumber}/{compra.TotalInstallments}" ? "parcelas" : "data/valor")</span>
                                         @if (resultado?.Correspondente is { } candidato)
                                         {
                                             <small class="d-block text-muted">Planilha, linha @candidato.Linha: @candidato.Data.ToString("dd/MM/yyyy", br), @candidato.Valor.ToString("C", br), @candidato.Pessoa, @candidato.Cartao — @candidato.Descricao</small>
