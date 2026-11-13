@@ -57,9 +57,11 @@
         }
         else
         {
-            <form method="post" class="card" data-loading-message="Conferindo e importando as compras...">
+            <form id="importarComprasPluggy" method="post" data-loading-message="Conferindo e importando as compras...">
                 <input type="hidden" name="Pessoa" value="@Model.PessoaSelecionada" />
                 <input type="hidden" name="Cartao" value="@Model.CartaoSelecionado" />
+            </form>
+            <div class="card">
                 <div class="card-body border-bottom">
                     <h2 class="h5">Fatura aberta de @Model.FaturaAbertaTexto</h2>
                     @if (Model.FaturaCalculadaPelaPlanilha)
@@ -85,7 +87,7 @@
                             Model.Conferencia.TryGetValue(compra.Id, out var resultado);
                             var status = resultado?.Status ?? "Indisponivel";
                             <tr>
-                                <td><input class="form-check-input" type="checkbox" name="Selecionados" value="@compra.Id" aria-label="Importar @compra.Description" disabled="@(status != "NaoEncontrada")" /></td>
+                                <td><input class="form-check-input" type="checkbox" name="Selecionados" value="@compra.Id" form="importarComprasPluggy" aria-label="Importar @compra.Description" disabled="@(status != "NaoEncontrada")" /></td>
                                 <td class="text-nowrap">
                                     @compra.InstallmentDate.ToString("dd/MM/yyyy", br)
                                     @if (compra.PurchaseDate.HasValue && compra.InstallmentDate != compra.Date)
@@ -129,12 +131,48 @@
                                     else { <span class="badge bg-secondary">Conferência indisponível</span> }
                                 </td>
                             </tr>
+                            @if (status is "Revisar" or "CartaoDivergente")
+                            {
+                                var candidatos = resultado?.Candidatos ?? (resultado?.Correspondente is { } unico
+                                    ? new[] { unico } : Array.Empty<ImportarPluggyModel.LancamentoConferencia>());
+                                var editaveis = candidatos.Where(item => !string.IsNullOrWhiteSpace(item.IdLancamento)).ToList();
+                                if (editaveis.Count > 0)
+                                {
+                                    <tr><td colspan="8" class="bg-light">
+                                        <details>
+                                            <summary class="fw-bold text-success" style="cursor:pointer">Corrigir lançamento na planilha (@editaveis.Count opção(ões))</summary>
+                                            <p class="small text-muted mt-2 mb-3">Escolha a linha certa e altere apenas os campos necessários. Em compras parceladas, a correção será aplicada a todas as parcelas do mesmo ID; a quantidade de parcelas não muda.</p>
+                                            @foreach (var candidato in editaveis)
+                                            {
+                                                <form method="post" asp-page-handler="Corrigir" class="card card-body mb-3" data-loading-message="Salvando a correção na planilha...">
+                                                    <input type="hidden" name="Pessoa" value="@Model.PessoaSelecionada" />
+                                                    <input type="hidden" name="Cartao" value="@Model.CartaoSelecionado" />
+                                                    <input type="hidden" name="Correcao.TransactionId" value="@compra.Id" />
+                                                    <input type="hidden" name="Correcao.Linha" value="@candidato.Linha" />
+                                                    <div class="fw-bold mb-2">Linha @candidato.Linha · @candidato.Descricao · @candidato.Parcela</div>
+                                                    <div class="row g-3">
+                                                        <div class="col-md-6"><label class="form-label">Descrição<input class="form-control" name="Correcao.Compra" value="@candidato.Descricao" required maxlength="200" /></label><small class="text-muted">Pluggy: @compra.Description</small></div>
+                                                        <div class="col-md-3"><label class="form-label">Valor de cada parcela (R$)<input class="form-control" type="number" step="0.01" min="0.01" name="Correcao.Valor" value="@candidato.Valor.ToString(CultureInfo.InvariantCulture)" required /></label><small class="text-muted">Pluggy: @compra.Amount.ToString("C", br)</small></div>
+                                                        <div class="col-md-3"><label class="form-label">Data da parcela escolhida<input class="form-control" type="date" name="Correcao.Data" value="@candidato.Data.ToString("yyyy-MM-dd")" required /></label><small class="text-muted">Data correspondente pela Pluggy: @ImportarPluggyModel.DataEsperadaCandidato(compra, candidato).ToString("dd/MM/yyyy", br)</small></div>
+                                                        <div class="col-md-3"><label class="form-label">Pessoa<select class="form-select" name="Correcao.Pessoa" required><option value="Camila" selected="@(candidato.Pessoa.Equals("Camila", StringComparison.OrdinalIgnoreCase))">Camila</option><option value="Diego" selected="@(candidato.Pessoa.Equals("Diego", StringComparison.OrdinalIgnoreCase))">Diego</option></select></label></div>
+                                                        <div class="col-md-3"><label class="form-label">Cartão<input class="form-control" name="Correcao.Cartao" value="@candidato.Cartao" required /></label><small class="text-muted">Esperado: @Model.CartoesInformados</small></div>
+                                                        <div class="col-md-3"><label class="form-label">Forma de pagamento<input class="form-control" name="Correcao.FormaPgto" value="@candidato.FormaPgto" required /></label></div>
+                                                        <div class="col-md-3"><label class="form-label">Fonte<input class="form-control" name="Correcao.Fonte" value="@candidato.Fonte" required /></label></div>
+                                                    </div>
+                                                    <p class="small text-muted mt-3 mb-2">Parcela @candidato.Parcela · fatura atual @candidato.MesAno. O mês da fatura será recalculado após salvar.</p>
+                                                    <div><button class="btn btn-outline-success" type="submit">Salvar correção na planilha</button></div>
+                                                </form>
+                                            }
+                                        </details>
+                                    </td></tr>
+                                }
+                            }
                         }
                         </tbody>
                     </table>
                 </div>
-                <div class="card-body border-top d-flex justify-content-end"><button class="btn btn-success" type="submit" disabled="@(!Model.Conferencia.Values.Any(item => item.Status == "NaoEncontrada"))">Confirmar compras selecionadas</button></div>
-            </form>
+                <div class="card-body border-top d-flex justify-content-end"><button class="btn btn-success" type="submit" form="importarComprasPluggy" disabled="@(!Model.Conferencia.Values.Any(item => item.Status == "NaoEncontrada"))">Confirmar compras selecionadas</button></div>
+            </div>
         }
     }
 </main>

@@ -104,6 +104,11 @@ public sealed class PlanejarFestaModel : PageModel
     public decimal PaidFor(PartyItem item) => Snapshot.Payments
         .Where(payment => payment.ItemId == item.Id).Sum(payment => payment.Amount);
 
+    public decimal RemainingFor(PartyItem item) => Math.Max(0, (item.Amount ?? 0) - PaidFor(item));
+
+    public bool HasUnallocatedCategoryPayments(PartyItem item) => Snapshot.Payments
+        .Any(payment => payment.Category == item.Category && payment.ItemId == null);
+
     public decimal CategoryPaid(string category) => Snapshot.Payments
         .Where(payment => payment.Category == category).Sum(payment => payment.Amount);
 

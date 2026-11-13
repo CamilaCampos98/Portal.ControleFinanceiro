@@ -25,6 +25,13 @@ Equal("8930", corrected.CardNumber, "parcela do Sam's deve usar o final da Camil
 Equal("5169", corrected.ReportedCardNumber, "final informado pela Pluggy permanece auditável");
 Equal("Camila", corrected.Person, "parcela deve ser atribuída à Camila");
 Equal(47.62m, corrected.Amount, "valor da parcela não pode mudar");
+var candidatoPrimeiraParcela = new ImportarPluggyModel.LancamentoConferencia(10,
+    new DateTime(2026, 10, 10), 58.02m, "Camila", "Itau Titular", "1/6", "Super Big");
+var segundaParcelaPluggy = new PluggyCardTransaction("super-big", new DateTime(2026, 12, 5),
+    "SUPER BIG", 57.97m, "8930", 2, 6, "2026-11", new DateTime(2026, 10, 10));
+Equal(new DateTime(2026, 10, 10), ImportarPluggyModel.DataEsperadaCandidato(
+    segundaParcelaPluggy, candidatoPrimeiraParcela),
+    "formulário mostra a data esperada da parcela 1, não a da parcela 2");
 
 var future = installment with { Id = "segunda", Date = new DateTime(2026, 12, 4),
     Description = "parc SAM S TAMBOR02/04", InstallmentNumber = 2 };

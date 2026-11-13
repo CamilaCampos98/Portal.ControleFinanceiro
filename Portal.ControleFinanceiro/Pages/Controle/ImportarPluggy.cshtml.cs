@@ -32,6 +32,7 @@ public sealed class ImportarPluggyModel : PageModel
     [BindProperty(SupportsGet = true)] public string? Cartao { get; set; }
     [BindProperty(SupportsGet = true)] public string? Origem { get; set; }
     [BindProperty] public List<string> Selecionados { get; set; } = new();
+    [BindProperty] public CorrecaoInput Correcao { get; set; } = new();
     [TempData] public string? Aviso { get; set; }
     public string? Erro { get; private set; }
     public bool SelecaoValida => TrySelection(out _, out _);
@@ -61,9 +62,32 @@ public sealed class ImportarPluggyModel : PageModel
     public bool ConferenciaDisponivel { get; private set; }
 
     public sealed record LancamentoConferencia(int Linha, DateTime Data, decimal Valor, string Pessoa,
-        string Cartao, string Parcela, string Descricao);
+        string Cartao, string Parcela, string Descricao, string IdLancamento = "",
+        string FormaPgto = "", string Fonte = "", string MesAno = "");
     public sealed record ResultadoConferencia(string Id, string Status,
-        LancamentoConferencia? Correspondente, int QuantidadeCorrespondencias);
+        LancamentoConferencia? Correspondente, int QuantidadeCorrespondencias,
+        IReadOnlyList<LancamentoConferencia>? Candidatos = null);
+
+    public static DateTime DataEsperadaCandidato(PluggyCardTransaction compra, LancamentoConferencia candidato)
+    {
+        var numero = candidato.Parcela.Split('/').FirstOrDefault();
+        return int.TryParse(numero, out var parcela) && parcela >= 1 && parcela <= compra.TotalInstallments
+            ? compra.InstallmentDate.AddMonths(parcela - compra.InstallmentNumber)
+            : compra.InstallmentDate;
+    }
+
+    public sealed class CorrecaoInput
+    {
+        public string TransactionId { get; set; } = "";
+        public int Linha { get; set; }
+        public string Compra { get; set; } = "";
+        public string Valor { get; set; } = "";
+        public DateTime? Data { get; set; }
+        public string Pessoa { get; set; } = "";
+        public string Cartao { get; set; } = "";
+        public string FormaPgto { get; set; } = "";
+        public string Fonte { get; set; } = "";
+    }
 
     public async Task OnGetAsync(CancellationToken cancellationToken)
     {
@@ -188,6 +212,93 @@ public sealed class ImportarPluggyModel : PageModel
         catch (Exception)
         {
             Erro = "Não foi possível concluir a importação. Confira a conexão com a Pluggy e tente novamente.";
+            await CarregarAsync(cancellationToken);
+            return Page();
+        }
+    }
+
+    public async Task<IActionResult> OnPostCorrigirAsync(CancellationToken cancellationToken)
+    {
+        if (!TrySelection(out var source, out var selectedPerson) ||
+            string.IsNullOrWhiteSpace(Correcao.TransactionId) || Correcao.Linha < 2 ||
+            string.IsNullOrWhiteSpace(Correcao.Compra) || !Correcao.Data.HasValue ||
+            string.IsNullOrWhiteSpace(Correcao.Pessoa) || string.IsNullOrWhiteSpace(Correcao.Cartao) ||
+            string.IsNullOrWhiteSpace(Correcao.FormaPgto) || string.IsNullOrWhiteSpace(Correcao.Fonte) ||
+            !decimal.TryParse(Correcao.Valor, NumberStyles.Number, CultureInfo.InvariantCulture, out var valor) ||
+            valor <= 0)
+        {
+            Erro = "Preencha todos os dados da correção com valores válidos.";
+            await CarregarAsync(cancellationToken);
+            return Page();
+        }
+
+        try
+        {
+            var all = await _pluggy.ReadTransactionsAsync(source, cancellationToken);
+            using var api = _httpClientFactory.CreateClient();
+            var apiUrl = _configuration["UrlApi"] ?? throw new InvalidOperationException("API financeira não configurada.");
+            var bill = await ResolveOpenBillAsync(api, apiUrl, all, source, selectedPerson, cancellationToken);
+            var compras = bill is null ? new List<PluggyCardTransaction>() : ForOpenBill(all, bill)
+                .Where(item => item.Person == selectedPerson).ToList();
+            var compra = compras.SingleOrDefault(item => item.Id == Correcao.TransactionId);
+            if (compra is null)
+            {
+                Erro = "Esta compra não está mais na fatura aberta. Nenhuma linha foi alterada.";
+                await CarregarAsync(cancellationToken);
+                return Page();
+            }
+
+            var conferencia = await ConferirAsync(api, apiUrl, compras, source, cancellationToken);
+            if (conferencia is null || !conferencia.TryGetValue(compra.Id, out var resultado) ||
+                resultado.Status is not ("Revisar" or "CartaoDivergente"))
+            {
+                Erro = "A conferência mudou. Atualize a página antes de corrigir a planilha.";
+                await CarregarAsync(cancellationToken);
+                return Page();
+            }
+
+            var candidatos = resultado.Candidatos ?? (resultado.Correspondente is { } unico
+                ? new[] { unico } : Array.Empty<LancamentoConferencia>());
+            var candidato = candidatos.SingleOrDefault(item => item.Linha == Correcao.Linha);
+            if (candidato is null || string.IsNullOrWhiteSpace(candidato.IdLancamento))
+            {
+                Erro = "A linha escolhida não está mais entre as opções de revisão.";
+                await CarregarAsync(cancellationToken);
+                return Page();
+            }
+
+            var request = new
+            {
+                candidato.Linha, candidato.IdLancamento, DataOriginal = candidato.Data,
+                ValorOriginal = candidato.Valor, PessoaOriginal = candidato.Pessoa,
+                CartaoOriginal = candidato.Cartao, ParcelaOriginal = candidato.Parcela,
+                DescricaoOriginal = candidato.Descricao, Correcao.Compra, Valor = valor,
+                Data = Correcao.Data.Value, Correcao.Pessoa, Correcao.Cartao,
+                Correcao.FormaPgto, Correcao.Fonte
+            };
+            using var response = await api.PutAsJsonAsync($"{apiUrl}Compra/CorrigirRevisaoPluggy", request,
+                cancellationToken);
+            if (!response.IsSuccessStatusCode)
+            {
+                Erro = response.StatusCode == System.Net.HttpStatusCode.NotFound
+                    ? "A API financeira ainda precisa ser atualizada. Nenhuma linha foi alterada."
+                    : await response.Content.ReadAsStringAsync(cancellationToken);
+                await CarregarAsync(cancellationToken);
+                return Page();
+            }
+
+            await CarregarAsync(cancellationToken);
+            if (Conferencia.TryGetValue(compra.Id, out var atual) && atual.Status == "Existente")
+            {
+                Aviso = "Compra corrigida na planilha e conferência concluída.";
+                return RedirectToPage(new { pessoa = selectedPerson, cartao = CartaoSelecionado });
+            }
+            Aviso = "Correção salva na planilha, mas esta compra ainda precisa de revisão. Confira os dados restantes.";
+            return Page();
+        }
+        catch (Exception)
+        {
+            Erro = "Não foi possível confirmar o resultado da correção. Atualize a conferência antes de tentar novamente; a planilha pode já ter sido alterada.";
             await CarregarAsync(cancellationToken);
             return Page();
         }

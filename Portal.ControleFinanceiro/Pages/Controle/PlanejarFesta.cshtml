@@ -61,16 +61,25 @@
             {
                 var groupTotal = group.Sum(item => item.Amount ?? 0);
                 var groupPaid = Model.CategoryPaid(group.Key);
+                var groupRemaining = Math.Max(0, groupTotal - groupPaid);
                 <div class="party-category">
-                    <div class="party-category-heading"><h3>@group.Key</h3><span>@groupPaid.ToString("C", culture) pagos de @groupTotal.ToString("C", culture)</span></div>
+                    <div class="party-category-heading"><h3>@group.Key</h3><span>Faltam @groupRemaining.ToString("C", culture) de @groupTotal.ToString("C", culture)</span></div>
                     @foreach (var item in group)
                     {
                         <details class="party-item">
-                            <summary><span>@item.Name</span><strong>@(item.Amount?.ToString("C", culture) ?? "Sem valor")</strong><i class="bi bi-chevron-down" aria-hidden="true"></i></summary>
+                            <summary>
+                                <span>@item.Name
+                                    @if (item.Amount.HasValue)
+                                    {
+                                        <small class="d-block text-muted">@(Model.HasUnallocatedCategoryPayments(item) ? "Saldo individual sem rateio" : $"Faltam {Model.RemainingFor(item).ToString("C", culture)}")</small>
+                                    }
+                                </span>
+                                <strong>@(item.Amount?.ToString("C", culture) ?? "Sem valor")</strong><i class="bi bi-chevron-down" aria-hidden="true"></i>
+                            </summary>
                             <div class="party-item-body">
                                 @if (item.Amount.HasValue)
                                 {
-                                    <p>Pago diretamente neste item: @Model.PaidFor(item).ToString("C", culture). @if (item.Category == "Salão") { <span>Os R$ 400 já pagos ao salão estão associados à categoria, sem divisão entre os itens.</span> }</p>
+                                    <p>Pago neste item: @Model.PaidFor(item).ToString("C", culture). @if (Model.HasUnallocatedCategoryPayments(item)) { <span>Há pagamentos da categoria sem divisão entre os itens; o saldo correto está no total da categoria.</span> }</p>
                                 }
                                 <form method="post" asp-page-handler="EditItem" class="party-edit-form">
                                     <input type="hidden" name="ItemId" value="@item.Id" />
